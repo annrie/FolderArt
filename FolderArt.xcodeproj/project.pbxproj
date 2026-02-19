@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		16B841691F974ADAFC692A31 /* IconTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */; };
 		1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52990AC15E576E0D76436F0D /* FolderArtTests.swift */; };
+		2857F0EFB46B56B54184DB40 /* BookmarkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443675269CBE370462363D0D /* BookmarkManager.swift */; };
+		29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1413684D8590492917E00AF /* BookmarkManagerTests.swift */; };
 		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
 		FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */; };
@@ -27,10 +29,12 @@
 /* Begin PBXFileReference section */
 		19A6E7CA2E739A11F5E1D1AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTaskTests.swift; sourceTree = "<group>"; };
+		443675269CBE370462363D0D /* BookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManager.swift; sourceTree = "<group>"; };
 		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
 		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
+		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
 		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
 		D57AA5539BDA9678ABE895A2 /* FolderArt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FolderArt.entitlements; sourceTree = "<group>"; };
 		FE4637184B8117FA3861CE83 /* FolderArt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FolderArt.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -45,6 +49,7 @@
 				C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */,
 				19A6E7CA2E739A11F5E1D1AE /* Info.plist */,
 				CE85EBABE180D004D303B4C0 /* Models */,
+				45882FE93864ECC5D2A5C838 /* Services */,
 			);
 			path = FolderArt;
 			sourceTree = "<group>";
@@ -67,9 +72,18 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		45882FE93864ECC5D2A5C838 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				443675269CBE370462363D0D /* BookmarkManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		5E1EFCAA8EA787CC384D777F /* FolderArtTests */ = {
 			isa = PBXGroup;
 			children = (
+				A1413684D8590492917E00AF /* BookmarkManagerTests.swift */,
 				52990AC15E576E0D76436F0D /* FolderArtTests.swift */,
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
 			);
@@ -156,6 +170,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */,
 				1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */,
 				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
 			);
@@ -165,6 +180,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2857F0EFB46B56B54184DB40 /* BookmarkManager.swift in Sources */,
 				951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */,
 				FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */,
 				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
