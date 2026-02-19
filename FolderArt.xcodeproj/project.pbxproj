@@ -7,13 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		13D14D7EA7FBA6DD82D95109 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078CB4D0C0960A8AF20B032F /* HistoryView.swift */; };
 		16B841691F974ADAFC692A31 /* IconTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */; };
+		1A14FEFD6767D6C974EB5819 /* ControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB0911FF8635FF2CF356D4A /* ControlsView.swift */; };
 		1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52990AC15E576E0D76436F0D /* FolderArtTests.swift */; };
 		22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27276A44F5727DA9071A647 /* IconComposerTests.swift */; };
 		2857F0EFB46B56B54184DB40 /* BookmarkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443675269CBE370462363D0D /* BookmarkManager.swift */; };
 		29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1413684D8590492917E00AF /* BookmarkManagerTests.swift */; };
 		4D744B17BEECAB9ABA55891F /* ContentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B8918A26A06751316185BAA /* ContentViewModel.swift */; };
 		56BE7EE712939472DD7A24E5 /* FolderIconManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */; };
+		72268D2971AF2E0DB37123C4 /* DropZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A0E82244158396C217FC8F /* DropZoneView.swift */; };
 		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
 		7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044DE538A5614FC88683B7C0 /* FolderIconManager.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
@@ -36,8 +39,10 @@
 
 /* Begin PBXFileReference section */
 		044DE538A5614FC88683B7C0 /* FolderIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManager.swift; sourceTree = "<group>"; };
+		078CB4D0C0960A8AF20B032F /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		143FFBEF3C6B52DB30876369 /* ContentViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModelTests.swift; sourceTree = "<group>"; };
 		19A6E7CA2E739A11F5E1D1AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1CB0911FF8635FF2CF356D4A /* ControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlsView.swift; sourceTree = "<group>"; };
 		1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTaskTests.swift; sourceTree = "<group>"; };
 		2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
 		443675269CBE370462363D0D /* BookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManager.swift; sourceTree = "<group>"; };
@@ -48,6 +53,7 @@
 		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
+		A9A0E82244158396C217FC8F /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
 		C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManagerTests.swift; sourceTree = "<group>"; };
 		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
 		D27276A44F5727DA9071A647 /* IconComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconComposerTests.swift; sourceTree = "<group>"; };
@@ -68,6 +74,7 @@
 				CE85EBABE180D004D303B4C0 /* Models */,
 				45882FE93864ECC5D2A5C838 /* Services */,
 				F94BF2A5DCC1FAF3FF5A1321 /* Stores */,
+				BC5C4B4912438C86BA920EB4 /* Views */,
 			);
 			path = FolderArt;
 			sourceTree = "<group>";
@@ -112,6 +119,16 @@
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
 			);
 			path = FolderArtTests;
+			sourceTree = "<group>";
+		};
+		BC5C4B4912438C86BA920EB4 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				1CB0911FF8635FF2CF356D4A /* ControlsView.swift */,
+				A9A0E82244158396C217FC8F /* DropZoneView.swift */,
+				078CB4D0C0960A8AF20B032F /* HistoryView.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 		CE85EBABE180D004D303B4C0 /* Models */ = {
@@ -219,9 +236,12 @@
 				2857F0EFB46B56B54184DB40 /* BookmarkManager.swift in Sources */,
 				951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */,
 				4D744B17BEECAB9ABA55891F /* ContentViewModel.swift in Sources */,
+				1A14FEFD6767D6C974EB5819 /* ControlsView.swift in Sources */,
+				72268D2971AF2E0DB37123C4 /* DropZoneView.swift in Sources */,
 				FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */,
 				7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */,
 				C2C2C06A4F730D6E9BB33088 /* HistoryStore.swift in Sources */,
+				13D14D7EA7FBA6DD82D95109 /* HistoryView.swift in Sources */,
 				FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */,
 				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
 			);
