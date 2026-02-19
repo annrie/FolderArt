@@ -1,0 +1,413 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		16B841691F974ADAFC692A31 /* IconTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */; };
+		1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52990AC15E576E0D76436F0D /* FolderArtTests.swift */; };
+		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
+		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
+		FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2F3796AD5EBD6710F98D9732 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0466FF5380CE0E55B9FBD58B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 52F4F78838FAC65E6AF4A8A2;
+			remoteInfo = FolderArt;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		19A6E7CA2E739A11F5E1D1AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTaskTests.swift; sourceTree = "<group>"; };
+		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
+		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
+		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
+		D57AA5539BDA9678ABE895A2 /* FolderArt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FolderArt.entitlements; sourceTree = "<group>"; };
+		FE4637184B8117FA3861CE83 /* FolderArt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FolderArt.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		207CB23F3C85B324240C55FB /* FolderArt */ = {
+			isa = PBXGroup;
+			children = (
+				92EC6034740091CF94285965 /* ContentView.swift */,
+				D57AA5539BDA9678ABE895A2 /* FolderArt.entitlements */,
+				C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */,
+				19A6E7CA2E739A11F5E1D1AE /* Info.plist */,
+				CE85EBABE180D004D303B4C0 /* Models */,
+			);
+			path = FolderArt;
+			sourceTree = "<group>";
+		};
+		34416F59322AB2EAD38E6596 = {
+			isa = PBXGroup;
+			children = (
+				207CB23F3C85B324240C55FB /* FolderArt */,
+				5E1EFCAA8EA787CC384D777F /* FolderArtTests */,
+				4241EEF139411EAAF57CBF50 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4241EEF139411EAAF57CBF50 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FE4637184B8117FA3861CE83 /* FolderArt.app */,
+				54826D182ABB56390845CFCF /* FolderArtTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5E1EFCAA8EA787CC384D777F /* FolderArtTests */ = {
+			isa = PBXGroup;
+			children = (
+				52990AC15E576E0D76436F0D /* FolderArtTests.swift */,
+				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
+			);
+			path = FolderArtTests;
+			sourceTree = "<group>";
+		};
+		CE85EBABE180D004D303B4C0 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		52F4F78838FAC65E6AF4A8A2 /* FolderArt */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0F872181440EAE02C2E1ABD6 /* Build configuration list for PBXNativeTarget "FolderArt" */;
+			buildPhases = (
+				AE03F31AB1A44FC598D24F73 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FolderArt;
+			packageProductDependencies = (
+			);
+			productName = FolderArt;
+			productReference = FE4637184B8117FA3861CE83 /* FolderArt.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C6825A2AD1DA194530D0A953 /* FolderArtTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C5ED82112C1B737AB8F698E1 /* Build configuration list for PBXNativeTarget "FolderArtTests" */;
+			buildPhases = (
+				A0DC4B7AB27F281AEA1E93DF /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F92903880EA7F8786ABBEE0B /* PBXTargetDependency */,
+			);
+			name = FolderArtTests;
+			packageProductDependencies = (
+			);
+			productName = FolderArtTests;
+			productReference = 54826D182ABB56390845CFCF /* FolderArtTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0466FF5380CE0E55B9FBD58B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = 78070FFCA333A2D3529FE889 /* Build configuration list for PBXProject "FolderArt" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 34416F59322AB2EAD38E6596;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				52F4F78838FAC65E6AF4A8A2 /* FolderArt */,
+				C6825A2AD1DA194530D0A953 /* FolderArtTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A0DC4B7AB27F281AEA1E93DF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */,
+				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AE03F31AB1A44FC598D24F73 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */,
+				FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */,
+				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F92903880EA7F8786ABBEE0B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 52F4F78838FAC65E6AF4A8A2 /* FolderArt */;
+			targetProxy = 2F3796AD5EBD6710F98D9732 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1FAC1FDA81AF49C182079298 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArtTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FolderArt.app/Contents/MacOS/FolderArt";
+			};
+			name = Debug;
+		};
+		3B193AA1BB1A8C90377854C7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FolderArt/FolderArt.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = FolderArt/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		492802948F87B1C6FD9B9C92 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArtTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FolderArt.app/Contents/MacOS/FolderArt";
+			};
+			name = Release;
+		};
+		8FEA642BE40242D0E1C85D8F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FolderArt/FolderArt.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = FolderArt/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		A7373537BFE3E11B8CC1566C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A963BC69D0A675FBF89A3275 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0F872181440EAE02C2E1ABD6 /* Build configuration list for PBXNativeTarget "FolderArt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3B193AA1BB1A8C90377854C7 /* Debug */,
+				8FEA642BE40242D0E1C85D8F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		78070FFCA333A2D3529FE889 /* Build configuration list for PBXProject "FolderArt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A7373537BFE3E11B8CC1566C /* Debug */,
+				A963BC69D0A675FBF89A3275 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C5ED82112C1B737AB8F698E1 /* Build configuration list for PBXNativeTarget "FolderArtTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1FAC1FDA81AF49C182079298 /* Debug */,
+				492802948F87B1C6FD9B9C92 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 0466FF5380CE0E55B9FBD58B /* Project object */;
+}
