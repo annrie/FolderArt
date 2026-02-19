@@ -16,6 +16,8 @@
 		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
 		7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044DE538A5614FC88683B7C0 /* FolderIconManager.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
+		C2C2C06A4F730D6E9BB33088 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502339979955DC1D1A8FEBD5 /* HistoryStore.swift */; };
+		D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */; };
 		FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11E4CC866B6C3E295A97D66 /* IconComposer.swift */; };
 		FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */; };
 /* End PBXBuildFile section */
@@ -34,7 +36,9 @@
 		044DE538A5614FC88683B7C0 /* FolderIconManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManager.swift; sourceTree = "<group>"; };
 		19A6E7CA2E739A11F5E1D1AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTaskTests.swift; sourceTree = "<group>"; };
+		2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
 		443675269CBE370462363D0D /* BookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManager.swift; sourceTree = "<group>"; };
+		502339979955DC1D1A8FEBD5 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
 		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -58,6 +62,7 @@
 				19A6E7CA2E739A11F5E1D1AE /* Info.plist */,
 				CE85EBABE180D004D303B4C0 /* Models */,
 				45882FE93864ECC5D2A5C838 /* Services */,
+				F94BF2A5DCC1FAF3FF5A1321 /* Stores */,
 			);
 			path = FolderArt;
 			sourceTree = "<group>";
@@ -96,6 +101,7 @@
 				A1413684D8590492917E00AF /* BookmarkManagerTests.swift */,
 				52990AC15E576E0D76436F0D /* FolderArtTests.swift */,
 				C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */,
+				2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */,
 				D27276A44F5727DA9071A647 /* IconComposerTests.swift */,
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
 			);
@@ -108,6 +114,14 @@
 				9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		F94BF2A5DCC1FAF3FF5A1321 /* Stores */ = {
+			isa = PBXGroup;
+			children = (
+				502339979955DC1D1A8FEBD5 /* HistoryStore.swift */,
+			);
+			path = Stores;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -185,6 +199,7 @@
 				29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */,
 				1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */,
 				56BE7EE712939472DD7A24E5 /* FolderIconManagerTests.swift in Sources */,
+				D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */,
 				22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */,
 				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
 			);
@@ -198,6 +213,7 @@
 				951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */,
 				FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */,
 				7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */,
+				C2C2C06A4F730D6E9BB33088 /* HistoryStore.swift in Sources */,
 				FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */,
 				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
 			);
