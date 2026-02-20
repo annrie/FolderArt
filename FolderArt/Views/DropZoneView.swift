@@ -30,14 +30,6 @@ struct DropZoneView: View {
         self.onTapButton = onTapButton
     }
 
-    private var acceptedTypes: [UTType] {
-        // Finder は常に public.file-url で D&D するので両モードとも .fileURL を含める
-        switch mode {
-        case .folder: return [.fileURL, .folder]
-        case .image:  return [.fileURL, .png, .jpeg, .heic, .gif, .webP, .image]
-        }
-    }
-
     private var placeholderIcon: String {
         switch mode {
         case .folder: return "folder.fill"
@@ -62,7 +54,6 @@ struct DropZoneView: View {
     var body: some View {
         VStack(spacing: 8) {
             if let img = previewImage {
-                // 選択済み: プレビュー画像を表示
                 Image(nsImage: img)
                     .resizable()
                     .scaledToFit()
@@ -70,7 +61,6 @@ struct DropZoneView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .shadow(radius: 2)
             } else {
-                // 未選択: プレースホルダーアイコン
                 Image(systemName: placeholderIcon)
                     .font(.system(size: 36))
                     .foregroundColor(isTargeted ? .accentColor : .secondary)
@@ -105,31 +95,114 @@ struct DropZoneView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(isTargeted ? Color.accentColor.opacity(0.05) : Color.clear)
         )
-        .onDrop(of: acceptedTypes, isTargeted: $isTargeted) { providers in
-            guard let provider = providers.first else { return false }
-            // Finder は public.file-url として URL を提供する
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                let url: URL?
-                if let data = item as? Data {
-                    url = URL(dataRepresentation: data, relativeTo: nil)
-                } else if let nsurl = item as? NSURL {
-                    url = nsurl as URL
-                } else {
-                    url = nil
-                }
-                guard let url else { return }
-
-                // フォルダーモードではディレクトリかどうかを検証
-                if case .folder = mode {
-                    var isDir: ObjCBool = false
-                    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
-                          isDir.boolValue else { return }
-                }
-
-                DispatchQueue.main.async { onDropURL(url) }
-            }
-            return true
-        }
+        // SwiftUI の onDrop は macOS で信頼性が低いため AppKit overlay で処理
+        .overlay(
+            AppKitDropReceiver(mode: mode, isTargeted: $isTargeted, onDropURL: onDropURL)
+        )
         .padding(4)
+    }
+}
+
+// MARK: - AppKit D&D レシーバー
+
+private struct AppKitDropReceiver: NSViewRepresentable {
+    let mode: DropZoneView.Mode
+    @Binding var isTargeted: Bool
+    let onDropURL: (URL) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> DropReceiverNSView {
+        let view = DropReceiverNSView()
+        view.coordinator = context.coordinator
+        return view
+    }
+
+    func updateNSView(_ nsView: DropReceiverNSView, context: Context) {
+        context.coordinator.parent = self
+    }
+
+    // MARK: Coordinator
+
+    class Coordinator {
+        var parent: AppKitDropReceiver
+
+        init(_ parent: AppKitDropReceiver) {
+            self.parent = parent
+        }
+
+        var mode: DropZoneView.Mode { parent.mode }
+
+        func setTargeted(_ value: Bool) {
+            DispatchQueue.main.async { self.parent.isTargeted = value }
+        }
+
+        func handleURL(_ url: URL) {
+            DispatchQueue.main.async { self.parent.onDropURL(url) }
+        }
+    }
+}
+
+// MARK: - AppKit ビュー（NSDraggingDestination）
+
+private class DropReceiverNSView: NSView {
+    var coordinator: AppKitDropReceiver.Coordinator?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    // マウスクリックは透過させてボタン操作を妨げない
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    // MARK: NSDraggingDestination
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let valid = validate(sender)
+        coordinator?.setTargeted(valid)
+        return valid ? .copy : []
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        return validate(sender) ? .copy : []
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        coordinator?.setTargeted(false)
+    }
+
+    override func draggingEnded(_ sender: NSDraggingInfo) {
+        coordinator?.setTargeted(false)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        coordinator?.setTargeted(false)
+        guard let url = fileURL(from: sender) else { return false }
+        coordinator?.handleURL(url)
+        return true
+    }
+
+    // MARK: Helpers
+
+    private func validate(_ sender: NSDraggingInfo) -> Bool {
+        guard let url = fileURL(from: sender) else { return false }
+        guard let mode = coordinator?.mode else { return false }
+        if case .folder = mode {
+            var isDir: ObjCBool = false
+            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                && isDir.boolValue
+        }
+        return true
+    }
+
+    private func fileURL(from sender: NSDraggingInfo) -> URL? {
+        sender.draggingPasteboard
+            .readObjects(forClasses: [NSURL.self],
+                         options: [.urlReadingFileURLsOnly: true])
+            .flatMap { $0 as? [URL] }?
+            .first
     }
 }
