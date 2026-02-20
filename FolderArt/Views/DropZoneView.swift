@@ -31,9 +31,10 @@ struct DropZoneView: View {
     }
 
     private var acceptedTypes: [UTType] {
+        // Finder は常に public.file-url で D&D するので両モードとも .fileURL を含める
         switch mode {
-        case .folder: return [.folder]
-        case .image:  return [.png, .jpeg, .heic, .gif, .webP, .image]
+        case .folder: return [.fileURL, .folder]
+        case .image:  return [.fileURL, .png, .jpeg, .heic, .gif, .webP, .image]
         }
     }
 
@@ -106,14 +107,25 @@ struct DropZoneView: View {
         )
         .onDrop(of: acceptedTypes, isTargeted: $isTargeted) { providers in
             guard let provider = providers.first else { return false }
-            let typeID: String
-            switch mode {
-            case .folder: typeID = UTType.folder.identifier
-            case .image:  typeID = UTType.fileURL.identifier
-            }
-            provider.loadItem(forTypeIdentifier: typeID, options: nil) { item, _ in
-                guard let data = item as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+            // Finder は public.file-url として URL を提供する
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                let url: URL?
+                if let data = item as? Data {
+                    url = URL(dataRepresentation: data, relativeTo: nil)
+                } else if let nsurl = item as? NSURL {
+                    url = nsurl as URL
+                } else {
+                    url = nil
+                }
+                guard let url else { return }
+
+                // フォルダーモードではディレクトリかどうかを検証
+                if case .folder = mode {
+                    var isDir: ObjCBool = false
+                    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+                          isDir.boolValue else { return }
+                }
+
                 DispatchQueue.main.async { onDropURL(url) }
             }
             return true
