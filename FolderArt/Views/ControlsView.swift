@@ -55,15 +55,10 @@ struct ControlsView: View {
 
             // フルイメージ切り替え
             HStack {
-                Text("切り抜き:")
-                    .font(.callout)
+                Text("")
                     .frame(width: 90, alignment: .trailing)
-                Toggle("フルイメージ（フォルダー形状に切り抜かない）",
-                       isOn: Binding(
-                           get:  { !settings.clipToFolderShape },
-                           set:  { settings.clipToFolderShape = !$0 }
-                       ))
-                .toggleStyle(.checkbox)
+                Toggle("フルイメージ", isOn: $settings.clipToFolderShape)
+                    .toggleStyle(.checkbox)
             }
         }
         .padding(.horizontal)
