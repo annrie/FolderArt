@@ -22,6 +22,7 @@ struct IconTask: Codable, Identifiable, Equatable {
     let position: IconPosition
     let scale: Double
     let opacity: Double
+    let verticalOffset: Double
 
     init(
         id: UUID = UUID(),
@@ -32,7 +33,8 @@ struct IconTask: Codable, Identifiable, Equatable {
         imageName: String,
         position: IconPosition,
         scale: Double,
-        opacity: Double
+        opacity: Double,
+        verticalOffset: Double = 0.0
     ) {
         self.id = id
         self.folderPath = folderPath
@@ -43,5 +45,6 @@ struct IconTask: Codable, Identifiable, Equatable {
         self.position = position
         self.scale = scale
         self.opacity = opacity
+        self.verticalOffset = verticalOffset
     }
 }

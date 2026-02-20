@@ -76,7 +76,8 @@ class ContentViewModel: ObservableObject {
                 imageName: imageName.isEmpty ? "カスタム画像" : imageName,
                 position: settings.position,
                 scale: settings.scale,
-                opacity: settings.opacity
+                opacity: settings.opacity,
+                verticalOffset: settings.verticalOffset
             )
             historyStore.add(task)
             errorMessage = nil

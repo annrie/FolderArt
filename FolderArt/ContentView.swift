@@ -30,6 +30,9 @@ struct ContentView: View {
                 DropZoneView(
                     mode: .folder,
                     selectedURL: vm.selectedFolderURL,
+                    previewImage: vm.selectedFolderURL.map {
+                        NSWorkspace.shared.icon(forFile: $0.path)
+                    },
                     onDropURL: { url in vm.selectedFolderURL = url },
                     onTapButton: { vm.selectFolder() }
                 )
@@ -39,6 +42,7 @@ struct ContentView: View {
                     selectedURL: vm.selectedImage != nil
                         ? URL(fileURLWithPath: vm.imageName)
                         : nil,
+                    previewImage: vm.selectedImage,
                     onDropURL: { url in
                         if let img = NSImage(contentsOf: url) {
                             vm.selectedImage = img

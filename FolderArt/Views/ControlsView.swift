@@ -37,6 +37,17 @@ struct ControlsView: View {
                 range: 0.1...1.0,
                 format: { "\(Int($0 * 100))%" }
             )
+
+            // 上下位置スライダー
+            SliderRow(
+                label: "上下位置:",
+                value: $settings.verticalOffset,
+                range: -0.4...0.4,
+                format: { v in
+                    if abs(v) < 0.01 { return "中央" }
+                    return v > 0 ? "上\(Int(v * 100))%" : "下\(Int(-v * 100))%"
+                }
+            )
         }
         .padding(.horizontal)
     }

@@ -3,8 +3,9 @@ import CoreGraphics
 
 struct CompositionSettings: Equatable {
     var position: IconPosition = .center
-    var scale: Double = 0.6      // 0.2 ... 1.0
-    var opacity: Double = 0.9    // 0.1 ... 1.0
+    var scale: Double = 0.6           // 0.2 ... 1.0
+    var opacity: Double = 0.9         // 0.1 ... 1.0
+    var verticalOffset: Double = 0.0  // -0.4 ... 0.4 (上:正, 下:負)
 }
 
 class IconComposer {
@@ -82,7 +83,10 @@ class IconComposer {
                 customWidth  = maxDimension * aspectRatio
             }
             let x = (containerSize.width  - customWidth)  / 2
-            let y = (containerSize.height - customHeight) / 2
+            let yBase = (containerSize.height - customHeight) / 2
+            // verticalOffset: 正=上, 負=下 (NSRect は bottom-left origin)
+            let yShift = containerSize.height * settings.verticalOffset
+            let y = yBase + yShift
             return NSRect(x: x, y: y, width: customWidth, height: customHeight)
 
         case .badge:
@@ -96,7 +100,9 @@ class IconComposer {
             }
             let padding: CGFloat = 20
             let x = containerSize.width  - customWidth  - padding
-            let y = padding
+            let yBase = padding
+            let yShift = containerSize.height * settings.verticalOffset
+            let y = yBase + yShift
             return NSRect(x: x, y: y, width: customWidth, height: customHeight)
         }
     }

@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import AppKit
 
 struct DropZoneView: View {
     enum Mode {
@@ -13,15 +14,18 @@ struct DropZoneView: View {
 
     @State private var isTargeted = false
     private let displayURL: URL?
+    private let previewImage: NSImage?
 
     init(
         mode: Mode,
         selectedURL: URL?,
+        previewImage: NSImage?,
         onDropURL: @escaping (URL) -> Void,
         onTapButton: @escaping () -> Void
     ) {
         self.mode = mode
         self.displayURL = selectedURL
+        self.previewImage = previewImage
         self.onDropURL = onDropURL
         self.onTapButton = onTapButton
     }
@@ -33,14 +37,14 @@ struct DropZoneView: View {
         }
     }
 
-    private var icon: String {
+    private var placeholderIcon: String {
         switch mode {
         case .folder: return "folder.fill"
         case .image:  return "photo.fill"
         }
     }
 
-    private var label: String {
+    private var dropLabel: String {
         switch mode {
         case .folder: return "フォルダーをここにドロップ"
         case .image:  return "画像をここにドロップ"
@@ -49,21 +53,32 @@ struct DropZoneView: View {
 
     private var buttonLabel: String {
         switch mode {
-        case .folder: return "フォルダーを選択..."
-        case .image:  return "画像を選択..."
+        case .folder: return displayURL == nil ? "フォルダーを選択..." : "変更..."
+        case .image:  return displayURL == nil ? "画像を選択..."     : "変更..."
         }
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 36))
-                .foregroundColor(isTargeted ? .accentColor : .secondary)
+        VStack(spacing: 8) {
+            if let img = previewImage {
+                // 選択済み: プレビュー画像を表示
+                Image(nsImage: img)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(radius: 2)
+            } else {
+                // 未選択: プレースホルダーアイコン
+                Image(systemName: placeholderIcon)
+                    .font(.system(size: 36))
+                    .foregroundColor(isTargeted ? .accentColor : .secondary)
 
-            Text(label)
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+                Text(dropLabel)
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
 
             Button(buttonLabel, action: onTapButton)
                 .buttonStyle(.borderless)
