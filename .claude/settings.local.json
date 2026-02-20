@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcode-select:*)",
+      "Bash(xcodegen generate:*)",
+      "Bash(xcodebuild build -scheme FolderArt -destination 'platform=macOS,arch=arm64')",
+      "Bash(xcodebuild build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(xcodebuild test:*)",
+      "Bash(pkill:*)",
+      "Bash(open:*)"
+    ]
+  }
+}

@@ -22,13 +22,15 @@ struct ControlsView: View {
 
             Divider()
 
-            // サイズスライダー
+            // サイズスライダー（切り抜きON時は自動フィルのため無効）
             SliderRow(
                 label: "サイズ:",
                 value: $settings.scale,
                 range: 0.2...1.0,
                 format: { "\(Int($0 * 100))%" }
             )
+            .disabled(settings.clipToFolderShape)
+            .opacity(settings.clipToFolderShape ? 0.4 : 1.0)
 
             // 不透明度スライダー
             SliderRow(

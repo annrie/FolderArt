@@ -91,8 +91,24 @@ class IconComposer {
         containerSize: CGSize,
         opacity: Double
     ) -> NSImage? {
-        let canvas = NSImage(size: containerSize)
-        canvas.lockFocus()
+        guard let bitmapRep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(containerSize.width),
+            pixelsHigh: Int(containerSize.height),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .calibratedRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+
+        guard let ctx = NSGraphicsContext(bitmapImageRep: bitmapRep) else { return nil }
+        NSGraphicsContext.current = ctx
 
         customImage.draw(
             in: customRect,
@@ -107,8 +123,9 @@ class IconComposer {
             fraction: 1.0
         )
 
-        canvas.unlockFocus()
-        return canvas
+        let result = NSImage(size: containerSize)
+        result.addRepresentation(bitmapRep)
+        return result
     }
 
     /// 配置設定に基づいてカスタム画像の描画 Rect を計算する
@@ -123,13 +140,25 @@ class IconComposer {
 
         switch settings.position {
         case .center:
-            let maxDimension = min(containerSize.width, containerSize.height) * settings.scale
-            if aspectRatio >= 1 {
-                customWidth  = maxDimension
-                customHeight = maxDimension / aspectRatio
+            if settings.clipToFolderShape {
+                // AspectFill: フォルダー全体を埋めるように拡大し、形状でクリップ
+                let containerAspect = containerSize.width / containerSize.height
+                if aspectRatio >= containerAspect {
+                    customHeight = containerSize.height
+                    customWidth  = customHeight * aspectRatio
+                } else {
+                    customWidth  = containerSize.width
+                    customHeight = customWidth / aspectRatio
+                }
             } else {
-                customHeight = maxDimension
-                customWidth  = maxDimension * aspectRatio
+                let maxDimension = min(containerSize.width, containerSize.height) * settings.scale
+                if aspectRatio >= 1 {
+                    customWidth  = maxDimension
+                    customHeight = maxDimension / aspectRatio
+                } else {
+                    customHeight = maxDimension
+                    customWidth  = maxDimension * aspectRatio
+                }
             }
             let x = (containerSize.width  - customWidth)  / 2
             let yBase = (containerSize.height - customHeight) / 2

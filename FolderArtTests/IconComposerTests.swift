@@ -14,7 +14,9 @@ final class IconComposerTests: XCTestCase {
     }
 
     func testCenterCalculationIsMiddle() {
-        let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0)
+        // clipToFolderShape=false のときはスケールが適用される
+        let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0,
+                                           clipToFolderShape: false)
         let imageSize = CGSize(width: 100, height: 100)
         let containerSize = CGSize(width: 512, height: 512)
 
@@ -30,6 +32,25 @@ final class IconComposerTests: XCTestCase {
         // 中央配置のX座標: (512 - 256) / 2 = 128
         XCTAssertEqual(rect.origin.x, (containerSize.width - expectedSide) / 2, accuracy: 0.1)
         XCTAssertEqual(rect.origin.y, (containerSize.height - expectedSide) / 2, accuracy: 0.1)
+    }
+
+    func testCenterWithClipUsesAspectFill() {
+        // clipToFolderShape=true のとき AspectFill でコンテナを埋める
+        let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0,
+                                           clipToFolderShape: true)
+        let imageSize = CGSize(width: 200, height: 100)  // 2:1 横長
+        let containerSize = CGSize(width: 512, height: 512)
+
+        let rect = IconComposer.calculateRect(
+            for: imageSize,
+            in: containerSize,
+            settings: settings
+        )
+
+        // AspectFill: 幅方向でコンテナを満たす（2:1 画像→横がはみ出す）
+        XCTAssertGreaterThanOrEqual(rect.width, containerSize.width - 0.1)
+        // アスペクト比は保持
+        XCTAssertEqual(rect.width / rect.height, 2.0, accuracy: 0.01)
     }
 
     func testBadgeCalculationIsBottomRight() {
