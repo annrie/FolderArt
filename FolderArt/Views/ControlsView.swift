@@ -48,6 +48,21 @@ struct ControlsView: View {
                     return v > 0 ? "上\(Int(v * 100))%" : "下\(Int(-v * 100))%"
                 }
             )
+
+            Divider()
+
+            // フルイメージ切り替え
+            HStack {
+                Text("切り抜き:")
+                    .font(.callout)
+                    .frame(width: 90, alignment: .trailing)
+                Toggle("フルイメージ（フォルダー形状に切り抜かない）",
+                       isOn: Binding(
+                           get:  { !settings.clipToFolderShape },
+                           set:  { settings.clipToFolderShape = !$0 }
+                       ))
+                .toggleStyle(.checkbox)
+            }
         }
         .padding(.horizontal)
     }

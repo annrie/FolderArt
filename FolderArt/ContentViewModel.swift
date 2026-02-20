@@ -77,7 +77,8 @@ class ContentViewModel: ObservableObject {
                 position: settings.position,
                 scale: settings.scale,
                 opacity: settings.opacity,
-                verticalOffset: settings.verticalOffset
+                verticalOffset: settings.verticalOffset,
+                clipToFolderShape: settings.clipToFolderShape
             )
             historyStore.add(task)
             errorMessage = nil

@@ -23,6 +23,7 @@ struct IconTask: Codable, Identifiable, Equatable {
     let scale: Double
     let opacity: Double
     let verticalOffset: Double
+    let clipToFolderShape: Bool
 
     init(
         id: UUID = UUID(),
@@ -34,7 +35,8 @@ struct IconTask: Codable, Identifiable, Equatable {
         position: IconPosition,
         scale: Double,
         opacity: Double,
-        verticalOffset: Double = 0.0
+        verticalOffset: Double = 0.0,
+        clipToFolderShape: Bool = true
     ) {
         self.id = id
         self.folderPath = folderPath
@@ -46,5 +48,6 @@ struct IconTask: Codable, Identifiable, Equatable {
         self.scale = scale
         self.opacity = opacity
         self.verticalOffset = verticalOffset
+        self.clipToFolderShape = clipToFolderShape
     }
 }

@@ -3,9 +3,10 @@ import CoreGraphics
 
 struct CompositionSettings: Equatable {
     var position: IconPosition = .center
-    var scale: Double = 0.6           // 0.2 ... 1.0
-    var opacity: Double = 0.9         // 0.1 ... 1.0
-    var verticalOffset: Double = 0.0  // -0.4 ... 0.4 (上:正, 下:負)
+    var scale: Double = 0.6              // 0.2 ... 1.0
+    var opacity: Double = 0.9            // 0.1 ... 1.0
+    var verticalOffset: Double = 0.0     // -0.4 ... 0.4 (上:正, 下:負)
+    var clipToFolderShape: Bool = true   // フォルダー形状に切り抜く
 }
 
 class IconComposer {
@@ -49,17 +50,65 @@ class IconComposer {
             settings: settings
         )
 
-        // カスタム画像を不透明度付きで描画
-        customImage.draw(
-            in: customRect,
-            from: NSRect(origin: .zero, size: customImage.size),
-            operation: .sourceOver,
-            fraction: settings.opacity
-        )
+        // カスタム画像を合成（切り抜きモードで分岐）
+        if settings.clipToFolderShape {
+            // フォルダー形状に切り抜いた画像を別キャンバスで生成して合成
+            if let clipped = makeClipped(
+                customImage: customImage,
+                customRect: customRect,
+                folderIcon: folderIcon,
+                containerSize: size,
+                opacity: settings.opacity
+            ) {
+                clipped.draw(in: NSRect(origin: .zero, size: size))
+            }
+        } else {
+            // フルイメージ: そのままオーバーレイ
+            customImage.draw(
+                in: customRect,
+                from: NSRect(origin: .zero, size: customImage.size),
+                operation: .sourceOver,
+                fraction: settings.opacity
+            )
+        }
 
         let result = NSImage(size: size)
         result.addRepresentation(bitmapRep)
         return result
+    }
+
+    /// カスタム画像をフォルダーアイコンのアルファ形状で切り抜いた NSImage を返す
+    ///
+    /// アルゴリズム:
+    ///   1. 独立キャンバスにカスタム画像を描画
+    ///   2. フォルダーアイコンを .destinationIn で重ねる
+    ///      → destinationIn: result = customImage × folderIcon.alpha
+    ///      → フォルダーが不透明な領域だけカスタム画像が残る
+    private static func makeClipped(
+        customImage: NSImage,
+        customRect: NSRect,
+        folderIcon: NSImage,
+        containerSize: CGSize,
+        opacity: Double
+    ) -> NSImage? {
+        let canvas = NSImage(size: containerSize)
+        canvas.lockFocus()
+
+        customImage.draw(
+            in: customRect,
+            from: NSRect(origin: .zero, size: customImage.size),
+            operation: .sourceOver,
+            fraction: opacity
+        )
+        folderIcon.draw(
+            in: NSRect(origin: .zero, size: containerSize),
+            from: NSRect(origin: .zero, size: folderIcon.size),
+            operation: .destinationIn,
+            fraction: 1.0
+        )
+
+        canvas.unlockFocus()
+        return canvas
     }
 
     /// 配置設定に基づいてカスタム画像の描画 Rect を計算する
