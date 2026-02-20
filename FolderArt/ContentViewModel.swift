@@ -100,7 +100,12 @@ class ContentViewModel: ObservableObject {
         }
         iconManager.resetIcon(for: folderURL, backupURL: backupURL)
         if let task { historyStore.remove(task) }
-        updatePreview()
+
+        // 状態をクリアして次の操作に備える
+        selectedFolderURL = nil
+        selectedImage     = nil
+        imageName         = ""
+        previewImage      = nil
     }
 
     /// 履歴からのリセット（別セッション再開用: ブックマーク経由）
