@@ -90,6 +90,20 @@ class ContentViewModel: ObservableObject {
 
     // MARK: - アイコンリセット
 
+    /// 現在選択中のフォルダーをリセット（同一セッション用: URL を直接使用）
+    func resetCurrentIcon() {
+        guard let folderURL = selectedFolderURL else { return }
+
+        let task = historyStore.tasks.first(where: { $0.folderPath == folderURL.path })
+        let backupURL = task.flatMap {
+            $0.backupPath.isEmpty ? nil : URL(fileURLWithPath: $0.backupPath)
+        }
+        iconManager.resetIcon(for: folderURL, backupURL: backupURL)
+        if let task { historyStore.remove(task) }
+        updatePreview()
+    }
+
+    /// 履歴からのリセット（別セッション再開用: ブックマーク経由）
     func resetIcon(task: IconTask) {
         guard let resolvedURL = try? BookmarkManager.resolveBookmark(task.bookmarkData) else {
             errorMessage = "フォルダーへのアクセスが無効になっています。"

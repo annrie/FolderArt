@@ -93,11 +93,7 @@ struct ContentView: View {
             // アクションボタン
             HStack {
                 Button {
-                    if let task = vm.historyStore.tasks.first(where: {
-                        $0.folderPath == vm.selectedFolderURL?.path
-                    }) {
-                        vm.resetIcon(task: task)
-                    }
+                    vm.resetCurrentIcon()
                 } label: {
                     Label("リセット", systemImage: "arrow.uturn.backward")
                 }
