@@ -14,7 +14,7 @@ macOS のフォルダーアイコンにカスタム画像を合成してアイ�
 
 ## スクリーンショット
 
-<img width="746" height="819" alt="Image" src="https://github.com/user-attachments/assets/cbfb4c9b-ceff-47be-b3e7-370225a0f85d" />
+<img width="712" height="819" alt="Image" src="https://github.com/user-attachments/assets/9b2ec7b7-9839-46d6-8b8c-5e8a6306b166" />
 
 ## 動作環境
 
