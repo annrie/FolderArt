@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		13D14D7EA7FBA6DD82D95109 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078CB4D0C0960A8AF20B032F /* HistoryView.swift */; };
 		16B841691F974ADAFC692A31 /* IconTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */; };
+		17A6C0A14B4FF845B273461F /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 924D9EE2D6BF04C5EA31EC11 /* AppIcon.icns */; };
 		1A14FEFD6767D6C974EB5819 /* ControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB0911FF8635FF2CF356D4A /* ControlsView.swift */; };
 		1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52990AC15E576E0D76436F0D /* FolderArtTests.swift */; };
 		22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27276A44F5727DA9071A647 /* IconComposerTests.swift */; };
@@ -50,6 +51,7 @@
 		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
 		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B8918A26A06751316185BAA /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModel.swift; sourceTree = "<group>"; };
+		924D9EE2D6BF04C5EA31EC11 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
@@ -66,6 +68,7 @@
 		207CB23F3C85B324240C55FB /* FolderArt */ = {
 			isa = PBXGroup;
 			children = (
+				924D9EE2D6BF04C5EA31EC11 /* AppIcon.icns */,
 				92EC6034740091CF94285965 /* ContentView.swift */,
 				8B8918A26A06751316185BAA /* ContentViewModel.swift */,
 				D57AA5539BDA9678ABE895A2 /* FolderArt.entitlements */,
@@ -155,6 +158,7 @@
 			buildConfigurationList = 0F872181440EAE02C2E1ABD6 /* Build configuration list for PBXNativeTarget "FolderArt" */;
 			buildPhases = (
 				AE03F31AB1A44FC598D24F73 /* Sources */,
+				D9582257D93B599E947558F2 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -213,6 +217,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D9582257D93B599E947558F2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				17A6C0A14B4FF845B273461F /* AppIcon.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A0DC4B7AB27F281AEA1E93DF /* Sources */ = {
