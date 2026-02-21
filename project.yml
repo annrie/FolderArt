@@ -30,6 +30,7 @@ targets:
       properties:
         LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         CFBundleName: FolderArt
+        CFBundleIconFile: AppIcon
         NSHumanReadableCopyright: "Copyright © 2026. All rights reserved."
   FolderArtTests:
     type: bundle.unit-test
