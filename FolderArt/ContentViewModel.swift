@@ -90,6 +90,14 @@ class ContentViewModel: ObservableObject {
 
     // MARK: - アイコンリセット
 
+    /// UIの状態のみクリア（適用済みアイコンはそのまま）
+    func clearState() {
+        selectedFolderURL = nil
+        selectedImage     = nil
+        imageName         = ""
+        previewImage      = nil
+    }
+
     /// 現在選択中のフォルダーをリセット（同一セッション用: URL を直接使用）
     func resetCurrentIcon() {
         guard let folderURL = selectedFolderURL else { return }

@@ -99,6 +99,13 @@ struct ContentView: View {
                 }
                 .disabled(vm.selectedFolderURL == nil)
 
+                Button {
+                    vm.clearState()
+                } label: {
+                    Label("次のフォルダー", systemImage: "folder.badge.plus")
+                }
+                .disabled(vm.selectedFolderURL == nil && vm.selectedImage == nil)
+
                 Spacer()
 
                 Button {
