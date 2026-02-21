@@ -13,8 +13,15 @@ class FolderIconManager {
         return dir
     }()
 
-    /// 現在のフォルダーアイコンをバックアップして保存先 URL を返す
+    /// 現在のフォルダーアイコンをバックアップして保存先 URL を返す。設定されていない場合は nil を返す
     func backupCurrentIcon(for folderURL: URL) throws -> URL? {
+        // Only backup if the folder *actually* has a custom icon set ("Icon\r" file exists)
+        // Otherwise returning a generic blue folder image leads to a fake custom icon being restored
+        let iconFile = folderURL.appendingPathComponent("Icon\r")
+        if !FileManager.default.fileExists(atPath: iconFile.path) {
+            return nil
+        }
+
         let folderID = folderURL.path
             .data(using: .utf8)?
             .base64EncodedString()
@@ -40,7 +47,16 @@ class FolderIconManager {
     /// 合成済みアイコンをフォルダーに適用する
     @discardableResult
     func applyIcon(_ icon: NSImage, to folderURL: URL) -> Bool {
-        return NSWorkspace.shared.setIcon(icon, forFile: folderURL.path, options: [])
+        let success = NSWorkspace.shared.setIcon(icon, forFile: folderURL.path, options: [])
+        if success {
+            // macOS relies on the Custom Icon bit (hasCustomIcon). NSWorkspace usually sets it,
+            // but iCloud might strip it. Force setting it via `setfile` command as a fallback.
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/setfile")
+            process.arguments = ["-a", "C", folderURL.path]
+            try? process.run()
+        }
+        return success
     }
 
     /// フォルダーのアイコンをバックアップ（または デフォルト）に戻す
