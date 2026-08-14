@@ -11,6 +11,9 @@ targets:
     platform: macOS
     sources:
       - path: FolderArt
+        excludes:
+          - ".claude"
+          - ".claude/**"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.FolderArt
@@ -31,6 +34,8 @@ targets:
         LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         CFBundleName: FolderArt
         CFBundleIconFile: AppIcon
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSHumanReadableCopyright: "Copyright © 2026. All rights reserved."
   FolderArtTests:
     type: bundle.unit-test
