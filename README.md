@@ -1,5 +1,28 @@
 # FolderArt
 
+<p align="center">
+  <!-- License -->
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/annrie/FolderArt.svg" alt="License">
+  </a>
+  <!-- Latest release -->
+  <a href="https://github.com/annrie/FolderArt/releases/latest">
+    <img src="https://img.shields.io/github/v/release/annrie/FolderArt.svg" alt="Latest release">
+  </a>
+  <!-- Downloads total -->
+  <a href="https://github.com/annrie/FolderArt/releases">
+    <img src="https://img.shields.io/github/downloads/annrie/FolderArt/total.svg" alt="Total downloads">
+  </a>
+  <!-- Downloads latest release -->
+  <a href="https://github.com/annrie/FolderArt/releases/latest">
+    <img src="https://img.shields.io/github/downloads/annrie/FolderArt/latest/total.svg" alt="Latest release downloads">
+  </a>
+  <!-- Stars -->
+  <a href="https://github.com/annrie/FolderArt/stargazers">
+    <img src="https://img.shields.io/github/stars/annrie/FolderArt.svg" alt="Stars">
+  </a>
+</p>
+
 macOS のフォルダーアイコンにカスタム画像を合成してアイコンを変更するアプリです。
 
 ## 機能
