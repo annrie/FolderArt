@@ -1,6 +1,20 @@
 import AppKit
 import Foundation
 
+enum FolderIconError: LocalizedError {
+    case folderNotFound(URL)
+    case applyFailed(URL)
+
+    var errorDescription: String? {
+        switch self {
+        case .folderNotFound(let url):
+            return String(localized: "フォルダーが見つかりません: \(url.lastPathComponent)")
+        case .applyFailed(let url):
+            return String(localized: "アイコンを適用できません: \(url.lastPathComponent)。書き込み権限を確認してください。")
+        }
+    }
+}
+
 class FolderIconManager {
 
     let backupDirectory: URL = {
@@ -44,19 +58,16 @@ class FolderIconManager {
         return backupURL
     }
 
-    /// 合成済みアイコンをフォルダーに適用する
-    @discardableResult
-    func applyIcon(_ icon: NSImage, to folderURL: URL) -> Bool {
-        let success = NSWorkspace.shared.setIcon(icon, forFile: folderURL.path, options: [])
-        if success {
-            // macOS relies on the Custom Icon bit (hasCustomIcon). NSWorkspace usually sets it,
-            // but iCloud might strip it. Force setting it via `setfile` command as a fallback.
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/setfile")
-            process.arguments = ["-a", "C", folderURL.path]
-            try? process.run()
+    /// 合成済みアイコンをフォルダーに適用する。失敗は throw。
+    func applyIcon(_ icon: NSImage, to folderURL: URL) throws {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folderURL.path, isDirectory: &isDir), isDir.boolValue else {
+            throw FolderIconError.folderNotFound(folderURL)
         }
-        return success
+        // NSWorkspace.setIcon が custom icon bit を立てる。setfile は Xcode 付属で多くの Mac に無いため使わない。
+        guard NSWorkspace.shared.setIcon(icon, forFile: folderURL.path, options: []) else {
+            throw FolderIconError.applyFailed(folderURL)
+        }
     }
 
     /// フォルダーのアイコンをバックアップ（または デフォルト）に戻す

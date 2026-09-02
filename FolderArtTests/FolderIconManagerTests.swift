@@ -24,34 +24,34 @@ final class FolderIconManagerTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: backupURL.path))
     }
 
-    func testBackupReturnsPath() throws {
+    func testBackupReturnsNilWhenFolderHasNoCustomIcon() throws {
         let manager = FolderIconManager()
-        let backupURL = try manager.backupCurrentIcon(for: testFolderURL)
-        XCTAssertNotNil(backupURL)
-        if let url = backupURL {
-            XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
-        }
+        XCTAssertNil(try manager.backupCurrentIcon(for: testFolderURL))
+    }
+
+    func testBackupReturnsPathWhenCustomIconExists() throws {
+        let manager = FolderIconManager()
+        let icon = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
+        try manager.applyIcon(icon, to: testFolderURL)          // Icon\r ができる
+        let backupURL = try XCTUnwrap(try manager.backupCurrentIcon(for: testFolderURL))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backupURL.path))
+        manager.resetIcon(for: testFolderURL, backupURL: nil)
+        try? FileManager.default.removeItem(at: backupURL.deletingLastPathComponent())
     }
 
     func testApplyAndResetIcon() throws {
         let manager = FolderIconManager()
+        let icon = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
+        try manager.applyIcon(icon, to: testFolderURL)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: testFolderURL.appendingPathComponent("Icon\r").path))
+        manager.resetIcon(for: testFolderURL, backupURL: nil)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: testFolderURL.appendingPathComponent("Icon\r").path))
+    }
 
-        // カスタムアイコン作成
-        let customImage = NSImage(size: CGSize(width: 64, height: 64))
-        customImage.lockFocus()
-        NSColor.red.setFill()
-        NSRect(origin: .zero, size: customImage.size).fill()
-        customImage.unlockFocus()
-
-        // バックアップ
-        let backupURL = try manager.backupCurrentIcon(for: testFolderURL)
-
-        // 適用
-        let success = manager.applyIcon(customImage, to: testFolderURL)
-        XCTAssertTrue(success)
-
-        // リセット
-        manager.resetIcon(for: testFolderURL, backupURL: backupURL)
-        // エラーがなければOK（目視確認はUIテストで行う）
+    func testApplyToMissingFolderThrows() {
+        let manager = FolderIconManager()
+        let missing = testFolderURL.appendingPathComponent("does-not-exist")
+        let icon = TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red)
+        XCTAssertThrowsError(try manager.applyIcon(icon, to: missing))
     }
 }

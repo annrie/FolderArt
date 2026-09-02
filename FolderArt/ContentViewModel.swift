@@ -57,11 +57,7 @@ class ContentViewModel: ObservableObject {
             let bookmarkData = try BookmarkManager.createBookmark(for: folderURL)
 
             // アイコン適用
-            let success = iconManager.applyIcon(composedImage, to: folderURL)
-            guard success else {
-                errorMessage = "アイコンの適用に失敗しました。フォルダーへの書き込み権限を確認してください。"
-                return
-            }
+            try iconManager.applyIcon(composedImage, to: folderURL)
 
             // 履歴に追加
             let task = IconTask(
