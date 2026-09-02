@@ -26,6 +26,7 @@
 		56BE7EE712939472DD7A24E5 /* FolderIconManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */; };
 		5AA64FCACB1BFB0670E149F7 /* FolderSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B32F2E4CCED86453A4AE2A /* FolderSelection.swift */; };
 		5FA6D56ACFF1D67D6B53BDC0 /* SymbolCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A2D6D7F0354394BC163CA8 /* SymbolCatalog.swift */; };
+		60C59C040FAE20A5693B0128 /* OverlayStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D9C6B436BD80D8EB6DA88D /* OverlayStateTests.swift */; };
 		6D62D70A8556D0DF15E26B79 /* CodableStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */; };
 		72268D2971AF2E0DB37123C4 /* DropZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A0E82244158396C217FC8F /* DropZoneView.swift */; };
 		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
@@ -44,6 +45,7 @@
 		D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */; };
 		DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948C526800FD33239F8ECEE6 /* Overlay.swift */; };
 		E1C67CBC82DD295E2B99CFAB /* FolderSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */; };
+		E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5756A3CABD998E75D8AD6787 /* OverlayState.swift */; };
 		EC0C479C039CA3CAC97A9B5A /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14655BB80BEA4FC7C2C3D286 /* TestSupport.swift */; };
 		FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11E4CC866B6C3E295A97D66 /* IconComposer.swift */; };
 		FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */; };
@@ -82,6 +84,7 @@
 		502339979955DC1D1A8FEBD5 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
 		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5756A3CABD998E75D8AD6787 /* OverlayState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayState.swift; sourceTree = "<group>"; };
 		5EE02AEBFB478CDE088F1DEB /* OverlayRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRendererTests.swift; sourceTree = "<group>"; };
 		79B32F2E4CCED86453A4AE2A /* FolderSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderSelection.swift; sourceTree = "<group>"; };
 		886BBDCAA1FFC90002F4AAAD /* AssetStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetStoreTests.swift; sourceTree = "<group>"; };
@@ -102,6 +105,7 @@
 		E11E4CC866B6C3E295A97D66 /* IconComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconComposer.swift; sourceTree = "<group>"; };
 		E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionSettingsTests.swift; sourceTree = "<group>"; };
 		E6C12619979901BAA4F0ACF7 /* PresetStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetStoreTests.swift; sourceTree = "<group>"; };
+		E6D9C6B436BD80D8EB6DA88D /* OverlayStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayStateTests.swift; sourceTree = "<group>"; };
 		EBD35A03399A8B8D6D621A34 /* AssetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetStore.swift; sourceTree = "<group>"; };
 		F0C60917E085AAACA1DE062B /* restricted-symbols.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "restricted-symbols.txt"; sourceTree = "<group>"; };
 		F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStoreTests.swift; sourceTree = "<group>"; };
@@ -175,6 +179,7 @@
 				D27276A44F5727DA9071A647 /* IconComposerTests.swift */,
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
 				5EE02AEBFB478CDE088F1DEB /* OverlayRendererTests.swift */,
+				E6D9C6B436BD80D8EB6DA88D /* OverlayStateTests.swift */,
 				4110F76F80F389FC528E43DD /* OverlayTests.swift */,
 				E6C12619979901BAA4F0ACF7 /* PresetStoreTests.swift */,
 				89A2A9BA2B67B7E024218066 /* SymbolCatalogTests.swift */,
@@ -217,6 +222,7 @@
 			isa = PBXGroup;
 			children = (
 				79B32F2E4CCED86453A4AE2A /* FolderSelection.swift */,
+				5756A3CABD998E75D8AD6787 /* OverlayState.swift */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -332,6 +338,7 @@
 				22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */,
 				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
 				10051CC54025B0D4438C48DF /* OverlayRendererTests.swift in Sources */,
+				60C59C040FAE20A5693B0128 /* OverlayStateTests.swift in Sources */,
 				C75DC3BDDEED1C874F45C6FD /* OverlayTests.swift in Sources */,
 				4F7B042A64FE8820F39F9B0A /* PresetStoreTests.swift in Sources */,
 				AC1F7A79E6D6FF48D620D6C1 /* SymbolCatalogTests.swift in Sources */,
@@ -362,6 +369,7 @@
 				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
 				DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */,
 				4F8F30C5FF3DF177E1275132 /* OverlayRenderer.swift in Sources */,
+				E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */,
 				1E94CC78757172E43FADBFD1 /* Preset.swift in Sources */,
 				1578B601468A3ACEBEA38F44 /* PresetStore.swift in Sources */,
 				5FA6D56ACFF1D67D6B53BDC0 /* SymbolCatalog.swift in Sources */,
