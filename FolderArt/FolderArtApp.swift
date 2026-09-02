@@ -7,7 +7,7 @@ struct FolderArtApp: App {
             ContentView()
         }
         .windowStyle(.titleBar)
-        .windowResizability(.contentSize)
-        .defaultSize(width: 600, height: 700)
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 760, height: 720)
     }
 }

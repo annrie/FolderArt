@@ -1,13 +1,122 @@
 import SwiftUI
 
 struct ContentView: View {
+    // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される
     @StateObject private var model = AppModel()
+    @State private var catalog = SymbolCatalog.load()
+    @State private var showHistory = false
+    @State private var showError = false
+    @State private var windowTargeted = false
+
+    /// `model.overlay` は let なので `$model.overlay.settings` は書けない。手で Binding を作る。
+    private var settingsBinding: Binding<CompositionSettings> {
+        Binding(get: { model.overlay.settings }, set: { model.overlay.settings = $0 })
+    }
 
     var body: some View {
-        VStack {
-            Text("FolderArt").font(.headline)
-            Text("画面は再構築中")
+        VStack(spacing: 0) {
+            toolbar
+            Divider()
+
+            HStack(alignment: .top, spacing: 12) {
+                FolderListView(
+                    selection: model.folders,
+                    onAdd: { model.selectFoldersWithPanel() },
+                    onDropFolders: { model.addFolders($0) }
+                )
+                .frame(minWidth: 240)
+
+                OverlayPickerView(
+                    state: model.overlay,
+                    catalog: catalog,
+                    onPickImage: { model.selectImageWithPanel() },
+                    onDropImage: { model.selectImage($0) }
+                )
+                .frame(minWidth: 380)
+            }
+            .frame(height: 260)
+            .padding(12)
+
+            PresetStripView(
+                store: model.presets,
+                assets: model.assets,
+                canSave: model.overlay.overlay != nil,
+                onSave: { model.saveCurrentAsPreset() },
+                onApply: { model.applyPreset($0) },
+                onRename: { model.renamePreset($0, to: $1) },
+                onRemove: { model.removePreset($0) }
+            )
+            Divider()
+
+            HStack(alignment: .top, spacing: 12) {
+                ControlsView(settings: settingsBinding,
+                             showsTint: model.overlay.activeTab != .image)
+                    .frame(maxWidth: .infinity)
+                PreviewView(image: model.overlay.previewImage,
+                            placeholder: "フォルダーと\n重ねるものを選択")
+                    .frame(width: 200)
+            }
+            .padding(.vertical, 12)
+            Divider()
+
+            actionBar
         }
         .frame(minWidth: 760, minHeight: 720)
+        .overlay(
+            // ウィンドウのどこに落としてもフォルダ/画像を振り分ける (内側の受け口が優先される)
+            FileDropReceiver(
+                isTargeted: $windowTargeted,
+                accepts: { $0.contains { DropZoneView.isDirectory($0) || DropZoneView.isImage($0) } },
+                onDrop: { model.handleDroppedURLs($0) }
+            )
+        )
+        .sheet(isPresented: $showHistory) {
+            HistoryView(
+                historyStore: model.history,
+                onReset: { task in model.reset(task: task); showHistory = false },
+                onReapply: { task in model.restore(from: task); showHistory = false }
+            )
+        }
+        .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
+        .alert("お知らせ", isPresented: $showError) {
+            Button("OK") { model.errorMessage = nil }
+        } message: {
+            Text(model.errorMessage ?? "")
+        }
+    }
+
+    private var toolbar: some View {
+        HStack {
+            Text("FolderArt").font(.headline)
+            Spacer()
+            Button { showHistory = true } label: { Label("履歴", systemImage: "clock") }
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal).padding(.vertical, 10)
+    }
+
+    private var actionBar: some View {
+        HStack {
+            Button { model.resetTargets() } label: { Label("リセット", systemImage: "arrow.uturn.backward") }
+                .disabled(model.folders.isEmpty || model.isApplying)
+                .help(Text("適用先のフォルダーのアイコンを元に戻す"))
+
+            Button { model.folders.removeAll() } label: { Label("リストを空にする", systemImage: "xmark.bin") }
+                .disabled(model.folders.isEmpty || model.isApplying)
+
+            Spacer()
+
+            if let p = model.progress {
+                Text("\(p.done) / \(p.total)").font(.callout).monospacedDigit().foregroundColor(.secondary)
+            }
+
+            Button { Task { await model.apply() } } label: {
+                Label(model.applyButtonTitle, systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!model.canApply)
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding()
     }
 }

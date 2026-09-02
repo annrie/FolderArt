@@ -3,6 +3,7 @@ import SwiftUI
 struct HistoryView: View {
     @ObservedObject var historyStore: HistoryStore
     let onReset: (IconTask) -> Void
+    let onReapply: (IconTask) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -38,27 +39,34 @@ struct HistoryView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(URL(fileURLWithPath: task.folderPath).lastPathComponent)
-                                    .font(.body)
-                                    .lineLimit(1)
-                                Text("\(task.overlay.displayName) · \(task.settings.position.displayName)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.body).lineLimit(1)
+                                HStack(spacing: 4) {
+                                    Text("\(task.overlay.displayName) · \(task.settings.position.displayName)")
+                                    if !task.overlay.canReapply {
+                                        Text("(旧形式)").foregroundColor(.orange)
+                                    }
+                                    if task.bookmarkData.isEmpty {
+                                        Text("(ここからのリセット不可)").foregroundColor(.orange)
+                                    }
+                                }
+                                .font(.caption).foregroundColor(.secondary)
                                 Text(dateFormatter.string(from: task.appliedAt))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .font(.caption2).foregroundColor(.secondary)
                             }
                             Spacer()
-                            Button("リセット") {
-                                onReset(task)
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            Button("再適用") { onReapply(task) }
+                                .buttonStyle(.bordered).controlSize(.small)
+                                .disabled(!task.overlay.canReapply)
+                                .help(Text("この見た目とフォルダーを画面に戻す"))
+                            Button("リセット") { onReset(task) }
+                                .buttonStyle(.bordered).controlSize(.small)
+                                .disabled(task.bookmarkData.isEmpty)
                         }
                         .padding(.vertical, 4)
                     }
                 }
             }
         }
-        .frame(width: 400, height: 360)
+        .frame(minWidth: 480, minHeight: 360)
     }
 }
