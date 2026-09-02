@@ -84,7 +84,7 @@ struct DropZoneView: View {
             Button(buttonLabel, action: onTapButton)
                 .buttonStyle(.borderless)
 
-            if let url = displayURL {
+            if let url = displayURL, mode == .folder {
                 Text(url.lastPathComponent)
                     .font(.caption)
                     .foregroundColor(.primary)

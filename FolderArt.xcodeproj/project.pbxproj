@@ -38,6 +38,7 @@
 		93CADD822960CA739C001168 /* ApplyCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
 		9D407DB3F8AD81F2B34FE1AF /* CodableStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */; };
+		A7A55AAF3C49496A09E70042 /* SymbolGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD72D9929DA31F59FD2C696 /* SymbolGridView.swift */; };
 		AC1F7A79E6D6FF48D620D6C1 /* SymbolCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A2A9BA2B67B7E024218066 /* SymbolCatalogTests.swift */; };
 		B11F8E9D3AA59F809A2FDB49 /* BitmapCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0555F275B99E4B244FC7B4 /* BitmapCanvas.swift */; };
 		B519A6CF2F2CB4B1C31DE178 /* AssetStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 886BBDCAA1FFC90002F4AAAD /* AssetStoreTests.swift */; };
@@ -50,6 +51,7 @@
 		E1C67CBC82DD295E2B99CFAB /* FolderSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */; };
 		E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5756A3CABD998E75D8AD6787 /* OverlayState.swift */; };
 		EC0C479C039CA3CAC97A9B5A /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14655BB80BEA4FC7C2C3D286 /* TestSupport.swift */; };
+		F7D6459F55FCCA1C2478C13F /* OverlayPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */; };
 		FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11E4CC866B6C3E295A97D66 /* IconComposer.swift */; };
 		FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */; };
 		FF2B3FAA8B331CFC29108353 /* CodableColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D06C1860356B1F2AA71A37 /* CodableColorTests.swift */; };
@@ -84,6 +86,7 @@
 		443675269CBE370462363D0D /* BookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManager.swift; sourceTree = "<group>"; };
 		4C0555F275B99E4B244FC7B4 /* BitmapCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BitmapCanvas.swift; sourceTree = "<group>"; };
 		502339979955DC1D1A8FEBD5 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
+		52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayPickerView.swift; sourceTree = "<group>"; };
 		528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyCoordinatorTests.swift; sourceTree = "<group>"; };
 		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
 		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -107,6 +110,7 @@
 		D57AA5539BDA9678ABE895A2 /* FolderArt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FolderArt.entitlements; sourceTree = "<group>"; };
 		D5D06C1860356B1F2AA71A37 /* CodableColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableColorTests.swift; sourceTree = "<group>"; };
 		D60329359BEEEF23CBA6097C /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		DBD72D9929DA31F59FD2C696 /* SymbolGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolGridView.swift; sourceTree = "<group>"; };
 		E11E4CC866B6C3E295A97D66 /* IconComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconComposer.swift; sourceTree = "<group>"; };
 		E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionSettingsTests.swift; sourceTree = "<group>"; };
 		E6C12619979901BAA4F0ACF7 /* PresetStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetStoreTests.swift; sourceTree = "<group>"; };
@@ -211,6 +215,8 @@
 				A9A0E82244158396C217FC8F /* DropZoneView.swift */,
 				8EC0E1A55C6D47150442E2BF /* FolderListView.swift */,
 				078CB4D0C0960A8AF20B032F /* HistoryView.swift */,
+				52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */,
+				DBD72D9929DA31F59FD2C696 /* SymbolGridView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -380,11 +386,13 @@
 				FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */,
 				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
 				DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */,
+				F7D6459F55FCCA1C2478C13F /* OverlayPickerView.swift in Sources */,
 				4F8F30C5FF3DF177E1275132 /* OverlayRenderer.swift in Sources */,
 				E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */,
 				1E94CC78757172E43FADBFD1 /* Preset.swift in Sources */,
 				1578B601468A3ACEBEA38F44 /* PresetStore.swift in Sources */,
 				5FA6D56ACFF1D67D6B53BDC0 /* SymbolCatalog.swift in Sources */,
+				A7A55AAF3C49496A09E70042 /* SymbolGridView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
