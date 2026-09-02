@@ -5,6 +5,9 @@ struct SymbolCatalog {
     let names: [String]
     let searchTerms: [String: [String]]   // テストから memberwise init で注入できるよう internal
 
+    /// 画面で使う共有インスタンス。読み込みは数千件の plist を舐めるので 1 回だけにする
+    static let shared = SymbolCatalog.load()
+
     static let coreGlyphsResources = URL(fileURLWithPath:
         "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources")
 

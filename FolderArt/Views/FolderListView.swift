@@ -4,7 +4,8 @@ import SwiftUI
 struct FolderListView: View {
     @ObservedObject var selection: FolderSelection
     let onAdd: () -> Void
-    let onDropFolders: ([URL]) -> Void
+    /// フォルダ・画像を問わず全件をそのまま渡す (振り分けは AppModel が行う)
+    let onDrop: ([URL]) -> Void
 
     @State private var isTargeted = false
 
@@ -61,8 +62,10 @@ struct FolderListView: View {
         .overlay(
             FileDropReceiver(
                 isTargeted: $isTargeted,
-                accepts: { $0.contains(where: DropZoneView.isDirectory) },
-                onDrop: { onDropFolders($0.filter(DropZoneView.isDirectory)) }
+                // 画像を落とされても弾かない。AppKit は下のビューへ落とし直してくれないので、
+                // ここで受けて AppModel に振り分けさせる
+                accepts: { $0.contains { DropZoneView.isDirectory($0) || DropZoneView.isImage($0) } },
+                onDrop: { onDrop($0) }
             )
         )
     }

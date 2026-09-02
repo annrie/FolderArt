@@ -2,13 +2,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
 
+/// 画像タブのドロップゾーン。フォルダのリストは FolderListView が受け持つ。
 struct DropZoneView: View {
-    enum Mode {
-        case folder
-        case image
-    }
-
-    let mode: Mode
+    /// フォルダ・画像を問わず全件をそのまま渡す (振り分けは AppModel が行う)
     let onDropURLs: ([URL]) -> Void
     let onTapButton: () -> Void
 
@@ -17,13 +13,11 @@ struct DropZoneView: View {
     private let previewImage: NSImage?
 
     init(
-        mode: Mode,
         selectedURL: URL?,
         previewImage: NSImage?,
         onDropURLs: @escaping ([URL]) -> Void,
         onTapButton: @escaping () -> Void
     ) {
-        self.mode = mode
         self.displayURL = selectedURL
         self.previewImage = previewImage
         self.onDropURLs = onDropURLs
@@ -40,25 +34,8 @@ struct DropZoneView: View {
         return type.conforms(to: .image)
     }
 
-    private var placeholderIcon: String {
-        switch mode {
-        case .folder: return "folder.fill"
-        case .image:  return "photo.fill"
-        }
-    }
-
-    private var dropLabel: String {
-        switch mode {
-        case .folder: return "フォルダーをここにドロップ"
-        case .image:  return "画像をここにドロップ"
-        }
-    }
-
     private var buttonLabel: String {
-        switch mode {
-        case .folder: return displayURL == nil ? "フォルダーを選択..." : "変更..."
-        case .image:  return displayURL == nil ? "画像を選択..."     : "変更..."
-        }
+        displayURL == nil ? "画像を選択..." : "変更..."
     }
 
     var body: some View {
@@ -71,11 +48,11 @@ struct DropZoneView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .shadow(radius: 2)
             } else {
-                Image(systemName: placeholderIcon)
+                Image(systemName: "photo.fill")
                     .font(.system(size: 36))
                     .foregroundColor(isTargeted ? .accentColor : .secondary)
 
-                Text(dropLabel)
+                Text("画像をここにドロップ")
                     .font(.callout)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -83,15 +60,6 @@ struct DropZoneView: View {
 
             Button(buttonLabel, action: onTapButton)
                 .buttonStyle(.borderless)
-
-            if let url = displayURL, mode == .folder {
-                Text(url.lastPathComponent)
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 8)
-            }
         }
         .frame(maxWidth: .infinity, minHeight: 140)
         .background(
@@ -109,18 +77,10 @@ struct DropZoneView: View {
         .overlay(
             FileDropReceiver(
                 isTargeted: $isTargeted,
-                accepts: { urls in
-                    switch mode {
-                    case .folder: return urls.contains(where: Self.isDirectory)
-                    case .image:  return urls.contains(where: Self.isImage)
-                    }
-                },
-                onDrop: { urls in
-                    switch mode {
-                    case .folder: onDropURLs(urls.filter(Self.isDirectory))
-                    case .image:  onDropURLs(urls.filter(Self.isImage))
-                    }
-                }
+                // フォルダを落とされても弾かない。AppKit は下のビューへ落とし直してくれないので、
+                // ここで受けて AppModel に振り分けさせる
+                accepts: { $0.contains { Self.isDirectory($0) || Self.isImage($0) } },
+                onDrop: { onDropURLs($0) }
             )
         )
         .padding(4)

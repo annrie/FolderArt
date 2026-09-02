@@ -17,7 +17,8 @@ struct OverlayPickerView: View {
     @ObservedObject var state: OverlayState
     let catalog: SymbolCatalog
     let onPickImage: () -> Void
-    let onDropImage: (URL) -> Void
+    /// フォルダ・画像を問わず全件をそのまま渡す (振り分けは AppModel が行う)
+    let onDrop: ([URL]) -> Void
 
     var body: some View {
         VStack(spacing: 8) {
@@ -32,10 +33,9 @@ struct OverlayPickerView: View {
             switch state.activeTab {
             case .image:
                 DropZoneView(
-                    mode: .image,
                     selectedURL: state.imageAssetID.map { state.assets.url(for: $0) },   // URL 構築のみ、I/O なし
                     previewImage: state.imageAssetID == nil ? nil : state.overlayImage,  // メモリ上の描画結果を再利用
-                    onDropURLs: { urls in if let first = urls.first { onDropImage(first) } },
+                    onDropURLs: { onDrop($0) },
                     onTapButton: onPickImage
                 )
             case .symbol:

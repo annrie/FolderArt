@@ -3,7 +3,6 @@ import SwiftUI
 struct ContentView: View {
     // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される
     @StateObject private var model = AppModel()
-    @State private var catalog = SymbolCatalog.load()
     @State private var showHistory = false
     @State private var showError = false
     @State private var windowTargeted = false
@@ -22,15 +21,15 @@ struct ContentView: View {
                 FolderListView(
                     selection: model.folders,
                     onAdd: { model.selectFoldersWithPanel() },
-                    onDropFolders: { model.addFolders($0) }
+                    onDrop: { model.handleDroppedURLs($0) }
                 )
                 .frame(minWidth: 240)
 
                 OverlayPickerView(
                     state: model.overlay,
-                    catalog: catalog,
+                    catalog: SymbolCatalog.shared,
                     onPickImage: { model.selectImageWithPanel() },
-                    onDropImage: { model.selectImage($0) }
+                    onDrop: { model.handleDroppedURLs($0) }
                 )
                 .frame(minWidth: 380)
             }
@@ -57,6 +56,9 @@ struct ContentView: View {
                     .frame(width: 200)
             }
             .padding(.vertical, 12)
+            // hover の拡大プレビューを下のアクションバーより手前に出す
+            // (PreviewView 内側の zIndex は外側 VStack の兄弟には効かない)
+            .zIndex(1)
             Divider()
 
             actionBar
