@@ -92,7 +92,20 @@ final class ApplyCoordinatorTests: XCTestCase {
         try coordinator.reset(folder: a)
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: iconFile.path))
-        manual.resetIcon(for: a, backupURL: nil)
+        try manual.resetIcon(for: a, backupURL: nil)
+    }
+
+    /// リセット対象のフォルダが既に削除されていたら reset は失敗し、履歴の行は消さずに残す。
+    /// reset(_ task:) はブックマーク解決自体が失敗して先に throw するため検証にならない
+    /// (それは元々ある挙動)。resetIcon の失敗を確かめるには reset(folder:) を使う。
+    func testResetFolderThrowsAndKeepsHistoryWhenFolderIsGone() async throws {
+        let a = try folder("A")
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
+                                    settings: CompositionSettings(), to: [a])
+        try FileManager.default.removeItem(at: a)
+
+        XCTAssertThrowsError(try coordinator.reset(folder: a))
+        XCTAssertEqual(history.tasks.count, 1)
     }
 
     func testHistoryWriteFailureRollsBackIcon() async throws {

@@ -4,6 +4,7 @@ import Foundation
 enum FolderIconError: LocalizedError {
     case folderNotFound(URL)
     case applyFailed(URL)
+    case resetFailed(URL)
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum FolderIconError: LocalizedError {
             return String(localized: "フォルダーが見つかりません: \(url.lastPathComponent)")
         case .applyFailed(let url):
             return String(localized: "アイコンを適用できません: \(url.lastPathComponent)。書き込み権限を確認してください。")
+        case .resetFailed(let url):
+            return String(localized: "アイコンを元に戻せません: \(url.lastPathComponent)")
         }
     }
 }
@@ -83,13 +86,19 @@ class FolderIconManager {
         }
     }
 
-    /// フォルダーのアイコンをバックアップ（または デフォルト）に戻す
-    func resetIcon(for folderURL: URL, backupURL: URL?) {
+    /// フォルダーのアイコンをバックアップ（または デフォルト）に戻す。失敗は throw。
+    func resetIcon(for folderURL: URL, backupURL: URL?) throws {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folderURL.path, isDirectory: &isDir), isDir.boolValue else {
+            throw FolderIconError.folderNotFound(folderURL)
+        }
+        let succeeded: Bool
         if let backupURL = backupURL,
            let backupImage = NSImage(contentsOf: backupURL) {
-            NSWorkspace.shared.setIcon(backupImage, forFile: folderURL.path, options: [])
+            succeeded = NSWorkspace.shared.setIcon(backupImage, forFile: folderURL.path, options: [])
         } else {
-            NSWorkspace.shared.setIcon(nil, forFile: folderURL.path, options: [])
+            succeeded = NSWorkspace.shared.setIcon(nil, forFile: folderURL.path, options: [])
         }
+        guard succeeded else { throw FolderIconError.resetFailed(folderURL) }
     }
 }

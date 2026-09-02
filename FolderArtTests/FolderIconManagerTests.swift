@@ -46,7 +46,7 @@ final class FolderIconManagerTests: XCTestCase {
         try manager.applyIcon(icon(.red), to: testFolderURL)          // Icon\r ができる
         let backupURL = try XCTUnwrap(try manager.backupCurrentIcon(for: testFolderURL))
         XCTAssertTrue(FileManager.default.fileExists(atPath: backupURL.path))
-        manager.resetIcon(for: testFolderURL, backupURL: nil)
+        try manager.resetIcon(for: testFolderURL, backupURL: nil)
     }
 
     /// 2 回目の適用で FolderArt 自身の合成結果を「元のアイコン」として上書きしない
@@ -66,14 +66,14 @@ final class FolderIconManagerTests: XCTestCase {
         let secondDate = try FileManager.default.attributesOfItem(atPath: second.path)[.modificationDate] as? Date
         XCTAssertEqual(secondDate, originalDate)   // 書き直していない
 
-        manager.resetIcon(for: testFolderURL, backupURL: nil)
+        try manager.resetIcon(for: testFolderURL, backupURL: nil)
     }
 
     func testApplyAndResetIcon() throws {
         let manager = makeManager()
         try manager.applyIcon(icon(.red), to: testFolderURL)
         XCTAssertTrue(FileManager.default.fileExists(atPath: testFolderURL.appendingPathComponent("Icon\r").path))
-        manager.resetIcon(for: testFolderURL, backupURL: nil)
+        try manager.resetIcon(for: testFolderURL, backupURL: nil)
         XCTAssertFalse(FileManager.default.fileExists(atPath: testFolderURL.appendingPathComponent("Icon\r").path))
     }
 
@@ -81,5 +81,16 @@ final class FolderIconManagerTests: XCTestCase {
         let manager = makeManager()
         let missing = testFolderURL.appendingPathComponent("does-not-exist")
         XCTAssertThrowsError(try manager.applyIcon(icon(.red), to: missing))
+    }
+
+    func testResetOnMissingFolderThrows() throws {
+        let manager = makeManager()
+        try manager.applyIcon(icon(.red), to: testFolderURL)
+        try FileManager.default.removeItem(at: testFolderURL)
+        XCTAssertThrowsError(try manager.resetIcon(for: testFolderURL, backupURL: nil)) { error in
+            guard case FolderIconError.folderNotFound = error else {
+                return XCTFail("expected folderNotFound, got \(error)")
+            }
+        }
     }
 }

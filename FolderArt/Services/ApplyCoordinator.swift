@@ -78,8 +78,12 @@ final class ApplyCoordinator {
                 succeeded.append(folder)
             } catch {
                 // 履歴に残せなかったフォルダはアイコンを元に戻し、「失敗 = 変更なし」を保つ
-                if iconApplied { iconManager.resetIcon(for: folder, backupURL: backupURL) }
-                failed.append(ApplyFailure(folder: folder, reason: error.localizedDescription))
+                var reason = error.localizedDescription
+                if iconApplied {
+                    do { try iconManager.resetIcon(for: folder, backupURL: backupURL) }
+                    catch { reason += " / 巻き戻し失敗: \(error.localizedDescription)" }
+                }
+                failed.append(ApplyFailure(folder: folder, reason: reason))
             }
             progress(index + 1, total)
             await Task.yield()   // 進捗表示を描画させる
@@ -95,7 +99,7 @@ final class ApplyCoordinator {
         }
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        iconManager.resetIcon(for: url, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
+        try iconManager.resetIcon(for: url, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
     }
 
@@ -105,7 +109,7 @@ final class ApplyCoordinator {
     func reset(folder: URL) throws {
         let path = folder.standardizedFileURL.path
         guard let task = history.task(forFolderPath: path) else { return }
-        iconManager.resetIcon(for: folder, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
+        try iconManager.resetIcon(for: folder, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
     }
 }
