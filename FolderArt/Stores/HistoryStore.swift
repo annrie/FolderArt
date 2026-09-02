@@ -7,6 +7,8 @@ final class HistoryStore: ObservableObject {
     private(set) var loadError: Error?
 
     private let store: CodableStore<[IconTask]>
+    /// 壊れたファイルを退避してから保存する必要があるか (最初の保存で 1 回だけ)
+    private var needsQuarantine = false
 
     /// ~/Library/Application Support/FolderArt
     static var appSupportDirectory: URL {
@@ -24,6 +26,7 @@ final class HistoryStore: ObservableObject {
             tasks = try store.load() ?? []
         } catch {
             loadError = error
+            needsQuarantine = true   // 読めなかった中身を次の保存で黙って消さない
             tasks = []
             return
         }
@@ -37,14 +40,23 @@ final class HistoryStore: ObservableObject {
     func upsert(_ task: IconTask) throws {
         var updated = tasks.filter { $0.folderPath != task.folderPath }
         updated.insert(task, at: 0)
-        try store.save(updated)
+        try save(updated)
         tasks = updated
     }
 
     func remove(_ task: IconTask) throws {
         let updated = tasks.filter { $0.id != task.id }
-        try store.save(updated)
+        try save(updated)
         tasks = updated
+    }
+
+    /// 読み込みに失敗していた場合、最初の保存の前に壊れたファイルを退避する
+    private func save(_ updated: [IconTask]) throws {
+        if needsQuarantine {
+            try store.quarantineIfPresent()
+            needsQuarantine = false
+        }
+        try store.save(updated)
     }
 
     func task(forFolderPath path: String) -> IconTask? {

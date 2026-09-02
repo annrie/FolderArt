@@ -31,4 +31,22 @@ final class CodableStoreTests: XCTestCase {
         let store = CodableStore<[String]>(fileURL: url)
         XCTAssertThrowsError(try store.load())
     }
+
+    func testQuarantineRenamesExistingFile() throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "not json".data(using: .utf8)!.write(to: url)
+        let store = CodableStore<[String]>(fileURL: url)
+
+        let moved = try XCTUnwrap(try store.quarantineIfPresent())
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: moved.path))
+        XCTAssertTrue(moved.lastPathComponent.hasPrefix("data.json.corrupt-"), moved.lastPathComponent)
+        XCTAssertEqual(try String(contentsOf: moved), "not json")
+    }
+
+    func testQuarantineReturnsNilWhenFileMissing() throws {
+        let store = CodableStore<[String]>(fileURL: url)
+        XCTAssertNil(try store.quarantineIfPresent())
+    }
 }

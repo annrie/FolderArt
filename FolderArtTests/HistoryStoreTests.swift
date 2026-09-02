@@ -69,6 +69,28 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertTrue(s.tasks.isEmpty)
     }
 
+    /// 壊れた history.json は次の保存で消さず、.corrupt- 付きの名前で残す
+    func testCorruptFileIsQuarantinedBeforeFirstSave() throws {
+        try "broken".data(using: .utf8)!.write(to: tempHistoryURL)
+        let s = HistoryStore(storageURL: tempHistoryURL)
+        XCTAssertNotNil(s.loadError)
+
+        try s.upsert(makeTask())
+
+        let dir = tempHistoryURL.deletingLastPathComponent()
+        let name = tempHistoryURL.lastPathComponent
+        let siblings = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        let quarantined = siblings.filter { $0.hasPrefix(name + ".corrupt-") }
+        XCTAssertEqual(quarantined.count, 1, "退避されたファイルが 1 つあるはず")
+        defer { for f in quarantined { try? FileManager.default.removeItem(at: dir.appendingPathComponent(f)) } }
+        XCTAssertEqual(try String(contentsOf: dir.appendingPathComponent(quarantined[0])), "broken")
+
+        // 新しい history.json は正しく読める
+        let reloaded = HistoryStore(storageURL: tempHistoryURL)
+        XCTAssertNil(reloaded.loadError)
+        XCTAssertEqual(reloaded.tasks.count, 1)
+    }
+
     func testReferencedAssetIDs() throws {
         let id = UUID()
         try store.upsert(makeTask(folderPath: "/a", overlay: .image(assetID: id)))
