@@ -4,15 +4,6 @@ import AppKit
 
 final class IconComposerTests: XCTestCase {
 
-    private func makeTestImage(size: CGSize, color: NSColor) -> NSImage {
-        let image = NSImage(size: size)
-        image.lockFocus()
-        color.setFill()
-        NSRect(origin: .zero, size: size).fill()
-        image.unlockFocus()
-        return image
-    }
-
     func testCenterCalculationIsMiddle() {
         // clipToFolderShape=false のときはスケールが適用される
         let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0,
@@ -86,22 +77,22 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(aspectRatio, 2.0, accuracy: 0.01)
     }
 
-    func testComposeReturnsNonNilImage() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("FolderArtIconTest_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let customImage = makeTestImage(size: CGSize(width: 100, height: 100), color: .red)
+    func testComposeReturnsNonNilImage() {
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
         let settings = CompositionSettings(position: .center, scale: 0.6, opacity: 0.9)
-
-        let result = IconComposer.compose(
-            folderPath: tempDir.path,
-            customImage: customImage,
-            settings: settings
-        )
-
+        let result = IconComposer.compose(overlay: overlay, settings: settings)
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.size, IconComposer.iconSize)
+        XCTAssertEqual(TestSupport.pixelSize(of: result!), IconComposer.iconSize)
+    }
+
+    func testComposeIsDeterministicAndDoesNotStack() {
+        // 標準フォルダアイコンを土台にするので、同じ入力なら何度合成しても同じ結果
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+        let settings = CompositionSettings(position: .badge, scale: 0.8, opacity: 1.0, clipToFolderShape: false)
+        let a = IconComposer.compose(overlay: overlay, settings: settings)!
+        let b = IconComposer.compose(overlay: overlay, settings: settings)!
+        XCTAssertEqual(TestSupport.pngData(a), TestSupport.pngData(b))
+        XCTAssertTrue(TestSupport.contains(color: .red, in: a))
     }
 }

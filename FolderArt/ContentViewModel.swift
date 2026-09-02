@@ -32,16 +32,11 @@ class ContentViewModel: ObservableObject {
     // MARK: - プレビュー更新
 
     func updatePreview() {
-        guard let folderURL = selectedFolderURL,
-              let image = selectedImage else {
+        guard selectedFolderURL != nil, let image = selectedImage else {
             previewImage = nil
             return
         }
-        previewImage = IconComposer.compose(
-            folderPath: folderURL.path,
-            customImage: image,
-            settings: settings
-        )
+        previewImage = IconComposer.compose(overlay: image, settings: settings)
     }
 
     // MARK: - アイコン適用
