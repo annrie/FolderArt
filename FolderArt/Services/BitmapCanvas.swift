@@ -11,9 +11,12 @@ enum BitmapCanvas {
                 pixelsHigh: Int(size.height.rounded()),
                 bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                 colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0),
-              let ctx = NSGraphicsContext(bitmapImageRep: rep)
+              // 描く前に sRGB として扱わせる。sRGB の色を calibratedRGB のビットマップに
+              // 描くと変換がかかって色がずれるため
+              let srgb = rep.retagging(with: .sRGB),
+              let ctx = NSGraphicsContext(bitmapImageRep: srgb)
         else { return nil }
-        rep.size = size
+        srgb.size = size
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = ctx
@@ -23,7 +26,7 @@ enum BitmapCanvas {
         NSGraphicsContext.restoreGraphicsState()
 
         let image = NSImage(size: size)
-        image.addRepresentation(rep)
+        image.addRepresentation(srgb)
         return image
     }
 }

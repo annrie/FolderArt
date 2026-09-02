@@ -46,6 +46,27 @@ final class OverlayRendererTests: XCTestCase {
         XCTAssertTrue(TestSupport.contains(color: .red, in: text))
     }
 
+    /// sRGB のまま描けているか: 指定した色がほぼそのままピクセルに出る
+    func testTextTintIsWrittenAsSRGB() throws {
+        var settings = CompositionSettings()
+        settings.tintColor = CodableColor(red: 0.2, green: 0.4, blue: 0.6, alpha: 1)
+        let image = try XCTUnwrap(render(.text("I"), settings: settings))
+        let rep = TestSupport.bitmap(of: image)
+
+        let y = rep.pixelsHigh / 2
+        var opaque: NSColor?
+        for x in 0..<rep.pixelsWide {
+            if let c = TestSupport.srgbColor(of: rep, x: x, y: y), c.alphaComponent > 0.99 {
+                opaque = c
+                break
+            }
+        }
+        let color = try XCTUnwrap(opaque, "中央の行に不透明なピクセルがない")
+        XCTAssertEqual(color.redComponent,   0.2, accuracy: 0.03)
+        XCTAssertEqual(color.greenComponent, 0.4, accuracy: 0.03)
+        XCTAssertEqual(color.blueComponent,  0.6, accuracy: 0.03)
+    }
+
     func testImageKeepsAspectInsideSquare() throws {
         // 300x100 の赤い画像 → 256x256 の中で上下に透明帯ができる
         let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 300, height: 100), color: .red))
