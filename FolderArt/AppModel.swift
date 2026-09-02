@@ -55,6 +55,9 @@ final class AppModel: ObservableObject {
     }
 
     func apply() async {
+        // デバウンス待ちで overlayImage が古いままだと、適用と履歴で違うオーバーレイになりうる。
+        // 同期描画済みなら updatePreviewNow() は何もしない (lastRendered* ガードで冪等)。
+        overlay.updatePreviewNow()
         guard let overlayValue = overlay.overlay, let image = overlay.overlayImage else { return }
         let targets = folders.targets
         guard !targets.isEmpty else { return }

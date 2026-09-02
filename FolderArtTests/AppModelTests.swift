@@ -35,6 +35,32 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.applyButtonTitle, String(localized: "選択した 1 フォルダに適用"))
     }
 
+    /// overlay (メタデータ) はデバウンス無しで常に最新値を返すため、履歴の overlay フィールドだけでは
+    /// 「古い画像で適用してしまう」バグを検出できない。また apply() 完了後の overlayImage は
+    /// 実行中に自然にデバウンスが追いつくため、これも検出に使えない。
+    /// そこで実際にフォルダーへ書き込まれたアイコン (書いた時点のまま変わらない) の色を見る。
+    func testApplyRendersCurrentInputEvenBeforeDebounce() async throws {
+        let a = root.appendingPathComponent("A")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        model.addFolders([a])
+
+        let redID = try model.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red))
+        let blueID = try model.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .blue))
+
+        model.overlay.activeTab = .image
+        model.overlay.imageAssetID = redID
+        model.overlay.updatePreviewNow()   // 赤を同期描画済みにしておく
+        model.overlay.imageAssetID = blueID  // デバウンス前に適用 (青の反映はまだ)
+
+        await model.apply()
+
+        let appliedIcon = NSWorkspace.shared.icon(forFile: a.path)
+        XCTAssertTrue(TestSupport.contains(color: .blue, in: appliedIcon))
+        XCTAssertFalse(TestSupport.contains(color: .red, in: appliedIcon))
+        XCTAssertEqual(model.history.task(forFolderPath: a.standardizedFileURL.path)?.overlay, .image(assetID: blueID))
+        XCTAssertNil(model.errorMessage)
+    }
+
     func testDroppedURLsAreRouted() throws {
         let a = root.appendingPathComponent("A")
         try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
