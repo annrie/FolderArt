@@ -33,8 +33,8 @@ struct OverlayPickerView: View {
             case .image:
                 DropZoneView(
                     mode: .image,
-                    selectedURL: state.imageAssetID.map { state.assets.url(for: $0) },
-                    previewImage: state.imageAssetID.flatMap { state.assets.image(for: $0) },
+                    selectedURL: state.imageAssetID.map { state.assets.url(for: $0) },   // URL 構築のみ、I/O なし
+                    previewImage: state.imageAssetID == nil ? nil : state.overlayImage,  // メモリ上の描画結果を再利用
                     onDropURLs: { urls in if let first = urls.first { onDropImage(first) } },
                     onTapButton: onPickImage
                 )
