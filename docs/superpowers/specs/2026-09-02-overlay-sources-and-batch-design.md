@@ -119,7 +119,7 @@ enum OverlayRenderer {
 
 - 元アイコンを `NSWorkspace.shared.icon(forFile:)` から **標準フォルダアイコン** (`NSWorkspace.shared.icon(for: .folder)`) に変える。加工済みフォルダへの再適用で重ね塗りになる問題を解消する。
 - `compose(base:overlay:settings:) -> NSImage` に変え、ファイルパス依存をなくす。
-- `nonisolated` にし、メインスレッド外で呼べるようにする。
+- 純関数にし、どのスレッドからも呼べるようにする (第1段階では合成は1回だけなのでメインで同期的に呼ぶ)。
 - 出力は 512px 単一表現のまま (現行踏襲)。
 
 ### 5.3 SymbolCatalog (新規)
@@ -143,14 +143,16 @@ struct SymbolCatalog {
 ```swift
 struct ApplyOutcome { let succeeded: [URL]; let failed: [(URL, Error)] }
 
-actor ApplyCoordinator {
-    func apply(overlay: Overlay, settings: CompositionSettings,
-               to folders: [URL], progress: @Sendable (Int, Int) -> Void) async -> ApplyOutcome
+@MainActor final class ApplyCoordinator {
+    func apply(overlayImage: NSImage, overlay: Overlay, settings: CompositionSettings,
+               to folders: [URL], progress: (Int, Int) -> Void) async -> ApplyOutcome
 }
 ```
 
-- レンダラーの出力は1回だけ作り、全フォルダに使い回す。
-- 各フォルダについて順に: バックアップ → 合成 → `NSWorkspace.setIcon` → ブックマーク作成 → 履歴に追加 (同じ `folderPath` の行は置き換え)。
+- 合成は1回だけ (512px 1枚なのでメインアクター上で同期的に行う)。全フォルダに使い回す。
+- 各フォルダについて順に: バックアップ → `NSWorkspace.setIcon` → ブックマーク作成 → 履歴に追加 (同じ `folderPath` の行は置き換え)。1件ごとに `Task.yield()` して進捗を描画させる。
+- ブックマーク作成の失敗は致命ではない。適用は成功扱いにし、`bookmarkData` を空で記録する (履歴からのリセットだけ不可。§9)。
+- ブックマークは書き込み可能なスコープで作る (現行の `.securityScopeAllowOnlyReadAccess` は外す。再起動後のリセットで `Icon\r` を書くため)。
 - 1件の失敗で止めない。成功分は取り消さない。
 - `setfile` の `Process` 起動は削除する。
 
@@ -230,14 +232,15 @@ final class CodableStore<T: Codable> {
   - 絵文字: 1文字の入力欄 + 「絵文字パレット」ボタン (`NSApp.orderFrontCharacterPalette(nil)`)。
   - 文字: 1行の入力欄 (最大 8 文字を目安、超えたら描画側で縮小)。
   - 入力を持つタブで値が空なら、プレビューを出さず適用ボタンを無効にする。
-- **PresetStripView** (新規): 横スクロールのチップ列。チップはサムネイル (64px、`OverlayRenderer` の出力を標準フォルダに合成したもの)。クリックでオーバーレイと設定を一度に復元 (該当タブへ切り替え)。右クリックで「名前を変更」「削除」。右端の「＋」で現在の見た目を保存 (名前は初期値を自動生成し、後から変更可)。お気に入りが 0 件のときは「＋」と短い説明だけを出す。
+- **PresetStripView** (新規): 横スクロールのチップ列。チップはサムネイル (`OverlayRenderer` の出力を標準フォルダに合成し、40pt で表示。1回だけ作ってキャッシュ)。クリックでオーバーレイと設定を一度に復元 (該当タブへ切り替え)。右クリックで「名前を変更」「削除」。右端の「＋」で現在の見た目を保存 (名前は初期値を自動生成し、後から変更可)。お気に入りが 0 件のときは「＋」と短い説明だけを出す。
 - **ControlsView** (既存): 「色」の行を `ColorPicker` で追加 (画像タブでは無効表示)。「フルイメージ」チェックの表示名を「フォルダ形に切り抜く」に改め、内部名 `clipToFolderShape` と一致させる。
+- **HistoryView** (既存): 行に「再適用」ボタンを足す。オーバーレイと設定を画面に戻し、フォルダがまだあればリストに足す。旧形式 (`legacyImage`) の行では無効。
 - **PreviewView** (新規に切り出し): 128px 表示。`onHover` で、元の位置を動かさずに 256px の拡大版と 16 / 32 / 64 / 128 px の実寸列を `overlay` + `zIndex` で上に重ねる。ポインタが外れたら消す。アニメーションは 0.15 秒。
 - **ドロップの振り分け**: ウィンドウ全体で `.fileURL` を受け、フォルダは `FolderListView` へ、画像は画像タブへ切り替えて渡す。混在していれば両方に振り分ける。既存の `DropReceiverNSView.fileURL(from:)` は全件を返すように変える。
 
 ### 8.2 状態の分割
 
-`ContentViewModel` を次の3つに分け、`ContentView` はこれらを組み合わせる。
+`ContentViewModel` を次の3つに分け、薄い `AppModel` が束ねる。`AppModel` は子オブジェクトの `objectWillChange` を転送するので、`ContentView` は `@StateObject` を1つ持つだけでよい。
 
 - `FolderSelection` (`ObservableObject`): `folders: [URL]`、`selectedIDs: Set<URL>`、追加・削除・重複除去。`targets: [URL]` は選択があれば選択分、無ければ全件を返す。
 - `OverlayState` (`ObservableObject`): `overlay: Overlay?`、`settings`、`activeTab`、`previewImage`。プレビュー更新は 100ms のデバウンス付きでメインで 1 枚だけ描く。
@@ -256,7 +259,8 @@ final class CodableStore<T: Codable> {
 | お気に入り・履歴の読み書き失敗 | アラートで表示。握りつぶさない |
 | 画像の複製失敗 (AssetStore) | お気に入り保存を中止しアラート |
 | SymbolCatalog 読み込み失敗 | 同梱 fallback で動作。ユーザーには見せない |
-| ブックマーク作成失敗 | 適用自体は成功扱い。履歴からのリセットが不可になる旨を履歴行に表示 |
+| ブックマーク作成失敗 | 適用自体は成功扱い。`bookmarkData` を空で記録し、履歴行に「ここからのリセット不可」と表示。同一セッション中のリスト経由のリセットは可能 |
+| 履歴・お気に入りの読み込み失敗 | アラート表示に加え、画像の回収 (`AssetStore.reap`) を行わない (参照中の画像を誤って消さないため) |
 
 ## 10. テスト
 

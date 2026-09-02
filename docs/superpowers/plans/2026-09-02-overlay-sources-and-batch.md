@@ -768,8 +768,8 @@ final class HistoryStore: ObservableObject {
         store = CodableStore(fileURL: storageURL)
         do {
             tasks = try store.load() ?? []
-            // v1 から移行した行があれば v2 形式で保存し直す
-            if !tasks.isEmpty { try? store.save(tasks) }
+            // v1 から移行した行があれば v2 形式で保存し直す (失敗は握りつぶさず loadError に載せる)
+            if !tasks.isEmpty { try store.save(tasks) }
         } catch {
             loadError = error
             tasks = []
@@ -1732,6 +1732,16 @@ final class SymbolCatalogTests: XCTestCase {
         XCTAssertEqual(catalog.search("").prefix(5).map { $0 }, Array(SymbolCatalog.popularNames.prefix(5)))
     }
 
+    func testSearchLogicWithFixture() {
+        // 実機の CoreGlyphs に依存しない検索ロジックの検査
+        let catalog = SymbolCatalog(names: ["folder", "folder.fill", "star.fill", "figure.run"],
+                                    searchTerms: ["figure.run": ["running", "sports"]])
+        XCTAssertEqual(catalog.search("folder"), ["folder", "folder.fill"])
+        XCTAssertEqual(catalog.search("sport"), ["figure.run"])
+        XCTAssertEqual(catalog.search("  "), ["star.fill", "folder", "folder.fill", "figure.run"]) // popular が先頭
+        XCTAssertEqual(catalog.search("zzz"), [])
+    }
+
     func testFallbackListIsBundled() {
         let url = Bundle(for: SymbolCatalogTests.self).url(forResource: "restricted-symbols", withExtension: "txt")
             ?? Bundle.main.url(forResource: "restricted-symbols", withExtension: "txt")
@@ -1757,7 +1767,7 @@ import Foundation
 /// 実行中の macOS が持つ SF Symbols のカタログ。制限付き記号 (Apple 製品・機能を表すもの) は除外する。
 struct SymbolCatalog {
     let names: [String]
-    private let searchTerms: [String: [String]]
+    let searchTerms: [String: [String]]   // テストから memberwise init で注入できるよう internal
 
     static let coreGlyphsResources = URL(fileURLWithPath:
         "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources")
@@ -1840,7 +1850,7 @@ struct SymbolCatalog {
 - [ ] **Step 5: テスト**
 
 Run: `xcodegen generate` → `grep -c "restricted-symbols.txt" FolderArt.xcodeproj/project.pbxproj` が 1 以上 → テスト実行 (`-only-testing:FolderArtTests/SymbolCatalogTests`)
-Expected: 4 tests PASS
+Expected: 5 tests PASS
 
 - [ ] **Step 6: コミット**
 
@@ -2338,6 +2348,7 @@ git commit -m "feat: ✨ OverlayState を追加 (4 タブの入力とデバウ�
 
 **Files:**
 - Create: `FolderArt/Services/ApplyCoordinator.swift`
+- Modify: `FolderArt/Services/BookmarkManager.swift:23` (`.securityScopeAllowOnlyReadAccess` を外す。再起動後のリセットは `Icon\r` への書き込みが要るため)
 - Test: `FolderArtTests/ApplyCoordinatorTests.swift`
 
 **Interfaces:**
@@ -2354,7 +2365,8 @@ git commit -m "feat: ✨ OverlayState を追加 (4 タブの入力とデバウ�
       func reset(folder: URL) throws             // 同一セッション用 (URL 直接)
   }
   ```
-- `overlayImage` は `OverlayState.overlayImage` (レンダラー出力) を渡す。合成は 1 回。
+- `overlayImage` は `OverlayState.overlayImage` (レンダラー出力) を渡す。合成は 1 回、メインアクター上で同期的に行う (512px 1 枚なので数 ms)。
+- 順序は バックアップ → 適用 → ブックマーク → 履歴。ブックマーク作成の失敗は **致命ではない**: 適用は成功扱いにし、`bookmarkData` を空 `Data()` で履歴に残す (履歴からのリセットだけ不可。HistoryView が表示する)。
 
 - [ ] **Step 1: テストを書く**
 
@@ -2503,12 +2515,8 @@ final class ApplyCoordinator {
         to folders: [URL],
         progress: @escaping (Int, Int) -> Void = { _, _ in }
     ) async -> ApplyOutcome {
-        // 合成は 1 回だけ。メインスレッドを塞がないよう別タスクで描く。
-        let composed: NSImage? = await Task.detached(priority: .userInitiated) {
-            IconComposer.compose(overlay: overlayImage, settings: settings)
-        }.value
-
-        guard let icon = composed else {
+        // 合成は 1 回だけ (512px 1 枚なのでメインで同期的に描いて問題ない)
+        guard let icon = IconComposer.compose(overlay: overlayImage, settings: settings) else {
             let failures = folders.map { ApplyFailure(folder: $0, reason: ApplyError.composeFailed.localizedDescription) }
             return ApplyOutcome(succeeded: [], failed: failures)
         }
@@ -2520,8 +2528,9 @@ final class ApplyCoordinator {
         for (index, folder) in folders.enumerated() {
             do {
                 let backupURL = try iconManager.backupCurrentIcon(for: folder)
-                let bookmark = try BookmarkManager.createBookmark(for: folder)
                 try iconManager.applyIcon(icon, to: folder)
+                // ブックマークは再起動後のリセット用。失敗しても適用は成功扱い (空 Data で記録)
+                let bookmark = (try? BookmarkManager.createBookmark(for: folder)) ?? Data()
                 let task = IconTask(
                     folderPath: folder.standardizedFileURL.path,
                     bookmarkData: bookmark,
@@ -2542,7 +2551,8 @@ final class ApplyCoordinator {
 
     /// 履歴の 1 行をリセット (別セッション再開用: ブックマーク経由)
     func reset(_ task: IconTask) throws {
-        guard let url = try? BookmarkManager.resolveBookmark(task.bookmarkData) else {
+        guard !task.bookmarkData.isEmpty,
+              let url = try? BookmarkManager.resolveBookmark(task.bookmarkData) else {
             throw ApplyError.bookmarkUnavailable
         }
         let accessing = url.startAccessingSecurityScopedResource()
@@ -2561,7 +2571,7 @@ final class ApplyCoordinator {
 }
 ```
 
-`NSImage` は `Sendable` ではないため、`Task.detached` に渡す箇所で Swift 5.9 の strict concurrency 警告が出る場合は `nonisolated(unsafe)` ではなく、クロージャ内で `overlayImage` をキャプチャする現在の形のまま警告を許容する (エラーにはならない)。
+`FolderArt/Services/BookmarkManager.swift` 23 行目を `options: [.withSecurityScope],` に変える (読み取り専用スコープだと再起動後に `Icon\r` を書けずリセットできない)。
 
 - [ ] **Step 4: テスト**
 
@@ -2571,7 +2581,7 @@ Expected: 4 tests PASS
 - [ ] **Step 5: コミット**
 
 ```bash
-git add FolderArt/Services/ApplyCoordinator.swift FolderArtTests/ApplyCoordinatorTests.swift FolderArt.xcodeproj/project.pbxproj
+git add FolderArt/Services/ApplyCoordinator.swift FolderArt/Services/BookmarkManager.swift FolderArtTests/ApplyCoordinatorTests.swift FolderArt.xcodeproj/project.pbxproj
 git commit -m "feat: ✨ ApplyCoordinator を追加 (複数フォルダへの一括適用と部分失敗の集計)"
 ```
 
@@ -2606,9 +2616,11 @@ git commit -m "feat: ✨ ApplyCoordinator を追加 (複数フォルダへの一
       func addFolders(_ urls: [URL]); func selectFoldersWithPanel(); func selectImageWithPanel()
       func handleDroppedURLs(_ urls: [URL])      // フォルダ/画像を振り分け
       func saveCurrentAsPreset(); func applyPreset(_ p: Preset); func removePreset(_ p: Preset); func renamePreset(_ p: Preset, to: String)
-      func reapAssets()
+      func restore(from task: IconTask)          // 履歴の行を現在の入力に戻し、フォルダをリストに足す
+      func reapAssets()                          // どちらかのストアが loadError なら何もしない
   }
   ```
+- `AppModel` は `folders` / `overlay` / `history` / `presets` の `objectWillChange` を自分の `objectWillChange` に転送する。`ContentView` は `@StateObject var model` だけを持てばよい。
 
 - [ ] **Step 1: テストを書く**
 
@@ -2664,6 +2676,34 @@ final class AppModelTests: XCTestCase {
         XCTAssertNotNil(model.overlay.imageAssetID)
     }
 
+    func testReapIsSkippedWhenAStoreFailedToLoad() throws {
+        let broken = root.appendingPathComponent("broken.json")
+        try "x".data(using: .utf8)!.write(to: broken)
+        let m = AppModel(history: HistoryStore(storageURL: broken),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: model.assets)
+        let orphan = try m.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .blue))
+        m.reapAssets()
+        XCTAssertTrue(m.assets.allIDs().contains(orphan))
+        XCTAssertNotNil(m.errorMessage)
+    }
+
+    func testRestoreFromHistoryTaskSetsOverlayAndFolder() throws {
+        let a = root.appendingPathComponent("A")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        var settings = CompositionSettings(); settings.position = .badge
+        let task = IconTask(folderPath: a.path, bookmarkData: Data(), backupPath: nil,
+                            overlay: .text("26"), settings: settings)
+        model.restore(from: task)
+        XCTAssertEqual(model.overlay.activeTab, .text)
+        XCTAssertEqual(model.overlay.text, "26")
+        XCTAssertEqual(model.overlay.settings.position, .badge)
+        XCTAssertEqual(model.folders.folders.count, 1)
+        model.restore(from: IconTask(folderPath: a.path, bookmarkData: Data(), backupPath: nil,
+                                     overlay: .legacyImage(name: "x"), settings: CompositionSettings()))
+        XCTAssertEqual(model.overlay.text, "26")   // 旧形式は無視
+    }
+
     func testSavePresetAndReapKeepsReferencedAssets() throws {
         let png = root.appendingPathComponent("pic.png")
         try TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red)).write(to: png)
@@ -2690,6 +2730,7 @@ Expected: ビルドエラー
 
 ```swift
 import AppKit
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -2706,6 +2747,7 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isApplying = false
     @Published var progress: (done: Int, total: Int)?
+    private var cancellables: Set<AnyCancellable> = []
 
     init(history: HistoryStore = HistoryStore(),
          presets: PresetStore = PresetStore(),
@@ -2716,6 +2758,14 @@ final class AppModel: ObservableObject {
         self.folders = FolderSelection()
         self.overlay = OverlayState(assets: assets)
         self.coordinator = ApplyCoordinator(history: history)
+
+        // 子オブジェクトの変更を自分の変更として流し、ContentView を再描画させる
+        for child in [folders.objectWillChange.eraseToAnyPublisher(),
+                      overlay.objectWillChange.eraseToAnyPublisher(),
+                      history.objectWillChange.eraseToAnyPublisher(),
+                      presets.objectWillChange.eraseToAnyPublisher()] {
+            child.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        }
 
         if let e = history.loadError ?? presets.loadError {
             errorMessage = String(localized: "保存データの読み込みに失敗しました: \(e.localizedDescription)")
@@ -2823,6 +2873,13 @@ final class AppModel: ObservableObject {
         overlay.restore(overlay: preset.overlay, settings: preset.settings)
     }
 
+    /// 履歴の行を現在の入力に戻す (旧形式は不可)。フォルダがまだあればリストに足す。
+    func restore(from task: IconTask) {
+        guard task.overlay.canReapply else { return }
+        overlay.restore(overlay: task.overlay, settings: task.settings)
+        folders.add([URL(fileURLWithPath: task.folderPath)])
+    }
+
     func removePreset(_ preset: Preset) {
         do { try presets.remove(preset) } catch { errorMessage = error.localizedDescription }
         reapAssets()
@@ -2834,8 +2891,10 @@ final class AppModel: ObservableObject {
 
     // MARK: - 画像の回収
 
-    /// 履歴・お気に入り・現在の選択のどれからも参照されない PNG を消す
+    /// 履歴・お気に入り・現在の選択のどれからも参照されない PNG を消す。
+    /// どちらかのストアが読めていない (空で始まっている) ときは、参照中の画像を消さないよう何もしない。
     func reapAssets() {
+        guard history.loadError == nil, presets.loadError == nil else { return }
         var keep = history.referencedAssetIDs.union(presets.referencedAssetIDs)
         if let id = overlay.imageAssetID { keep.insert(id) }
         try? assets.reap(keeping: keep)
@@ -2866,7 +2925,7 @@ struct ContentView: View {
 - [ ] **Step 4: テスト**
 
 Run: `xcodegen generate` → テスト実行 (全体)
-Expected: AppModelTests 3 PASS。全体 PASS。
+Expected: AppModelTests 5 PASS。全体 PASS。
 
 - [ ] **Step 5: コミット**
 
@@ -3588,20 +3647,16 @@ git commit -m "feat: ✨ PreviewView を追加 (hover で拡大と 16/32/64/128p
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var model: AppModel
-    // 入れ子の ObservableObject の変更で再描画させるため、同じインスタンスを ObservedObject でも持つ
-    @ObservedObject private var overlayState: OverlayState
-    @ObservedObject private var folderSelection: FolderSelection
+    // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される
+    @StateObject private var model = AppModel()
     @State private var catalog = SymbolCatalog.load()
     @State private var showHistory = false
     @State private var showError = false
     @State private var windowTargeted = false
 
-    init() {
-        let m = AppModel()
-        _model = StateObject(wrappedValue: m)
-        _overlayState = ObservedObject(wrappedValue: m.overlay)
-        _folderSelection = ObservedObject(wrappedValue: m.folders)
+    /// `model.overlay` は let なので `$model.overlay.settings` は書けない。手で Binding を作る。
+    private var settingsBinding: Binding<CompositionSettings> {
+        Binding(get: { model.overlay.settings }, set: { model.overlay.settings = $0 })
     }
 
     var body: some View {
@@ -3631,7 +3686,7 @@ struct ContentView: View {
             PresetStripView(
                 store: model.presets,
                 assets: model.assets,
-                canSave: overlayState.overlay != nil,
+                canSave: model.overlay.overlay != nil,
                 onSave: { model.saveCurrentAsPreset() },
                 onApply: { model.applyPreset($0) },
                 onRename: { model.renamePreset($0, to: $1) },
@@ -3640,10 +3695,10 @@ struct ContentView: View {
             Divider()
 
             HStack(alignment: .top, spacing: 12) {
-                ControlsView(settings: $overlayState.settings,
-                             showsTint: overlayState.activeTab != .image)
+                ControlsView(settings: settingsBinding,
+                             showsTint: model.overlay.activeTab != .image)
                     .frame(maxWidth: .infinity)
-                PreviewView(image: overlayState.previewImage,
+                PreviewView(image: model.overlay.previewImage,
                             placeholder: "フォルダーと\n重ねるものを選択")
                     .frame(width: 200)
             }
@@ -3662,10 +3717,11 @@ struct ContentView: View {
             )
         )
         .sheet(isPresented: $showHistory) {
-            HistoryView(historyStore: model.history) { task in
-                model.reset(task: task)
-                showHistory = false
-            }
+            HistoryView(
+                historyStore: model.history,
+                onReset: { task in model.reset(task: task); showHistory = false },
+                onReapply: { task in model.restore(from: task); showHistory = false }
+            )
         }
         .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
         .alert("お知らせ", isPresented: $showError) {
@@ -3688,11 +3744,11 @@ struct ContentView: View {
     private var actionBar: some View {
         HStack {
             Button { model.resetTargets() } label: { Label("リセット", systemImage: "arrow.uturn.backward") }
-                .disabled(folderSelection.isEmpty || model.isApplying)
+                .disabled(model.folders.isEmpty || model.isApplying)
                 .help(Text("適用先のフォルダーのアイコンを元に戻す"))
 
-            Button { folderSelection.removeAll() } label: { Label("リストを空にする", systemImage: "xmark.bin") }
-                .disabled(folderSelection.isEmpty || model.isApplying)
+            Button { model.folders.removeAll() } label: { Label("リストを空にする", systemImage: "xmark.bin") }
+                .disabled(model.folders.isEmpty || model.isApplying)
 
             Spacer()
 
@@ -3712,11 +3768,11 @@ struct ContentView: View {
 }
 ```
 
-`canApply` と `applyButtonTitle` は `AppModel` の計算プロパティで、`overlayState` / `folderSelection` の変更で `ContentView` が再評価されるので、そのまま `model.canApply` / `model.applyButtonTitle` を参照してよい。
+`canApply` と `applyButtonTitle` は `AppModel` の計算プロパティ。子オブジェクトの変更は `AppModel` が転送するので、`ContentView` は `model.…` を参照するだけで再評価される。
 
 - [ ] **Step 2: HistoryView を v2 対応**
 
-`FolderArt/Views/HistoryView.swift` 39〜49 行目:
+`FolderArt/Views/HistoryView.swift` の `let onReset: (IconTask) -> Void` の下に `let onReapply: (IconTask) -> Void` を足す。39〜49 行目:
 
 ```swift
                             VStack(alignment: .leading, spacing: 4) {
@@ -3727,6 +3783,9 @@ struct ContentView: View {
                                     if !task.overlay.canReapply {
                                         Text("(旧形式)").foregroundColor(.orange)
                                     }
+                                    if task.bookmarkData.isEmpty {
+                                        Text("(ここからのリセット不可)").foregroundColor(.orange)
+                                    }
                                 }
                                 .font(.caption).foregroundColor(.secondary)
                                 Text(dateFormatter.string(from: task.appliedAt))
@@ -3734,7 +3793,19 @@ struct ContentView: View {
                             }
 ```
 
-`.frame(width: 400, height: 360)` は `.frame(minWidth: 440, minHeight: 360)` に変える。
+51〜55 行目の「リセット」ボタンの前に再適用ボタンを足す:
+
+```swift
+                            Button("再適用") { onReapply(task) }
+                                .buttonStyle(.bordered).controlSize(.small)
+                                .disabled(!task.overlay.canReapply)
+                                .help(Text("この見た目とフォルダーを画面に戻す"))
+                            Button("リセット") { onReset(task) }
+                                .buttonStyle(.bordered).controlSize(.small)
+                                .disabled(task.bookmarkData.isEmpty)
+```
+
+`.frame(width: 400, height: 360)` は `.frame(minWidth: 480, minHeight: 360)` に変える。
 
 - [ ] **Step 3: ウィンドウ設定**
 
@@ -3775,7 +3846,7 @@ Run: `xcodebuild build -project FolderArt.xcodeproj -scheme FolderArt -destinati
 7. リストで 1 行だけ選ぶ → ボタンが「選択した 1 フォルダに適用」。別の記号で適用 → その 1 つだけ変わり、履歴は 3 行のまま。
 8. ★ で保存 → 帯にチップ。別タブに移ってからチップをクリック → 元のタブと設定に戻る。右クリックで名前変更と削除ができる。
 9. プレビューに hover → 拡大版と 16/32/64/128 の列が上に重なり、隣のスライダーは動かない。
-10. 「リセット」→ 適用先のアイコンが標準に戻る。履歴からのリセットも動く。
+10. 「リセット」→ 適用先のアイコンが標準に戻る。履歴からのリセットも動く。履歴の「再適用」で見た目とフォルダが画面に戻る。
 11. 存在しないフォルダ (適用前に Finder で消す) を含めて適用 → 「2 件成功、1 件失敗」のアラート。成功分はそのまま。
 
 - [ ] **Step 6: コミット**
