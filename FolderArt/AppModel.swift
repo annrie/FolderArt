@@ -65,7 +65,8 @@ final class AppModel: ObservableObject {
         let outcome = await coordinator.apply(
             overlayImage: image, overlay: overlayValue, settings: overlay.settings,
             to: targets, progress: { [weak self] done, total in self?.progress = (done, total) })
-        errorMessage = outcome.summary
+        // 全件成功なら静かに終わる (既に出ているアラートを消さない)
+        if let summary = outcome.summary { errorMessage = summary }
         reapAssets()
     }
 
@@ -188,6 +189,6 @@ final class AppModel: ObservableObject {
         guard history.loadError == nil, presets.loadError == nil else { return }
         var keep = history.referencedAssetIDs.union(presets.referencedAssetIDs)
         if let id = overlay.imageAssetID { keep.insert(id) }
-        try? assets.reap(keeping: keep)
+        _ = try? assets.reap(keeping: keep)
     }
 }

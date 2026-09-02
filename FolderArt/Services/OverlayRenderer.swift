@@ -59,13 +59,15 @@ enum OverlayRenderer {
         let string = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !string.isEmpty else { return nil }
 
-        let maxWidth = side * 0.9
+        let maxSide = side * 0.9
         var fontSize = side * 0.8
         var attributed = attributedString(string, fontSize: fontSize, settings: settings, applyTint: applyTint)
         var bounds = attributed.size()
-        // 幅がはみ出す場合は縮小して収める
-        if bounds.width > maxWidth {
-            fontSize *= maxWidth / bounds.width
+        // 幅か高さがはみ出す場合は、はみ出しの大きい方に合わせて縮小して収める
+        // (絵文字や行間の広いフォントは高さの方が先にはみ出す)
+        let overflow = max(bounds.width / maxSide, bounds.height / maxSide)
+        if overflow > 1 {
+            fontSize /= overflow
             attributed = attributedString(string, fontSize: fontSize, settings: settings, applyTint: applyTint)
             bounds = attributed.size()
         }
