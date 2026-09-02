@@ -17,17 +17,25 @@ enum FolderIconError: LocalizedError {
 
 class FolderIconManager {
 
-    let backupDirectory: URL = {
+    /// ~/Library/Application Support/FolderArt/backups
+    static var defaultBackupDirectory: URL {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first!
-        let dir = appSupport.appendingPathComponent("FolderArt/backups")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }()
+        return appSupport.appendingPathComponent("FolderArt/backups")
+    }
 
-    /// 現在のフォルダーアイコンをバックアップして保存先 URL を返す。設定されていない場合は nil を返す
+    let backupDirectory: URL
+
+    init(backupDirectory: URL = FolderIconManager.defaultBackupDirectory) {
+        self.backupDirectory = backupDirectory
+        try? FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+    }
+
+    /// 現在のフォルダーアイコンをバックアップして保存先 URL を返す。設定されていない場合は nil を返す。
+    /// 既にバックアップがあれば **上書きしない**。2 回目の適用で FolderArt 自身の合成結果を
+    /// 「元のアイコン」として記録してしまうと、リセットでユーザーの元アイコンに戻せなくなる。
     func backupCurrentIcon(for folderURL: URL) throws -> URL? {
         // Only backup if the folder *actually* has a custom icon set ("Icon\r" file exists)
         // Otherwise returning a generic blue folder image leads to a fake custom icon being restored
@@ -43,10 +51,15 @@ class FolderIconManager {
             ?? UUID().uuidString
 
         let backupDir = backupDirectory.appendingPathComponent(folderID)
+        let backupURL = backupDir.appendingPathComponent("original.png")
+
+        // 初回のバックアップだけが「ユーザーの元アイコン」。以後は再利用する
+        if FileManager.default.fileExists(atPath: backupURL.path) {
+            return backupURL
+        }
         try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
 
         let currentIcon = NSWorkspace.shared.icon(forFile: folderURL.path)
-        let backupURL = backupDir.appendingPathComponent("original.png")
 
         guard let tiff   = currentIcon.tiffRepresentation,
               let bitmap  = NSBitmapImageRep(data: tiff),

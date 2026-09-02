@@ -99,11 +99,13 @@ final class ApplyCoordinator {
         try history.remove(task)
     }
 
-    /// 同一セッション用: URL を直接使ってリセット
+    /// 同一セッション用: URL を直接使ってリセット。
+    /// 履歴に無いフォルダは FolderArt が触っていないので何もしない
+    /// (手で設定したカスタムアイコンを消してしまわないため)。
     func reset(folder: URL) throws {
         let path = folder.standardizedFileURL.path
-        let task = history.task(forFolderPath: path)
-        iconManager.resetIcon(for: folder, backupURL: task?.backupPath.map { URL(fileURLWithPath: $0) })
-        if let task { try history.remove(task) }
+        guard let task = history.task(forFolderPath: path) else { return }
+        iconManager.resetIcon(for: folder, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
+        try history.remove(task)
     }
 }

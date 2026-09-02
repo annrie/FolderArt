@@ -8,6 +8,7 @@ final class ApplyCoordinatorTests: XCTestCase {
     private var historyURL: URL!
     private var history: HistoryStore!
     private var coordinator: ApplyCoordinator!
+    private var iconManager: FolderIconManager!
     private var overlayImage: NSImage!
 
     override func setUp() async throws {
@@ -15,7 +16,9 @@ final class ApplyCoordinatorTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         historyURL = root.appendingPathComponent("history.json")
         history = HistoryStore(storageURL: historyURL)
-        coordinator = ApplyCoordinator(history: history)
+        // 本物の Application Support を汚さないよう、バックアップ先はテンポラリに逃がす
+        iconManager = FolderIconManager(backupDirectory: root.appendingPathComponent("backups"))
+        coordinator = ApplyCoordinator(history: history, iconManager: iconManager)
         overlayImage = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
     }
     override func tearDown() async throws {
@@ -78,6 +81,20 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertTrue(history.tasks.isEmpty)
     }
 
+    /// 履歴に無いフォルダ (手でカスタムアイコンを設定したもの) のリセットは何もしない
+    func testResetIgnoresFolderWithoutHistoryRow() throws {
+        let a = try folder("A")
+        let manual = FolderIconManager(backupDirectory: root.appendingPathComponent("manual"))
+        try manual.applyIcon(overlayImage, to: a)
+        let iconFile = a.appendingPathComponent("Icon\r")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: iconFile.path))
+
+        try coordinator.reset(folder: a)
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: iconFile.path))
+        manual.resetIcon(for: a, backupURL: nil)
+    }
+
     func testHistoryWriteFailureRollsBackIcon() async throws {
         let a = try folder("A")
         // history.json を書き込み不可のディレクトリに置く → upsert が throw する
@@ -86,7 +103,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
         let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
-        let c = ApplyCoordinator(history: lockedHistory)
+        let c = ApplyCoordinator(history: lockedHistory, iconManager: iconManager)
 
         let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
                                     settings: CompositionSettings(), to: [a])

@@ -71,13 +71,22 @@ final class AppModel: ObservableObject {
 
     // MARK: - リセット
 
-    /// 適用先 (選択 or 全部) のアイコンを戻す
+    /// 適用先のうち FolderArt が適用した (履歴に行がある) フォルダが 1 つでもあれば戻せる
+    var canReset: Bool {
+        !isApplying && folders.targets.contains { hasHistory($0) }
+    }
+
+    /// 適用先 (選択 or 全部) のうち、FolderArt が適用したフォルダだけアイコンを戻す
     func resetTargets() {
-        for url in folders.targets {
+        for url in folders.targets where hasHistory(url) {
             do { try coordinator.reset(folder: url) }
             catch { errorMessage = error.localizedDescription }
         }
         reapAssets()
+    }
+
+    private func hasHistory(_ url: URL) -> Bool {
+        history.task(forFolderPath: url.standardizedFileURL.path) != nil
     }
 
     func reset(task: IconTask) {

@@ -98,7 +98,7 @@ struct ContentView: View {
     private var actionBar: some View {
         HStack {
             Button { model.resetTargets() } label: { Label("リセット", systemImage: "arrow.uturn.backward") }
-                .disabled(model.folders.isEmpty || model.isApplying)
+                .disabled(!model.canReset)
                 .help(Text("適用先のフォルダーのアイコンを元に戻す"))
 
             Button { model.folders.removeAll() } label: { Label("リストを空にする", systemImage: "xmark.bin") }
