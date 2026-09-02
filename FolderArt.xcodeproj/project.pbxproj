@@ -22,6 +22,7 @@
 		22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27276A44F5727DA9071A647 /* IconComposerTests.swift */; };
 		2857F0EFB46B56B54184DB40 /* BookmarkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443675269CBE370462363D0D /* BookmarkManager.swift */; };
 		29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1413684D8590492917E00AF /* BookmarkManagerTests.swift */; };
+		2A0776B44C0B36A28BC3924A /* PresetStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */; };
 		4F7B042A64FE8820F39F9B0A /* PresetStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C12619979901BAA4F0ACF7 /* PresetStoreTests.swift */; };
 		4F8F30C5FF3DF177E1275132 /* OverlayRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1946BB2EC721EA592675228F /* OverlayRenderer.swift */; };
 		51AEFCEB51A574101AD25DBC /* FolderListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC0E1A55C6D47150442E2BF /* FolderListView.swift */; };
@@ -102,6 +103,7 @@
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
 		A9A0E82244158396C217FC8F /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
+		B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetStripView.swift; sourceTree = "<group>"; };
 		B2BBDA62DF07FE22FED7C65A /* ApplyCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyCoordinator.swift; sourceTree = "<group>"; };
 		B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStore.swift; sourceTree = "<group>"; };
 		C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManagerTests.swift; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 				8EC0E1A55C6D47150442E2BF /* FolderListView.swift */,
 				078CB4D0C0960A8AF20B032F /* HistoryView.swift */,
 				52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */,
+				B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */,
 				DBD72D9929DA31F59FD2C696 /* SymbolGridView.swift */,
 			);
 			path = Views;
@@ -391,6 +394,7 @@
 				E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */,
 				1E94CC78757172E43FADBFD1 /* Preset.swift in Sources */,
 				1578B601468A3ACEBEA38F44 /* PresetStore.swift in Sources */,
+				2A0776B44C0B36A28BC3924A /* PresetStripView.swift in Sources */,
 				5FA6D56ACFF1D67D6B53BDC0 /* SymbolCatalog.swift in Sources */,
 				A7A55AAF3C49496A09E70042 /* SymbolGridView.swift in Sources */,
 			);
