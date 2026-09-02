@@ -83,33 +83,65 @@ xcodebuild test -scheme FolderArt -destination 'platform=macOS'
 
 ## 使い方
 
-1. **フォルダーを選択** — 左のドロップゾーンにフォルダーをドロップ（またはボタンから選択）
-2. **画像を選択** — 右のドロップゾーンに画像をドロップ（PNG / JPEG / HEIC / GIF / WebP 対応）
-3. **設定を調整**
-   - **フルイメージ** チェック ON: 画像がフォルダー形状に自動フィット（推奨）
-   - チェック OFF: スケール・不透明度・上下位置を手動調整
-4. **プレビューを確認** — 合成結果をリアルタイムで確認
-5. **アイコンを適用** — 「アイコンを適用」ボタンをクリック
-6. **リセット** — 元に戻したい場合はフォルダーを選択して「リセット」ボタン
+1. **フォルダーをリストに追加** — 左のリストにフォルダーをドロップ（「＋」から複数選択も可）
+   Add folders to the list: drop them on the left list, or pick several with the + button
+2. **重ねるものを選ぶ** — 右の 4 タブから 画像 / 記号 / 絵文字 / 文字 を選択
+   Choose what to overlay: the image, symbol, emoji, or text tab on the right
+3. **設定を調整** — 配置・大きさ・不透明度・上下位置、記号と文字は色も。
+   **フォルダー形に切り抜く** を ON にすると、はみ出した部分をフォルダーの形で切り落とす
+   Adjust position, size, opacity, vertical offset, and (for symbols and text) tint.
+   Turn on "clip to folder shape" to trim the overlay to the folder outline
+4. **プレビューを確認** — 合成結果はその場で更新。プレビューに hover すると拡大表示と 16/32/64/128px の実寸が出る
+   Check the preview: it updates as you go, and hovering enlarges it and shows 16/32/64/128px renderings
+5. **適用** — 「N フォルダに適用」ボタン。リストで行を選んでいれば、その行だけに適用する
+   Apply: the button applies to every folder in the list, or only to the rows you selected
+6. **お気に入り** — 「＋」で今の見た目（重ねるもの + 設定）を保存し、チップをクリックで復元
+   Presets: save the current look (overlay + settings) with +, and restore it by clicking its chip
+7. **元に戻す** — 「リセット」で適用先のアイコンを戻す。FolderArt が適用していないフォルダーには触らない
+   Reset: restores the icons FolderArt applied; folders it never touched are left alone
+8. **履歴** — ツールバーの「履歴」から、過去の適用を再適用したり、リセットしたりできる
+   History: re-apply or reset a past application from the History sheet in the toolbar
 
 ## プロジェクト構成
 
 ```
 FolderArt/
+├── AppModel.swift              # 画面全体の状態を束ねる
+├── ContentView.swift           # メイン画面の組み立て
+├── FolderArtApp.swift          # アプリのエントリポイント
 ├── Models/
-│   └── IconTask.swift          # タスクモデル・配置列挙型
+│   ├── CodableColor.swift      # JSON に保存できる sRGB 色・フォント太さ
+│   ├── CompositionSettings.swift # 合成設定（配置・大きさ・色など）
+│   ├── IconTask.swift          # 履歴 1 行（v1 からの移行を含む）
+│   ├── Overlay.swift           # 重ねるもの（画像 / 記号 / 絵文字 / 文字）
+│   └── Preset.swift            # お気に入り（重ねるもの + 設定）
 ├── Services/
+│   ├── ApplyCoordinator.swift  # 複数フォルダへの一括適用とリセット
+│   ├── BitmapCanvas.swift      # sRGB ビットマップへの描画ヘルパ
 │   ├── BookmarkManager.swift   # Security-Scoped Bookmark 管理
-│   ├── FolderIconManager.swift # NSWorkspace アイコン操作
-│   └── IconComposer.swift      # Core Graphics 画像合成
+│   ├── FolderIconManager.swift # NSWorkspace アイコン操作・バックアップ
+│   ├── IconComposer.swift      # 標準フォルダーアイコンとの合成
+│   ├── OverlayRenderer.swift   # 4 種類を正方形画像に描画
+│   └── SymbolCatalog.swift     # SF Symbols のカタログ（制限付きは除外）
+├── State/
+│   ├── FolderSelection.swift   # 適用先フォルダのリストと選択
+│   └── OverlayState.swift      # 重ねるものと設定・プレビュー
 ├── Stores/
-│   └── HistoryStore.swift      # JSON 永続化履歴管理
+│   ├── AssetStore.swift        # 画像を 512px PNG で複製・回収
+│   ├── CodableStore.swift      # JSON の読み書き・破損ファイルの退避
+│   ├── HistoryStore.swift      # 適用履歴
+│   └── PresetStore.swift       # お気に入り
 ├── Views/
-│   ├── ContentView.swift       # メイン画面
-│   ├── ControlsView.swift      # 設定スライダー
+│   ├── ControlsView.swift      # 設定スライダーと色
 │   ├── DropZoneView.swift      # D&D ゾーン（AppKit 実装）
-│   └── HistoryView.swift       # 履歴シート
-└── ContentViewModel.swift      # メイン ViewModel
+│   ├── FolderListView.swift    # 適用先フォルダのリスト
+│   ├── HistoryView.swift       # 履歴シート
+│   ├── OverlayPickerView.swift # 4 タブの選択画面
+│   ├── PresetStripView.swift   # お気に入りのチップ列
+│   ├── PreviewView.swift       # プレビューと hover 拡大
+│   └── SymbolGridView.swift    # 記号の検索とグリッド
+└── Resources/
+    └── restricted-symbols.txt  # 制限付き記号の同梱 fallback
 ```
 
 ## 技術詳細
