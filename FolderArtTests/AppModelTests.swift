@@ -63,13 +63,16 @@ final class AppModelTests: XCTestCase {
         let a = root.appendingPathComponent("A")
         try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
         var settings = CompositionSettings(); settings.position = .badge
-        let task = IconTask(folderPath: a.path, bookmarkData: Data(), backupPath: nil,
+        // ブックマークがある行はブックマーク経由で解決する (再起動後の App Sandbox 対策)
+        let bookmark = try BookmarkManager.createBookmark(for: a)
+        let task = IconTask(folderPath: a.path, bookmarkData: bookmark, backupPath: nil,
                             overlay: .text("26"), settings: settings)
         model.restore(from: task)
         XCTAssertEqual(model.overlay.activeTab, .text)
         XCTAssertEqual(model.overlay.text, "26")
         XCTAssertEqual(model.overlay.settings.position, .badge)
         XCTAssertEqual(model.folders.folders.count, 1)
+        XCTAssertEqual(model.folders.folders.first, a.standardizedFileURL)
         model.restore(from: IconTask(folderPath: a.path, bookmarkData: Data(), backupPath: nil,
                                      overlay: .legacyImage(name: "x"), settings: CompositionSettings()))
         XCTAssertEqual(model.overlay.text, "26")   // 旧形式は無視

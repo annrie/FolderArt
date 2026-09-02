@@ -155,7 +155,20 @@ final class AppModel: ObservableObject {
     func restore(from task: IconTask) {
         guard task.overlay.canReapply else { return }
         overlay.restore(overlay: task.overlay, settings: task.settings)
-        folders.add([URL(fileURLWithPath: task.folderPath)])
+        folders.add([folderURL(for: task)])
+    }
+
+    /// 履歴の行が指すフォルダ。App Sandbox 下では再起動後に素のパスでは書き込めないので、
+    /// ブックマークがあればそちらを優先する。
+    private func folderURL(for task: IconTask) -> URL {
+        guard !task.bookmarkData.isEmpty,
+              let url = try? BookmarkManager.resolveBookmark(task.bookmarkData) else {
+            return URL(fileURLWithPath: task.folderPath)
+        }
+        // リストに残っている間ずっとアクセス権が要る。このセッションの間は開いたままにする
+        // (アプリ終了時に OS がまとめて解放する)
+        _ = url.startAccessingSecurityScopedResource()
+        return url
     }
 
     func removePreset(_ preset: Preset) {
