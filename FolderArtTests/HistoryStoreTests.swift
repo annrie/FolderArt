@@ -75,4 +75,22 @@ final class HistoryStoreTests: XCTestCase {
         try store.upsert(makeTask(folderPath: "/b", overlay: .text("x")))
         XCTAssertEqual(store.referencedAssetIDs, [id])
     }
+
+    func testResaveFailureKeepsLoadedTasksAndSetsLoadError() throws {
+        try store.upsert(makeTask())
+        // 保存先を書き込み不可にして再読み込み → 読めた 1 件は残り、loadError が立つ
+        let dir = tempHistoryURL.deletingLastPathComponent()
+        let lockedDir = dir.appendingPathComponent("locked_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: lockedDir, withIntermediateDirectories: true)
+        let lockedURL = lockedDir.appendingPathComponent("history.json")
+        try FileManager.default.copyItem(at: tempHistoryURL, to: lockedURL)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: lockedDir.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: lockedDir.path)
+            try? FileManager.default.removeItem(at: lockedDir)
+        }
+        let s = HistoryStore(storageURL: lockedURL)
+        XCTAssertEqual(s.tasks.count, 1)
+        XCTAssertNotNil(s.loadError)
+    }
 }

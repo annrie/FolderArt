@@ -22,11 +22,14 @@ final class HistoryStore: ObservableObject {
         store = CodableStore(fileURL: storageURL)
         do {
             tasks = try store.load() ?? []
-            // v1 から移行した行があれば v2 形式で保存し直す (失敗は握りつぶさず loadError に載せる)
-            if !tasks.isEmpty { try store.save(tasks) }
         } catch {
             loadError = error
             tasks = []
+            return
+        }
+        // v1 から移行した行があれば v2 形式で保存し直す。失敗しても読めた履歴は捨てず、loadError で知らせる
+        if !tasks.isEmpty {
+            do { try store.save(tasks) } catch { loadError = error }
         }
     }
 
