@@ -24,9 +24,11 @@
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
 		AA03C31F7DCA43E0C1FE088A /* ContentViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 143FFBEF3C6B52DB30876369 /* ContentViewModelTests.swift */; };
 		C2C2C06A4F730D6E9BB33088 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502339979955DC1D1A8FEBD5 /* HistoryStore.swift */; };
+		C75DC3BDDEED1C874F45C6FD /* OverlayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4110F76F80F389FC528E43DD /* OverlayTests.swift */; };
 		C7ED163720D509FD3622491F /* CompositionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03397CAD3F70160DD2C879B4 /* CompositionSettings.swift */; };
 		CA0CEF06231A91F28BE15B00 /* CompositionSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */; };
 		D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */; };
+		DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948C526800FD33239F8ECEE6 /* Overlay.swift */; };
 		FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11E4CC866B6C3E295A97D66 /* IconComposer.swift */; };
 		FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */; };
 		FF2B3FAA8B331CFC29108353 /* CodableColorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D06C1860356B1F2AA71A37 /* CodableColorTests.swift */; };
@@ -52,6 +54,7 @@
 		1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTaskTests.swift; sourceTree = "<group>"; };
 		2C7DB3DC3FE5DDB6740D4C69 /* CodableColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableColor.swift; sourceTree = "<group>"; };
 		2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
+		4110F76F80F389FC528E43DD /* OverlayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayTests.swift; sourceTree = "<group>"; };
 		443675269CBE370462363D0D /* BookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManager.swift; sourceTree = "<group>"; };
 		502339979955DC1D1A8FEBD5 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
@@ -59,6 +62,7 @@
 		8B8918A26A06751316185BAA /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModel.swift; sourceTree = "<group>"; };
 		924D9EE2D6BF04C5EA31EC11 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		948C526800FD33239F8ECEE6 /* Overlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Overlay.swift; sourceTree = "<group>"; };
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
 		A9A0E82244158396C217FC8F /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
@@ -130,6 +134,7 @@
 				2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */,
 				D27276A44F5727DA9071A647 /* IconComposerTests.swift */,
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
+				4110F76F80F389FC528E43DD /* OverlayTests.swift */,
 			);
 			path = FolderArtTests;
 			sourceTree = "<group>";
@@ -150,6 +155,7 @@
 				2C7DB3DC3FE5DDB6740D4C69 /* CodableColor.swift */,
 				03397CAD3F70160DD2C879B4 /* CompositionSettings.swift */,
 				9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */,
+				948C526800FD33239F8ECEE6 /* Overlay.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -257,6 +263,7 @@
 				D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */,
 				22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */,
 				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
+				C75DC3BDDEED1C874F45C6FD /* OverlayTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -277,6 +284,7 @@
 				13D14D7EA7FBA6DD82D95109 /* HistoryView.swift in Sources */,
 				FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */,
 				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
+				DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

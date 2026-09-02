@@ -72,13 +72,9 @@ class ContentViewModel: ObservableObject {
             let task = IconTask(
                 folderPath: folderURL.path,
                 bookmarkData: bookmarkData,
-                backupPath: backupURL?.path ?? "",
-                imageName: imageName.isEmpty ? "カスタム画像" : imageName,
-                position: settings.position,
-                scale: settings.scale,
-                opacity: settings.opacity,
-                verticalOffset: settings.verticalOffset,
-                clipToFolderShape: settings.clipToFolderShape
+                backupPath: backupURL?.path,
+                overlay: .legacyImage(name: imageName.isEmpty ? "カスタム画像" : imageName),
+                settings: settings
             )
             historyStore.add(task)
             errorMessage = nil
@@ -104,7 +100,7 @@ class ContentViewModel: ObservableObject {
 
         let task = historyStore.tasks.first(where: { $0.folderPath == folderURL.path })
         let backupURL = task.flatMap {
-            $0.backupPath.isEmpty ? nil : URL(fileURLWithPath: $0.backupPath)
+            $0.backupPath.map { URL(fileURLWithPath: $0) }
         }
         iconManager.resetIcon(for: folderURL, backupURL: backupURL)
         if let task { historyStore.remove(task) }
@@ -123,7 +119,7 @@ class ContentViewModel: ObservableObject {
             return
         }
 
-        let backupURL = task.backupPath.isEmpty ? nil : URL(fileURLWithPath: task.backupPath)
+        let backupURL = task.backupPath.map { URL(fileURLWithPath: $0) }
         _ = resolvedURL.startAccessingSecurityScopedResource()
         defer { resolvedURL.stopAccessingSecurityScopedResource() }
 

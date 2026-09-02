@@ -40,7 +40,7 @@ struct HistoryView: View {
                                 Text(URL(fileURLWithPath: task.folderPath).lastPathComponent)
                                     .font(.body)
                                     .lineLimit(1)
-                                Text("\(task.imageName) · \(task.position.displayName)")
+                                Text("\(task.overlay.displayName) · \(task.settings.position.displayName)")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 Text(dateFormatter.string(from: task.appliedAt))

@@ -19,15 +19,8 @@ final class HistoryStoreTests: XCTestCase {
     }
 
     private func makeTask(folderPath: String = "/test/folder") -> IconTask {
-        IconTask(
-            folderPath: folderPath,
-            bookmarkData: Data(),
-            backupPath: "/backup/original.png",
-            imageName: "test.png",
-            position: .center,
-            scale: 0.6,
-            opacity: 0.9
-        )
+        IconTask(folderPath: folderPath, bookmarkData: Data(), backupPath: "/backup/original.png",
+                 overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
     }
 
     func testAddTaskIncreasesCount() {
