@@ -48,6 +48,7 @@
 		C7ED163720D509FD3622491F /* CompositionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03397CAD3F70160DD2C879B4 /* CompositionSettings.swift */; };
 		CA0CEF06231A91F28BE15B00 /* CompositionSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */; };
 		D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */; };
+		D9C2EA7379E6DAC82AF8C324 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */; };
 		DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948C526800FD33239F8ECEE6 /* Overlay.swift */; };
 		E1C67CBC82DD295E2B99CFAB /* FolderSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */; };
 		E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5756A3CABD998E75D8AD6787 /* OverlayState.swift */; };
@@ -80,6 +81,7 @@
 		1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderSelectionTests.swift; sourceTree = "<group>"; };
 		1CB0911FF8635FF2CF356D4A /* ControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlsView.swift; sourceTree = "<group>"; };
 		1DB1AE63EF9CAB1C55BF567E /* Preset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preset.swift; sourceTree = "<group>"; };
+		1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
 		1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTaskTests.swift; sourceTree = "<group>"; };
 		2C7DB3DC3FE5DDB6740D4C69 /* CodableColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableColor.swift; sourceTree = "<group>"; };
 		2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 				078CB4D0C0960A8AF20B032F /* HistoryView.swift */,
 				52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */,
 				B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */,
+				1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */,
 				DBD72D9929DA31F59FD2C696 /* SymbolGridView.swift */,
 			);
 			path = Views;
@@ -395,6 +398,7 @@
 				1E94CC78757172E43FADBFD1 /* Preset.swift in Sources */,
 				1578B601468A3ACEBEA38F44 /* PresetStore.swift in Sources */,
 				2A0776B44C0B36A28BC3924A /* PresetStripView.swift in Sources */,
+				D9C2EA7379E6DAC82AF8C324 /* PreviewView.swift in Sources */,
 				5FA6D56ACFF1D67D6B53BDC0 /* SymbolCatalog.swift in Sources */,
 				A7A55AAF3C49496A09E70042 /* SymbolGridView.swift in Sources */,
 			);
