@@ -14,6 +14,7 @@
 		16B841691F974ADAFC692A31 /* IconTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */; };
 		17A6C0A14B4FF845B273461F /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 924D9EE2D6BF04C5EA31EC11 /* AppIcon.icns */; };
 		1A14FEFD6767D6C974EB5819 /* ControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB0911FF8635FF2CF356D4A /* ControlsView.swift */; };
+		1E085A2FE04984AE7A7BF03C /* ApplyCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BBDA62DF07FE22FED7C65A /* ApplyCoordinator.swift */; };
 		1E94CC78757172E43FADBFD1 /* Preset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DB1AE63EF9CAB1C55BF567E /* Preset.swift */; };
 		1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52990AC15E576E0D76436F0D /* FolderArtTests.swift */; };
 		228C204E5BCD2D05C84838C2 /* restricted-symbols.txt in Resources */ = {isa = PBXBuildFile; fileRef = F0C60917E085AAACA1DE062B /* restricted-symbols.txt */; };
@@ -32,6 +33,7 @@
 		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
 		7606511DB9E310ED197C4AFD /* AssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD35A03399A8B8D6D621A34 /* AssetStore.swift */; };
 		7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044DE538A5614FC88683B7C0 /* FolderIconManager.swift */; };
+		93CADD822960CA739C001168 /* ApplyCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
 		9D407DB3F8AD81F2B34FE1AF /* CodableStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */; };
 		AA03C31F7DCA43E0C1FE088A /* ContentViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 143FFBEF3C6B52DB30876369 /* ContentViewModelTests.swift */; };
@@ -82,6 +84,7 @@
 		443675269CBE370462363D0D /* BookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManager.swift; sourceTree = "<group>"; };
 		4C0555F275B99E4B244FC7B4 /* BitmapCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BitmapCanvas.swift; sourceTree = "<group>"; };
 		502339979955DC1D1A8FEBD5 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
+		528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyCoordinatorTests.swift; sourceTree = "<group>"; };
 		52990AC15E576E0D76436F0D /* FolderArtTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtTests.swift; sourceTree = "<group>"; };
 		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5756A3CABD998E75D8AD6787 /* OverlayState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayState.swift; sourceTree = "<group>"; };
@@ -96,6 +99,7 @@
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
 		A9A0E82244158396C217FC8F /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
+		B2BBDA62DF07FE22FED7C65A /* ApplyCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyCoordinator.swift; sourceTree = "<group>"; };
 		B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStore.swift; sourceTree = "<group>"; };
 		C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManagerTests.swift; sourceTree = "<group>"; };
 		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
@@ -153,6 +157,7 @@
 		45882FE93864ECC5D2A5C838 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B2BBDA62DF07FE22FED7C65A /* ApplyCoordinator.swift */,
 				4C0555F275B99E4B244FC7B4 /* BitmapCanvas.swift */,
 				443675269CBE370462363D0D /* BookmarkManager.swift */,
 				044DE538A5614FC88683B7C0 /* FolderIconManager.swift */,
@@ -166,6 +171,7 @@
 		5E1EFCAA8EA787CC384D777F /* FolderArtTests */ = {
 			isa = PBXGroup;
 			children = (
+				528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */,
 				886BBDCAA1FFC90002F4AAAD /* AssetStoreTests.swift */,
 				A1413684D8590492917E00AF /* BookmarkManagerTests.swift */,
 				D5D06C1860356B1F2AA71A37 /* CodableColorTests.swift */,
@@ -325,6 +331,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93CADD822960CA739C001168 /* ApplyCoordinatorTests.swift in Sources */,
 				B519A6CF2F2CB4B1C31DE178 /* AssetStoreTests.swift in Sources */,
 				29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */,
 				FF2B3FAA8B331CFC29108353 /* CodableColorTests.swift in Sources */,
@@ -350,6 +357,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1E085A2FE04984AE7A7BF03C /* ApplyCoordinator.swift in Sources */,
 				7606511DB9E310ED197C4AFD /* AssetStore.swift in Sources */,
 				B11F8E9D3AA59F809A2FDB49 /* BitmapCanvas.swift in Sources */,
 				2857F0EFB46B56B54184DB40 /* BookmarkManager.swift in Sources */,

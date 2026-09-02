@@ -20,7 +20,7 @@ class BookmarkManager {
     static func createBookmark(for url: URL) throws -> Data {
         do {
             let data = try url.bookmarkData(
-                options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                options: [.withSecurityScope],
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
