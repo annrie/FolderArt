@@ -27,13 +27,17 @@ macOS のフォルダーアイコンにカスタム画像を合成してアイ�
 
 ## 機能
 
-- **ドラッグ＆ドロップ** — Finder からフォルダーや画像をドロップして選択
-- **フルイメージモード** — 画像をフォルダー形状に自動フィット＆クリップ（デフォルト）
-- **手動サイズ調整** — スケール・不透明度・上下位置をスライダーで調整
-- **配置モード** — 中央オーバーレイ / 右下バッジの2種類
-- **プレビュー** — 適用前にリアルタイムで合成結果を確認
-- **バックアップ＆リセット** — 元のアイコンを自動バックアップ、ワンクリックで復元
-- **履歴管理** — 適用済みフォルダーの一覧と個別リセット
+- 重ねるものを 4 種類から選択: 画像 / SF Symbols (制限付き記号は除外) / 絵文字 / 文字 — Overlay sources: image, SF Symbols (restricted symbols excluded), emoji, text
+- 記号と文字の色を指定 — Tint color for symbols and text
+- お気に入り: 見た目 (オーバーレイ + 設定) を保存し 1 クリックで復元 — Presets: save a look and restore it in one click
+- 複数フォルダへの一括適用、行を選べば一部だけに再適用 — Batch apply to many folders; select rows to re-apply to a subset
+- プレビューに hover で拡大表示と 16/32/64/128px の実寸 — Hover the preview to enlarge it and see 16/32/64/128px renderings
+- ドラッグ&ドロップ (複数フォルダ、ウィンドウ任意位置への画像) — Drag & drop (multiple folders, images anywhere in the window)
+- 位置・サイズ・不透明度・上下位置・フォルダ形切り抜き — Position, size, opacity, vertical offset, clip to folder shape
+- バックアップ、リセット、履歴 — Backup, reset, history
+
+> **Note:** SF Symbols は macOS の実行時 API で描画しており、画像ファイルは同梱していません。Apple 製品や機能を表す制限付き記号は選択肢から除外しています。
+> SF Symbols are rendered via macOS's runtime API, so no image files are bundled with the app. Restricted symbols that represent Apple products or features are excluded from the picker.
 
 ## スクリーンショット
 
