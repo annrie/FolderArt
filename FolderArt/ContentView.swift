@@ -62,8 +62,8 @@ struct ContentView: View {
             actionBar
         }
         .frame(minWidth: 760, minHeight: 720)
-        .overlay(
-            // ウィンドウのどこに落としてもフォルダ/画像を振り分ける (内側の受け口が優先される)
+        .background(
+            // 余白へのドロップ用。.background なので内側の受け口 (リストと画像タブ) が上に来て優先される
             FileDropReceiver(
                 isTargeted: $windowTargeted,
                 accepts: { $0.contains { DropZoneView.isDirectory($0) || DropZoneView.isImage($0) } },
