@@ -18,10 +18,12 @@
 		29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1413684D8590492917E00AF /* BookmarkManagerTests.swift */; };
 		4D744B17BEECAB9ABA55891F /* ContentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B8918A26A06751316185BAA /* ContentViewModel.swift */; };
 		56BE7EE712939472DD7A24E5 /* FolderIconManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */; };
+		6D62D70A8556D0DF15E26B79 /* CodableStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */; };
 		72268D2971AF2E0DB37123C4 /* DropZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A0E82244158396C217FC8F /* DropZoneView.swift */; };
 		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
 		7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044DE538A5614FC88683B7C0 /* FolderIconManager.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
+		9D407DB3F8AD81F2B34FE1AF /* CodableStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */; };
 		AA03C31F7DCA43E0C1FE088A /* ContentViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 143FFBEF3C6B52DB30876369 /* ContentViewModelTests.swift */; };
 		C2C2C06A4F730D6E9BB33088 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502339979955DC1D1A8FEBD5 /* HistoryStore.swift */; };
 		C75DC3BDDEED1C874F45C6FD /* OverlayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4110F76F80F389FC528E43DD /* OverlayTests.swift */; };
@@ -66,6 +68,7 @@
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
 		A9A0E82244158396C217FC8F /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
+		B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStore.swift; sourceTree = "<group>"; };
 		C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManagerTests.swift; sourceTree = "<group>"; };
 		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
 		D27276A44F5727DA9071A647 /* IconComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconComposerTests.swift; sourceTree = "<group>"; };
@@ -73,6 +76,7 @@
 		D5D06C1860356B1F2AA71A37 /* CodableColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableColorTests.swift; sourceTree = "<group>"; };
 		E11E4CC866B6C3E295A97D66 /* IconComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconComposer.swift; sourceTree = "<group>"; };
 		E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionSettingsTests.swift; sourceTree = "<group>"; };
+		F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStoreTests.swift; sourceTree = "<group>"; };
 		FE4637184B8117FA3861CE83 /* FolderArt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FolderArt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -127,6 +131,7 @@
 			children = (
 				A1413684D8590492917E00AF /* BookmarkManagerTests.swift */,
 				D5D06C1860356B1F2AA71A37 /* CodableColorTests.swift */,
+				F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */,
 				E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */,
 				143FFBEF3C6B52DB30876369 /* ContentViewModelTests.swift */,
 				52990AC15E576E0D76436F0D /* FolderArtTests.swift */,
@@ -163,6 +168,7 @@
 		F94BF2A5DCC1FAF3FF5A1321 /* Stores */ = {
 			isa = PBXGroup;
 			children = (
+				B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */,
 				502339979955DC1D1A8FEBD5 /* HistoryStore.swift */,
 			);
 			path = Stores;
@@ -256,6 +262,7 @@
 			files = (
 				29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */,
 				FF2B3FAA8B331CFC29108353 /* CodableColorTests.swift in Sources */,
+				6D62D70A8556D0DF15E26B79 /* CodableStoreTests.swift in Sources */,
 				CA0CEF06231A91F28BE15B00 /* CompositionSettingsTests.swift in Sources */,
 				AA03C31F7DCA43E0C1FE088A /* ContentViewModelTests.swift in Sources */,
 				1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */,
@@ -273,6 +280,7 @@
 			files = (
 				2857F0EFB46B56B54184DB40 /* BookmarkManager.swift in Sources */,
 				0D474C2D07F7A26E63D75712 /* CodableColor.swift in Sources */,
+				9D407DB3F8AD81F2B34FE1AF /* CodableStore.swift in Sources */,
 				C7ED163720D509FD3622491F /* CompositionSettings.swift in Sources */,
 				951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */,
 				4D744B17BEECAB9ABA55891F /* ContentViewModel.swift in Sources */,

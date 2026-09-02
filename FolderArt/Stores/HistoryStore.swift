@@ -1,48 +1,54 @@
 import Foundation
 import Combine
 
-class HistoryStore: ObservableObject {
+final class HistoryStore: ObservableObject {
     @Published private(set) var tasks: [IconTask] = []
+    /// 起動時の読み込みに失敗した場合のエラー (UI がアラートに出す)
+    private(set) var loadError: Error?
 
-    private let storageURL: URL
+    private let store: CodableStore<[IconTask]>
 
-    /// 本番用イニシャライザー（Application Support を使用）
+    /// ~/Library/Application Support/FolderArt
+    static var appSupportDirectory: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return appSupport.appendingPathComponent("FolderArt")
+    }
+
     convenience init() {
-        let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first!
-        let dir = appSupport.appendingPathComponent("FolderArt")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        self.init(storageURL: dir.appendingPathComponent("history.json"))
+        self.init(storageURL: Self.appSupportDirectory.appendingPathComponent("history.json"))
     }
 
-    /// テスト用イニシャライザー（任意の URL を指定可能）
     init(storageURL: URL) {
-        self.storageURL = storageURL
-        load()
-    }
-
-    func add(_ task: IconTask) {
-        tasks.insert(task, at: 0)
-        save()
-    }
-
-    func remove(_ task: IconTask) {
-        tasks.removeAll { $0.id == task.id }
-        save()
-    }
-
-    private func load() {
-        guard let data = try? Data(contentsOf: storageURL),
-              let loaded = try? JSONDecoder().decode([IconTask].self, from: data) else {
-            return
+        store = CodableStore(fileURL: storageURL)
+        do {
+            tasks = try store.load() ?? []
+            // v1 から移行した行があれば v2 形式で保存し直す (失敗は握りつぶさず loadError に載せる)
+            if !tasks.isEmpty { try store.save(tasks) }
+        } catch {
+            loadError = error
+            tasks = []
         }
-        tasks = loaded
     }
 
-    private func save() {
-        guard let data = try? JSONEncoder().encode(tasks) else { return }
-        try? data.write(to: storageURL)
+    /// 同じ folderPath の行があれば置き換え、先頭に置く
+    func upsert(_ task: IconTask) throws {
+        var updated = tasks.filter { $0.folderPath != task.folderPath }
+        updated.insert(task, at: 0)
+        try store.save(updated)
+        tasks = updated
+    }
+
+    func remove(_ task: IconTask) throws {
+        let updated = tasks.filter { $0.id != task.id }
+        try store.save(updated)
+        tasks = updated
+    }
+
+    func task(forFolderPath path: String) -> IconTask? {
+        tasks.first { $0.folderPath == path }
+    }
+
+    var referencedAssetIDs: Set<UUID> {
+        Set(tasks.compactMap { $0.overlay.assetID })
     }
 }

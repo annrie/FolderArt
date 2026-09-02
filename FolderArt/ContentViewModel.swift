@@ -76,7 +76,7 @@ class ContentViewModel: ObservableObject {
                 overlay: .legacyImage(name: imageName.isEmpty ? "カスタム画像" : imageName),
                 settings: settings
             )
-            historyStore.add(task)
+            try historyStore.upsert(task)
             errorMessage = nil
 
         } catch {
@@ -103,7 +103,7 @@ class ContentViewModel: ObservableObject {
             $0.backupPath.map { URL(fileURLWithPath: $0) }
         }
         iconManager.resetIcon(for: folderURL, backupURL: backupURL)
-        if let task { historyStore.remove(task) }
+        if let task { try? historyStore.remove(task) }
 
         // 状態をクリアして次の操作に備える
         selectedFolderURL = nil
@@ -124,7 +124,7 @@ class ContentViewModel: ObservableObject {
         defer { resolvedURL.stopAccessingSecurityScopedResource() }
 
         iconManager.resetIcon(for: resolvedURL, backupURL: backupURL)
-        historyStore.remove(task)
+        try? historyStore.remove(task)
     }
 
     // MARK: - フォルダー選択
