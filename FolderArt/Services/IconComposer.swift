@@ -1,14 +1,6 @@
 import AppKit
 import CoreGraphics
 
-struct CompositionSettings: Equatable {
-    var position: IconPosition = .center
-    var scale: Double = 0.6              // 0.2 ... 1.0
-    var opacity: Double = 0.9            // 0.1 ... 1.0
-    var verticalOffset: Double = 0.0     // -0.4 ... 0.4 (上:正, 下:負)
-    var clipToFolderShape: Bool = true   // フォルダー形状に切り抜く
-}
-
 class IconComposer {
     static let iconSize = CGSize(width: 512, height: 512)
 
