@@ -77,4 +77,22 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
         XCTAssertTrue(history.tasks.isEmpty)
     }
+
+    func testHistoryWriteFailureRollsBackIcon() async throws {
+        let a = try folder("A")
+        // history.json を書き込み不可のディレクトリに置く → upsert が throw する
+        let locked = root.appendingPathComponent("locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
+        let c = ApplyCoordinator(history: lockedHistory)
+
+        let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                    settings: CompositionSettings(), to: [a])
+        XCTAssertEqual(outcome.failed.count, 1)
+        XCTAssertTrue(outcome.succeeded.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
+        XCTAssertTrue(lockedHistory.tasks.isEmpty)
+    }
 }

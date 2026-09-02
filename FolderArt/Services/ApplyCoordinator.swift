@@ -59,9 +59,12 @@ final class ApplyCoordinator {
         let total = folders.count
 
         for (index, folder) in folders.enumerated() {
+            var backupURL: URL?
+            var iconApplied = false
             do {
-                let backupURL = try iconManager.backupCurrentIcon(for: folder)
+                backupURL = try iconManager.backupCurrentIcon(for: folder)
                 try iconManager.applyIcon(icon, to: folder)
+                iconApplied = true
                 // ブックマークは再起動後のリセット用。失敗しても適用は成功扱い (空 Data で記録)
                 let bookmark = (try? BookmarkManager.createBookmark(for: folder)) ?? Data()
                 let task = IconTask(
@@ -74,6 +77,8 @@ final class ApplyCoordinator {
                 try history.upsert(task)
                 succeeded.append(folder)
             } catch {
+                // 履歴に残せなかったフォルダはアイコンを元に戻し、「失敗 = 変更なし」を保つ
+                if iconApplied { iconManager.resetIcon(for: folder, backupURL: backupURL) }
                 failed.append(ApplyFailure(folder: folder, reason: error.localizedDescription))
             }
             progress(index + 1, total)
