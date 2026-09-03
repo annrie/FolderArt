@@ -464,7 +464,11 @@ struct Suggestion: Equatable, Identifiable {
     }
 ```
 
-`names.contains` は `[String]` の線形探索なので、`SymbolCatalog` に `private let nameSet: Set<String>` を持たせて `init` で作り、`names(forTerm:)` と `search` の `set` はそれを使う (既存の memberwise init を使うテストがあるので、`init(names:searchTerms:)` を明示的に書いて `nameSet = Set(names)` を設定する)。
+`names.contains` は `[String]` の線形探索なので、`SymbolCatalog` に `let nameSet: Set<String>` (internal。別ファイルの extension からは private が見えないため) を持たせ、明示的な `init(names:searchTerms:)` で `nameSet = Set(names)` を設定する (既存の memberwise 形のテストはそのまま通る)。`names(forTerm:)` と `search` の `set` もこれを使う。あわせて **`SymbolCatalog.swift` の struct 本体に** 次を足す (SuggestionEngine 側の extension には書かない):
+
+```swift
+    func contains(_ name: String) -> Bool { nameSet.contains(name) }
+```
 
 `FolderArt/Services/SuggestionEngine.swift`:
 
@@ -586,9 +590,6 @@ struct SuggestionEngine {
     }
 }
 
-extension SymbolCatalog {
-    func contains(_ name: String) -> Bool { nameSet.contains(name) }
-}
 ```
 
 camelCase の分割 (`myPhotoAlbum` → `my photo album`) は `normalize` の前に行う必要があるので、`normalize` を次のように実装する (小文字化の前に「小文字/数字 → 大文字」の境界へ空白を挿入):
@@ -961,6 +962,11 @@ final class PackTests: XCTestCase {
         XCTAssertThrowsError(try PackReader.read(try encoder.encode(pack))) { error in
             guard case PackError.invalidImage("x") = error else { return XCTFail("\(error)") }
         }
+        // PNG 以外の画像形式 (TIFF) も拒否する
+        pack.presets[0].image = TestSupport.makeSolidImage(size: CGSize(width: 4, height: 4), color: .red).tiffRepresentation
+        XCTAssertThrowsError(try PackReader.read(try encoder.encode(pack))) { error in
+            guard case PackError.invalidImage("x") = error else { return XCTFail("\(error)") }
+        }
     }
 }
 ```
@@ -1068,9 +1074,14 @@ enum PackReader {
         guard pack.presets.count <= PackWriter.maxPresets else { throw PackError.tooManyPresets(pack.presets.count) }
         for entry in pack.presets where entry.overlay.assetID != nil {
             guard let image = entry.image else { throw PackError.missingImage(entry.name) }
-            guard NSImage(data: image) != nil else { throw PackError.invalidImage(entry.name) }
+            guard isPNG(image), NSImage(data: image) != nil else { throw PackError.invalidImage(entry.name) }
         }
         return pack
+    }
+
+    /// PNG のシグネチャ (89 50 4E 47 0D 0A 1A 0A) で始まるか。パックの画像は PNG だけを受け付ける
+    static func isPNG(_ data: Data) -> Bool {
+        data.count >= 8 && data.prefix(8).elementsEqual([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
     }
 }
 ```
@@ -1172,6 +1183,16 @@ final class PresetImporterTests: XCTestCase {
         XCTAssertEqual(store.presets.map(\.name), ["月", "星"])
     }
 
+    func testIdenticalImageEntriesAreSkippedByPixels() throws {
+        let entry = PackEntry(name: "ロゴ", overlay: .image(assetID: UUID()), settings: CompositionSettings(), image: png())
+        let first = try PresetImporter.importPack(pack([entry, entry]), into: store, assets: assets)
+        XCTAssertEqual(first, ImportSummary(added: 1, skippedIdentical: 1))
+        // 同じパックをもう一度読み込んでも増えない (既存のお気に入りの PNG と一致)
+        let second = try PresetImporter.importPack(pack([entry]), into: store, assets: assets)
+        XCTAssertEqual(second, ImportSummary(added: 0, skippedIdentical: 1))
+        XCTAssertEqual(assets.allIDs().count, 1)
+    }
+
     func testImageEntryIsCopiedIntoAssetsWithNewID() throws {
         let stale = UUID()
         let summary = try PresetImporter.importPack(pack([
@@ -1230,24 +1251,32 @@ enum PresetImporter {
         var createdAssets: [UUID] = []
         var skipped = 0
 
-        func isIdentical(_ overlay: Overlay, _ settings: CompositionSettings, _ p: Preset) -> Bool {
-            p.overlay == overlay && p.settings == settings
+        // 画像プリセットは assetID が違うので、PNG のバイト列で同一性を判定する
+        func pngData(of preset: Preset) -> Data? {
+            preset.overlay.assetID.flatMap { try? Data(contentsOf: assets.url(for: $0)) }
+        }
+        func isIdentical(_ entry: PackEntry, _ p: Preset) -> Bool {
+            guard p.settings == entry.settings else { return false }
+            if let image = entry.image, entry.overlay.assetID != nil {
+                return p.overlay.assetID != nil && pngData(of: p) == image
+            }
+            return p.overlay == entry.overlay
         }
 
         do {
             for entry in pack.presets {
-                // 画像は先に複製せず、記号・文字での重複判定を先に行う (画像は assetID が違うので常に新規)
+                if (store.presets + staged).contains(where: { isIdentical(entry, $0) }) {
+                    skipped += 1
+                    continue
+                }
                 var overlay = entry.overlay
                 if entry.overlay.assetID != nil {
-                    guard let data = entry.image, let image = NSImage(data: data) else {
+                    guard let data = entry.image, PackReader.isPNG(data), let image = NSImage(data: data) else {
                         throw PackError.invalidImage(entry.name)
                     }
                     let id = try assets.store(image)
                     createdAssets.append(id)
                     overlay = .image(assetID: id)
-                } else if (store.presets + staged).contains(where: { isIdentical(overlay, entry.settings, $0) }) {
-                    skipped += 1
-                    continue
                 }
                 let name = PresetStore.defaultName(forProposed: entry.name, existing: store.presets + staged)
                 staged.append(Preset(name: name, overlay: overlay, settings: entry.settings))
@@ -1281,7 +1310,7 @@ enum PresetImporter {
 - [ ] **Step 4: テスト**
 
 Run: `xcodegen generate` → テスト実行 (`-only-testing:FolderArtTests/PresetStoreTests -only-testing:FolderArtTests/PresetImporterTests`)
-Expected: 既存 5 + 新規 2 + 4 tests PASS
+Expected: 既存 5 + 新規 2 + 5 tests PASS
 
 - [ ] **Step 5: コミット**
 
@@ -1334,6 +1363,14 @@ git commit -m "feat: ✨ PresetImporter を追加 (重複の判定、名前の�
         XCTAssertEqual(model.errorMessage, PackError.corrupted.errorDescription)
     }
 
+    func testExportIsIgnoredWhileApplying() throws {
+        try model.presets.add(name: "a", overlay: .text("a"), settings: CompositionSettings())
+        let file = root.appendingPathComponent("x.folderartpack")
+        model.isApplying = true
+        model.exportPack(to: file)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
     func testImportIsIgnoredWhileApplying() throws {
         let file = root.appendingPathComponent("test.folderartpack")
         try PackWriter.write([Preset(name: "a", overlay: .text("a"), settings: CompositionSettings())],
@@ -1374,6 +1411,7 @@ Expected: ビルドエラー
     }
 
     func exportPack(to url: URL) {
+        guard !isApplying else { return }
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         do {
@@ -1550,6 +1588,14 @@ final class FileIdentityTests: XCTestCase {
         XCTAssertEqual(store.task(forFolderPath: "/gone", fileID: "vol:1")?.overlay, .text("2"))
     }
 
+    func testUpsertInheritsBackupPathFromReplacedRow() throws {
+        try store.upsert(IconTask(folderPath: "/a", bookmarkData: Data(), backupPath: "/backups/k/original.png",
+                                  overlay: .text("1"), settings: CompositionSettings()))
+        try store.upsert(makeTask(folderPath: "/a", overlay: .text("2")))   // backupPath nil
+        XCTAssertEqual(store.tasks.first?.backupPath, "/backups/k/original.png")
+        XCTAssertEqual(store.tasks.first?.overlay, .text("2"))
+    }
+
     func testNilFileIDsNeverMatchEachOther() throws {
         try store.upsert(makeTask(folderPath: "/a"))
         try store.upsert(makeTask(folderPath: "/b"))
@@ -1605,18 +1651,25 @@ enum FileIdentity {
 }
 ```
 
-`FolderArt/Models/IconTask.swift`: `let fileID: String?` を `settings` の後に追加。`init` に `fileID: String? = nil` を末尾に足して代入。`CodingKeys` に `fileID` を追加。`init(from:)` の両分岐の前 (共通部分) に `fileID = try c.decodeIfPresent(String.self, forKey: .fileID)`。`encode(to:)` に `try c.encodeIfPresent(fileID, forKey: .fileID)`。
+`FolderArt/Models/IconTask.swift`: `let fileID: String?` を `settings` の後に追加。`backupPath` だけ差し替えたコピーを返す `func withBackupPath(_ path: String?) -> IconTask` を足す (他のフィールドはそのまま、`id` も維持)。`init` に `fileID: String? = nil` を末尾に足して代入。`CodingKeys` に `fileID` を追加。`init(from:)` の両分岐の前 (共通部分) に `fileID = try c.decodeIfPresent(String.self, forKey: .fileID)`。`encode(to:)` に `try c.encodeIfPresent(fileID, forKey: .fileID)`。
 
 `FolderArt/Stores/HistoryStore.swift`:
 
 ```swift
     /// 同じ folderPath か、同じ fileID (nil 同士は不一致) の行があれば置き換え、先頭に置く。
-    /// 置き換えられる行の backupPath は呼び出し側 (ApplyCoordinator) が引き継いでいる
+    /// 置き換えられる行が backupPath を持ち、新しい行が持たなければ引き継ぐ (元アイコンの記録を失わない)
     func upsert(_ task: IconTask) throws {
-        var updated = tasks.filter { !Self.sameFolder($0, task) }
-        updated.insert(task, at: 0)
+        let replaced = tasks.first { Self.sameFolder($0, task) }
+        let merged = Self.inheritingBackupPath(task, from: replaced)
+        var updated = tasks.filter { !Self.sameFolder($0, merged) }
+        updated.insert(merged, at: 0)
         try save(updated)
         tasks = updated
+    }
+
+    static func inheritingBackupPath(_ task: IconTask, from replaced: IconTask?) -> IconTask {
+        guard task.backupPath == nil, let inherited = replaced?.backupPath else { return task }
+        return task.withBackupPath(inherited)
     }
 
     static func sameFolder(_ a: IconTask, _ b: IconTask) -> Bool {
@@ -1642,8 +1695,10 @@ enum FileIdentity {
     /// バックアップディレクトリの外を指していたら何もしない。
     func removeBackup(atBackupPath path: String?) {
         guard let path else { return }
-        let dir = URL(fileURLWithPath: path).deletingLastPathComponent()
-        guard dir.standardizedFileURL.path.hasPrefix(backupDirectory.standardizedFileURL.path) else { return }
+        let dir = URL(fileURLWithPath: path).deletingLastPathComponent().standardizedFileURL
+        let root = backupDirectory.standardizedFileURL.pathComponents
+        // 文字列の前方一致だと "backups_evil" も通ってしまうので、パス要素単位で包含を見る
+        guard dir.pathComponents.count > root.count, Array(dir.pathComponents.prefix(root.count)) == root else { return }
         try? FileManager.default.removeItem(at: dir)
     }
 ```
@@ -1651,7 +1706,7 @@ enum FileIdentity {
 - [ ] **Step 4: テスト**
 
 Run: `xcodegen generate` → テスト実行 (全体)
-Expected: 新規 4 件を含め全 PASS
+Expected: 新規 5 件を含め全 PASS
 
 - [ ] **Step 5: コミット**
 
@@ -1763,8 +1818,9 @@ Expected: ビルドエラー (`upsertAll` / `saveCount` 未定義)
     /// 複数行を一度に反映して保存は 1 回。保存に失敗したらメモリ上の tasks も変えない。
     func upsertAll(_ newTasks: [IconTask]) throws {
         guard !newTasks.isEmpty else { return }
-        var updated = tasks.filter { existing in !newTasks.contains { Self.sameFolder(existing, $0) } }
-        updated.insert(contentsOf: newTasks, at: 0)
+        let merged = newTasks.map { task in Self.inheritingBackupPath(task, from: tasks.first { Self.sameFolder($0, task) }) }
+        var updated = tasks.filter { existing in !merged.contains { Self.sameFolder(existing, $0) } }
+        updated.insert(contentsOf: merged, at: 0)
         try save(updated)
         tasks = updated
     }
@@ -2024,12 +2080,12 @@ git commit -m "feat: ✨ 起動時に参照されないバックアップと古�
 
 ---
 
-### Task 10: バージョン、README (機能一覧とメイン画像)、最終確認
+### Task 10: バージョン、README (機能一覧とメイン画像)、最終確認 — コントローラー (親セッション) が実施
 
 **Files:**
 - Modify: `project.yml` (`MARKETING_VERSION: 1.3.0`, `CURRENT_PROJECT_VERSION: 6`)
 - Modify: `README.md` (機能一覧、スクリーンショットの参照先)
-- Create: `docs/images/main.png` (実機で撮影。撮影はコントローラー (親セッション) が行う。実装者は参照先の変更までを担当)
+- Create: `docs/images/main.png` (実機で撮影。画面収録の権限は親セッションにしかないので、このタスク全体を親セッションが行い、README の参照先変更と画像を同じコミットに入れる)
 
 - [ ] **Step 1: バージョン**
 
@@ -2048,9 +2104,9 @@ git commit -m "feat: ✨ 起動時に参照されないバックアップと古�
 <img width="760" alt="FolderArt 1.3.0" src="docs/images/main.png" />
 ```
 
-- [ ] **Step 3: スクリーンショット (コントローラーが実施)**
+- [ ] **Step 3: スクリーンショット**
 
-実装者はこのステップを飛ばして報告に「画像は未撮影」と書く。コントローラーが Release ビルドを起動し、フォルダ 3 件 (うち 1 つは「Photos」)、記号タブ、提案の帯にチップ 3 つ、お気に入りのチップ 2 つ、プレビュー表示の状態で `screencapture -x -o -l <CGWindowID>` により Retina 2x で撮り、`docs/images/main.png` に保存してコミットする。
+Release ビルドを起動し、フォルダ 3 件 (うち 1 つは「Photos」)、記号タブ、提案の帯にチップ 3 つ、お気に入りのチップ 2 つ、プレビュー表示の状態で `screencapture -x -o -l <CGWindowID>` により Retina 2x で撮り、`docs/images/main.png` に保存してコミットする。
 
 - [ ] **Step 4: 全テストとビルド**
 
@@ -2060,8 +2116,8 @@ Expected: 全 PASS、プロジェクト由来の警告 0
 - [ ] **Step 5: コミット**
 
 ```bash
-git add project.yml FolderArt.xcodeproj/project.pbxproj README.md
-git commit -m "chore: 🔖 1.3.0 に更新し README の機能一覧と画像の参照先を更新"
+git add project.yml FolderArt.xcodeproj/project.pbxproj README.md docs/images/main.png
+git commit -m "chore: 🔖 1.3.0 に更新し README の機能一覧とメイン画像を更新"
 ```
 
 - [ ] **Step 6: 仕上げ (コントローラー)**
