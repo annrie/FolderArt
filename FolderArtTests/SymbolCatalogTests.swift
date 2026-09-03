@@ -43,6 +43,10 @@ final class SymbolCatalogTests: XCTestCase {
         XCTAssertEqual(catalog.search("sport"), ["figure.run"])
         XCTAssertEqual(catalog.search("  "), ["star.fill", "folder.fill", "folder", "figure.run"]) // popular が先頭
         XCTAssertEqual(catalog.search("zzz"), [])
+
+        // 前方一致は部分一致より優先される
+        let rankCatalog = SymbolCatalog(names: ["autostartstop", "star", "star.fill"], searchTerms: [:])
+        XCTAssertEqual(rankCatalog.search("star"), ["star", "star.fill", "autostartstop"])
     }
 
     func testFallbackListIsBundled() {

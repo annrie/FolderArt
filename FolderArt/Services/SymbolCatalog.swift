@@ -31,7 +31,8 @@ struct SymbolCatalog {
         return SymbolCatalog(names: names, searchTerms: terms)
     }
 
-    /// 名前の部分一致、または検索語の前方一致。空なら popularNames を先頭に全件。
+    /// 名前の完全一致 > 前方一致 > 部分一致 > 検索語の前方一致、の順にランク付け。
+    /// 各グループ内は `names` の並び (アルファベット順) を維持する。空なら popularNames を先頭に全件。
     func search(_ query: String, limit: Int = 240) -> [String] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         if q.isEmpty {
@@ -39,14 +40,22 @@ struct SymbolCatalog {
             let popular = Self.popularNames.filter { set.contains($0) }
             return Array((popular + names.filter { !popular.contains($0) }).prefix(limit))
         }
-        var result: [String] = []
+        var exact: [String] = []
+        var prefixMatches: [String] = []
+        var substringMatches: [String] = []
+        var termMatches: [String] = []
         for name in names {
-            if name.contains(q) || (searchTerms[name]?.contains { $0.lowercased().hasPrefix(q) } ?? false) {
-                result.append(name)
-                if result.count >= limit { break }
+            if name == q {
+                exact.append(name)
+            } else if name.hasPrefix(q) {
+                prefixMatches.append(name)
+            } else if name.contains(q) {
+                substringMatches.append(name)
+            } else if searchTerms[name]?.contains(where: { $0.lowercased().hasPrefix(q) }) ?? false {
+                termMatches.append(name)
             }
         }
-        return result
+        return Array((exact + prefixMatches + substringMatches + termMatches).prefix(limit))
     }
 
     // MARK: - Loading

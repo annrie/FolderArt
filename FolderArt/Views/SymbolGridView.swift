@@ -6,6 +6,7 @@ struct SymbolGridView: View {
     @Binding var selected: String?
 
     @State private var query = ""
+    @State private var results: [String] = []
     private let columns = Array(repeating: GridItem(.fixed(34), spacing: 4), count: 8)
 
     var body: some View {
@@ -14,7 +15,7 @@ struct SymbolGridView: View {
                 .textFieldStyle(.roundedBorder)
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 4) {
-                    ForEach(catalog.search(query), id: \.self) { name in
+                    ForEach(results, id: \.self) { name in
                         Button { selected = name } label: {
                             Image(systemName: name)
                                 .font(.system(size: 16))
@@ -38,5 +39,7 @@ struct SymbolGridView: View {
                 Text(selected).font(.caption).foregroundColor(.secondary).lineLimit(1)
             }
         }
+        .onAppear { results = catalog.search(query) }
+        .onChange(of: query) { results = catalog.search($0) }
     }
 }
