@@ -19,9 +19,15 @@ struct OverlayPickerView: View {
     let onPickImage: () -> Void
     /// フォルダ・画像を問わず全件をそのまま渡す (振り分けは AppModel が行う)
     let onDrop: ([URL]) -> Void
+    let suggestions: [Suggestion]
+    var isApplying: Bool = false
+    let onPickSuggestion: (Suggestion) -> Void
 
     var body: some View {
         VStack(spacing: 8) {
+            SuggestionStripView(suggestions: suggestions, assets: state.assets,
+                                isApplying: isApplying, onPick: onPickSuggestion)
+
             Picker("", selection: $state.activeTab) {
                 ForEach(OverlayState.Tab.allCases) { tab in
                     Text(tab.title).tag(tab)

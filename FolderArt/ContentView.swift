@@ -30,11 +30,14 @@ struct ContentView: View {
                     state: model.overlay,
                     catalog: SymbolCatalog.shared,
                     onPickImage: { model.selectImageWithPanel() },
-                    onDrop: { model.handleDroppedURLs($0) }
+                    onDrop: { model.handleDroppedURLs($0) },
+                    suggestions: model.suggestions,
+                    isApplying: model.isApplying,
+                    onPickSuggestion: { model.applySuggestion($0) }
                 )
                 .frame(minWidth: 380)
             }
-            .frame(height: 260)
+            .frame(height: 296)
             .padding(12)
 
             PresetStripView(

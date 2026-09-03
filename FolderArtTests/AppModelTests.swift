@@ -243,4 +243,58 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.assets.allIDs(), [used])
         XCTAssertFalse(model.assets.allIDs().contains(orphan))
     }
+
+    /// 提案は「選択中の行 (リスト順で最後)、無ければ最後に追加した行」の名前から作る
+    func testSuggestionsFollowSelectedOrLastFolder() throws {
+        let photos = root.appendingPathComponent("Photos")
+        let invoices = root.appendingPathComponent("請求書")
+        for d in [photos, invoices] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+
+        model.addFolders([photos])
+        XCTAssertEqual(model.suggestionSourceFolder, photos.standardizedFileURL)
+        XCTAssertTrue(model.suggestions.contains { $0.kind == .emoji("📷") })
+
+        model.addFolders([invoices])
+        XCTAssertEqual(model.suggestionSourceFolder, invoices.standardizedFileURL)
+        XCTAssertTrue(model.suggestions.contains { $0.kind == .emoji("🧾") })
+
+        model.folders.selectedIDs = [photos.standardizedFileURL]
+        XCTAssertEqual(model.suggestionSourceFolder, photos.standardizedFileURL)
+        XCTAssertTrue(model.suggestions.contains { $0.kind == .emoji("📷") })
+
+        model.folders.removeAll()
+        XCTAssertNil(model.suggestionSourceFolder)
+        XCTAssertTrue(model.suggestions.isEmpty)
+    }
+
+    /// 候補を押すとそのタブに切り替わって入力が入る。設定は変えない
+    func testApplySuggestionSwitchesTabAndInput() throws {
+        let before = model.overlay.settings
+        model.applySuggestion(Suggestion(kind: .symbol("star.fill"), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .symbol)
+        XCTAssertEqual(model.overlay.symbolName, "star.fill")
+        model.applySuggestion(Suggestion(kind: .emoji("🎵"), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .emoji)
+        XCTAssertEqual(model.overlay.emoji, "🎵")
+        model.applySuggestion(Suggestion(kind: .text("2026"), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .text)
+        XCTAssertEqual(model.overlay.text, "2026")
+        XCTAssertEqual(model.overlay.settings, before)
+
+        var settings = CompositionSettings(); settings.position = .badge
+        let preset = Preset(name: "p", overlay: .symbol(name: "heart.fill"), settings: settings)
+        model.applySuggestion(Suggestion(kind: .preset(preset), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .symbol)
+        XCTAssertEqual(model.overlay.settings.position, .badge)   // お気に入りだけは設定まで復元
+    }
+
+    /// お気に入りの名前がフォルダ名に含まれると、その お気に入りが提案される
+    func testPresetNameInFolderNameIsSuggested() throws {
+        let d = root.appendingPathComponent("旅行 2025")
+        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        try model.presets.add(name: "旅行", overlay: .emoji("✈️"), settings: CompositionSettings())
+        model.addFolders([d])
+        guard case .preset(let p)? = model.suggestions.first?.kind else { return XCTFail("preset first") }
+        XCTAssertEqual(p.name, "旅行")
+    }
 }

@@ -53,6 +53,7 @@
 		C7ED163720D509FD3622491F /* CompositionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03397CAD3F70160DD2C879B4 /* CompositionSettings.swift */; };
 		CA0CEF06231A91F28BE15B00 /* CompositionSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */; };
 		CA29B5C1E88D6CD944DF86B1 /* SuggestionDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C896FE93D4736373D7AA1BF /* SuggestionDictionary.swift */; };
+		D4BB903736EDCD202633E4D4 /* SuggestionStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D0652D0329BED1EAE76CEF /* SuggestionStripView.swift */; };
 		D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */; };
 		D9C2EA7379E6DAC82AF8C324 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */; };
 		DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948C526800FD33239F8ECEE6 /* Overlay.swift */; };
@@ -113,6 +114,7 @@
 		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		948C526800FD33239F8ECEE6 /* Overlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Overlay.swift; sourceTree = "<group>"; };
 		96E7E61697579BBEC2656D90 /* SuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngine.swift; sourceTree = "<group>"; };
+		98D0652D0329BED1EAE76CEF /* SuggestionStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionStripView.swift; sourceTree = "<group>"; };
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
 		A9A0E82244158396C217FC8F /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
@@ -239,6 +241,7 @@
 				52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */,
 				B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */,
 				1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */,
+				98D0652D0329BED1EAE76CEF /* SuggestionStripView.swift */,
 				DBD72D9929DA31F59FD2C696 /* SymbolGridView.swift */,
 			);
 			path = Views;
@@ -423,6 +426,7 @@
 				170607A212FEE28FD48AF59C /* Suggestion.swift in Sources */,
 				CA29B5C1E88D6CD944DF86B1 /* SuggestionDictionary.swift in Sources */,
 				52DE234466FDDD9A1FD19C7B /* SuggestionEngine.swift in Sources */,
+				D4BB903736EDCD202633E4D4 /* SuggestionStripView.swift in Sources */,
 				5FA6D56ACFF1D67D6B53BDC0 /* SymbolCatalog.swift in Sources */,
 				A7A55AAF3C49496A09E70042 /* SymbolGridView.swift in Sources */,
 			);

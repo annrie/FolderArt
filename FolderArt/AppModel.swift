@@ -16,6 +16,9 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isApplying = false
     @Published var progress: (done: Int, total: Int)?
+    /// 提案 (フォルダ名から)。空なら帯はチップ無しで高さだけ保つ
+    @Published private(set) var suggestions: [Suggestion] = []
+    private let suggestionEngine: SuggestionEngine
     private var cancellables: Set<AnyCancellable> = []
     /// 履歴から開いたセキュリティスコープ。鍵は標準化した URL、値はスコープを持つ URL 本体
     /// (stop は start を呼んだ URL に対して呼ぶ必要がある)
@@ -26,10 +29,12 @@ final class AppModel: ObservableObject {
 
     init(history: HistoryStore = HistoryStore(),
          presets: PresetStore = PresetStore(),
-         assets: AssetStore = AssetStore()) {
+         assets: AssetStore = AssetStore(),
+         suggestionEngine: SuggestionEngine = SuggestionEngine(dictionary: SuggestionDictionary.load(), catalog: SymbolCatalog.shared)) {
         self.history = history
         self.presets = presets
         self.assets = assets
+        self.suggestionEngine = suggestionEngine
         self.folders = FolderSelection()
         self.overlay = OverlayState(assets: assets)
         self.coordinator = ApplyCoordinator(history: history)
@@ -50,6 +55,16 @@ final class AppModel: ObservableObject {
         if let e = history.loadError ?? presets.loadError {
             errorMessage = String(localized: "保存データの読み込みに失敗しました: \(e.localizedDescription)")
         }
+
+        // フォルダの増減・選択・お気に入りの変化で提案を作り直す (同期・純関数なのでデバウンス不要)。
+        // @Published の $プロパティは willSet 側で発火するため、ここで self.folders.folders 等を
+        // 読み直すと更新前の値をつかんでしまう。クロージャに渡された最新値だけを使う。
+        Publishers.CombineLatest3(folders.$folders, folders.$selectedIDs, presets.$presets)
+            .sink { [weak self] folders, selectedIDs, presets in
+                self?.refreshSuggestions(folders: folders, selectedIDs: selectedIDs, presets: presets)
+            }
+            .store(in: &cancellables)
+
         reapAssets()
     }
 
@@ -164,6 +179,39 @@ final class AppModel: ObservableObject {
         }
         if !dirs.isEmpty { folders.add(dirs) }
         if let image = firstImage { selectImage(image) }
+    }
+
+    // MARK: - 提案
+
+    /// 提案の元になるフォルダ: 選択があれば選択中のうちリスト順で最後のもの、無ければ最後に追加した行
+    var suggestionSourceFolder: URL? {
+        Self.suggestionSourceFolder(folders: folders.folders, selectedIDs: folders.selectedIDs)
+    }
+
+    private static func suggestionSourceFolder(folders: [URL], selectedIDs: Set<URL>) -> URL? {
+        let selected = folders.filter { selectedIDs.contains($0) }
+        return selected.last ?? folders.last
+    }
+
+    /// CombineLatest3 のクロージャから渡された最新値だけを使って提案を作り直す
+    /// (self.folders 等を読み直すと willSet 発火時点の更新前の値になりうるため)
+    private func refreshSuggestions(folders: [URL], selectedIDs: Set<URL>, presets: [Preset]) {
+        guard let folder = Self.suggestionSourceFolder(folders: folders, selectedIDs: selectedIDs) else {
+            suggestions = []
+            return
+        }
+        suggestions = suggestionEngine.suggest(for: folder.lastPathComponent, presets: presets)
+    }
+
+    /// 候補を採用する。記号・絵文字・文字はタブと入力だけ変え、設定は触らない。お気に入りは設定まで復元。
+    func applySuggestion(_ suggestion: Suggestion) {
+        guard !isApplying else { return }
+        switch suggestion.kind {
+        case .symbol(let name): overlay.activeTab = .symbol; overlay.symbolName = name
+        case .emoji(let e):     overlay.activeTab = .emoji;  overlay.emoji = e
+        case .text(let t):      overlay.activeTab = .text;   overlay.text = t
+        case .preset(let p):    applyPreset(p)
+        }
     }
 
     // MARK: - お気に入り
