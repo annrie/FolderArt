@@ -21,7 +21,8 @@ struct ContentView: View {
                 FolderListView(
                     selection: model.folders,
                     onAdd: { model.selectFoldersWithPanel() },
-                    onDrop: { model.handleDroppedURLs($0) }
+                    onDrop: { model.handleDroppedURLs($0) },
+                    isApplying: model.isApplying
                 )
                 .frame(minWidth: 240)
 

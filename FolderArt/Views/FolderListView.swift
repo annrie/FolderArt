@@ -6,6 +6,8 @@ struct FolderListView: View {
     let onAdd: () -> Void
     /// フォルダ・画像を問わず全件をそのまま渡す (振り分けは AppModel が行う)
     let onDrop: ([URL]) -> Void
+    /// 適用中はリストを変えられないようにする (処理中のフォルダが入れ替わると結果と食い違う)
+    var isApplying: Bool = false
 
     @State private var isTargeted = false
 
@@ -21,6 +23,7 @@ struct FolderListView: View {
                 }
                 Button { onAdd() } label: { Image(systemName: "plus") }
                     .buttonStyle(.borderless)
+                    .disabled(isApplying)
                     .help(Text("フォルダーを追加…"))
             }
 
@@ -31,7 +34,7 @@ struct FolderListView: View {
                         .foregroundColor(isTargeted ? .accentColor : .secondary)
                     Text("フォルダーをここにドロップ")
                         .font(.callout).foregroundColor(.secondary)
-                    Button("フォルダーを選択…", action: onAdd).buttonStyle(.borderless)
+                    Button("フォルダーを選択…", action: onAdd).buttonStyle(.borderless).disabled(isApplying)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -43,6 +46,7 @@ struct FolderListView: View {
                         Spacer()
                         Button { selection.remove(url) } label: { Image(systemName: "xmark.circle.fill") }
                             .buttonStyle(.borderless).foregroundColor(.secondary)
+                            .disabled(isApplying)
                             .help(Text("リストから外す"))
                     }
                     .help(Text(url.path))
