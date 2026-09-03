@@ -39,6 +39,7 @@ struct PresetStripView: View {
                 .disabled(!canSave)
                 .help(Text("今の見た目をお気に入りに保存"))
         }
+        .frame(height: 56)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .sheet(item: $renaming) { preset in
