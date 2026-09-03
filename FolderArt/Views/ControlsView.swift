@@ -5,7 +5,7 @@ struct ControlsView: View {
     /// 画像タブでは色は効かないので無効表示にする
     var showsTint: Bool = true
     /// 切り抜き ON + 中央でサイズが効かなくなるのは画像 (敷き詰め) だけ。記号・絵文字・文字ではサイズは常に有効
-    var sizeLockedByFill: Bool = true
+    var sizeLockedByFill: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

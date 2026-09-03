@@ -76,4 +76,20 @@ final class OverlayStateTests: XCTestCase {
         XCTAssertEqual(state.emoji, "📷")
         XCTAssertEqual(state.settings, settings)
     }
+
+    /// 文字は切り抜き ON + 中央でもサイズが効く (敷き詰めなら 0.3 と 0.9 で同じ絵になってしまう)
+    func testGlyphPreviewChangesWithScaleEvenWhenClipped() {
+        let state = OverlayState(assets: assets)
+        state.activeTab = .text
+        state.text = "I"
+        state.settings.clipToFolderShape = true
+        state.settings.position = .center
+        state.settings.scale = 0.3
+        state.updatePreviewNow()
+        let small = TestSupport.pngData(state.previewImage!)
+        state.settings.scale = 0.9
+        state.updatePreviewNow()
+        let large = TestSupport.pngData(state.previewImage!)
+        XCTAssertNotEqual(small, large)
+    }
 }

@@ -19,7 +19,7 @@ enum IconComposer {
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
         base: NSImage = standardFolderIcon,
-        fillsWhenClipped: Bool = true
+        fillsWhenClipped: Bool
     ) -> NSImage? {
         let size = iconSize
         let overlayRect = calculateRect(for: overlayImage.size, in: size, settings: settings,
@@ -63,7 +63,7 @@ enum IconComposer {
         for imageSize: CGSize,
         in containerSize: CGSize,
         settings: CompositionSettings,
-        fillsWhenClipped: Bool = true
+        fillsWhenClipped: Bool
     ) -> NSRect {
         let aspectRatio = imageSize.width > 0 ? imageSize.width / imageSize.height : 1.0
         let customWidth: CGFloat
