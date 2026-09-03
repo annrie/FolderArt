@@ -25,7 +25,7 @@ struct PreviewView: View {
                 }
             }
             .onHover { hovering = $0 && image != nil }
-            .overlay(alignment: .center) {
+            .overlay(alignment: .bottomTrailing) {
                 if hovering, let image {
                     VStack(spacing: 10) {
                         Image(nsImage: image).resizable().scaledToFit()
