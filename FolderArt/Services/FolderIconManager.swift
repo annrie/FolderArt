@@ -47,13 +47,7 @@ class FolderIconManager {
             return nil
         }
 
-        let folderID = folderURL.path
-            .data(using: .utf8)?
-            .base64EncodedString()
-            .replacingOccurrences(of: "/", with: "_")
-            ?? UUID().uuidString
-
-        let backupDir = backupDirectory.appendingPathComponent(folderID)
+        let backupDir = backupFolder(for: folderURL)
         let backupURL = backupDir.appendingPathComponent("original.png")
 
         // 初回のバックアップだけが「ユーザーの元アイコン」。以後は再利用する
@@ -72,6 +66,25 @@ class FolderIconManager {
 
         try pngData.write(to: backupURL)
         return backupURL
+    }
+
+    /// フォルダーごとのバックアップ置き場。パスをそのまま鍵にする (base64 でファイル名に使える形へ)
+    func backupFolder(for folderURL: URL) -> URL {
+        let folderID = folderURL.path
+            .data(using: .utf8)?
+            .base64EncodedString()
+            .replacingOccurrences(of: "/", with: "_")
+            ?? UUID().uuidString
+        return backupDirectory.appendingPathComponent(folderID)
+    }
+
+    /// バックアップを破棄する。リセット完了後に呼ぶ。
+    /// 残したままだと、ユーザーが後から別のカスタムアイコンを付けて再適用したときに
+    /// 古い方が「元のアイコン」として再利用され、リセットで違うアイコンに戻ってしまう。
+    func removeBackup(for folderURL: URL) {
+        let dir = backupFolder(for: folderURL)
+        guard FileManager.default.fileExists(atPath: dir.path) else { return }
+        try? FileManager.default.removeItem(at: dir)
     }
 
     /// 合成済みアイコンをフォルダーに適用する。失敗は throw。

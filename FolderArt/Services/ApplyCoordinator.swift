@@ -101,6 +101,8 @@ final class ApplyCoordinator {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         try iconManager.resetIcon(for: url, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
+        // バックアップを取ったときの鍵は履歴のパス (ブックマークの解決結果とは限らない)
+        iconManager.removeBackup(for: URL(fileURLWithPath: task.folderPath))
     }
 
     /// 同一セッション用: URL を直接使ってリセット。
@@ -111,5 +113,6 @@ final class ApplyCoordinator {
         guard let task = history.task(forFolderPath: path) else { return }
         try iconManager.resetIcon(for: folder, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
+        iconManager.removeBackup(for: folder)
     }
 }

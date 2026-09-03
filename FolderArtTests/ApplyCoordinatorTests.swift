@@ -108,6 +108,33 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertEqual(history.tasks.count, 1)
     }
 
+    /// リセット後もバックアップが残っていると、その後ユーザーが手で別のカスタムアイコンを
+    /// 付けて再適用したときに古い方が「元のアイコン」として使い回されてしまう
+    func testResetDiscardsBackupSoNextApplyRecordsCurrentIcon() async throws {
+        let a = try folder("A")
+        let manual = FolderIconManager(backupDirectory: root.appendingPathComponent("manual"))
+        let red = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
+        let blue = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .blue)
+
+        // 手でアイコン A (赤) を設定 → 適用 → リセット
+        try manual.applyIcon(red, to: a)
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
+                                    settings: CompositionSettings(), to: [a])
+        let backupDir = iconManager.backupFolder(for: a)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backupDir.path))
+
+        try coordinator.reset(folder: a)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: backupDir.path))
+
+        // 手でアイコン B (青) を設定 → 再適用したら B が新しい「元のアイコン」になる
+        try manual.applyIcon(blue, to: a)
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"),
+                                    settings: CompositionSettings(), to: [a])
+        let backup = try XCTUnwrap(NSImage(contentsOf: backupDir.appendingPathComponent("original.png")))
+        XCTAssertTrue(TestSupport.contains(color: .blue, in: backup))
+        XCTAssertFalse(TestSupport.contains(color: .red, in: backup))
+    }
+
     func testHistoryWriteFailureRollsBackIcon() async throws {
         let a = try folder("A")
         // history.json を書き込み不可のディレクトリに置く → upsert が throw する
