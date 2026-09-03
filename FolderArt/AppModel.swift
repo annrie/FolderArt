@@ -66,6 +66,9 @@ final class AppModel: ObservableObject {
     }
 
     func apply() async {
+        // 連打などで二重に呼ばれても 1 バッチしか走らせない (途中の yield で交錯すると
+        // 先に終わった方が isApplying を下ろし、残りのバッチ中にリスト操作が解禁されてしまう)
+        guard !isApplying else { return }
         // デバウンス待ちで overlayImage が古いままだと、適用と履歴で違うオーバーレイになりうる。
         // 同期描画済みなら updatePreviewNow() は何もしない (lastRendered* ガードで冪等)。
         overlay.updatePreviewNow()

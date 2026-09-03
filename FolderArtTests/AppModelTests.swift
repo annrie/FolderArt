@@ -178,6 +178,25 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.scopedURLCount, 0)
     }
 
+    /// 適用中に apply() が再度呼ばれても何もしない (連打で 2 バッチが交錯しない)
+    func testApplyIsIgnoredWhileAnotherApplyIsRunning() async throws {
+        let a = root.appendingPathComponent("A")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        model.addFolders([a])
+        model.overlay.activeTab = .text
+        model.overlay.text = "x"
+        model.overlay.updatePreviewNow()
+
+        model.isApplying = true          // 先行バッチが走っている状態を模す
+        await model.apply()
+        XCTAssertTrue(model.history.tasks.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
+
+        model.isApplying = false
+        await model.apply()
+        XCTAssertEqual(model.history.tasks.count, 1)
+    }
+
     func testRestoreShowsErrorWhenBookmarkFailsToResolve() throws {
         let missing = root.appendingPathComponent("MissingFolder")   // 作成しない
         let task = IconTask(folderPath: missing.path, bookmarkData: Data(), backupPath: nil,
