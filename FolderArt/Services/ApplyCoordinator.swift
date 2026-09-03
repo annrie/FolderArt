@@ -61,6 +61,9 @@ final class ApplyCoordinator {
         for (index, folder) in folders.enumerated() {
             var backupURL: URL?
             var iconApplied = false
+            // 巻き戻し先は「元のアイコン」ではなく適用直前の状態。再適用のときは前回の
+            // FolderArt アイコンに戻す (履歴の行は残っているので消してはいけない)
+            let previousIcon = snapshotIcon(of: folder)
             do {
                 backupURL = try iconManager.backupCurrentIcon(for: folder)
                 try iconManager.applyIcon(icon, to: folder)
@@ -77,11 +80,11 @@ final class ApplyCoordinator {
                 try history.upsert(task)
                 succeeded.append(folder)
             } catch {
-                // 履歴に残せなかったフォルダはアイコンを元に戻し、「失敗 = 変更なし」を保つ
+                // 履歴に残せなかったフォルダはアイコンを適用直前に戻し、「失敗 = 変更なし」を保つ
                 var reason = error.localizedDescription
-                if iconApplied {
-                    do { try iconManager.resetIcon(for: folder, backupURL: backupURL) }
-                    catch { reason += " / 巻き戻し失敗: \(error.localizedDescription)" }
+                if iconApplied,
+                   !NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: []) {
+                    reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)"
                 }
                 failed.append(ApplyFailure(folder: folder, reason: reason))
             }
@@ -89,6 +92,18 @@ final class ApplyCoordinator {
             await Task.yield()   // 進捗表示を描画させる
         }
         return ApplyOutcome(succeeded: succeeded, failed: failed)
+    }
+
+    /// 適用直前のアイコンをビットマップに焼き取る。カスタムアイコンが無ければ nil
+    /// (nil をそのまま setIcon に渡すとカスタムアイコンの削除になる)。
+    /// NSWorkspace の返すアイコンは遅延生成で、後からアイコンを書き換えると中身が変わって
+    /// しまうため、その場で確定させる必要がある。
+    private func snapshotIcon(of folder: URL) -> NSImage? {
+        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("Icon\r").path) else { return nil }
+        let icon = NSWorkspace.shared.icon(forFile: folder.path)
+        return BitmapCanvas.draw(size: IconComposer.iconSize) { size in
+            icon.draw(in: NSRect(origin: .zero, size: size), from: .zero, operation: .sourceOver, fraction: 1)
+        }
     }
 
     /// 履歴の 1 行をリセット (別セッション再開用: ブックマーク経由)

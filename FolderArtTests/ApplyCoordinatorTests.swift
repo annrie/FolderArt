@@ -152,4 +152,38 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
         XCTAssertTrue(lockedHistory.tasks.isEmpty)
     }
+
+    /// 巻き戻し先は「FolderArt 適用前の元アイコン」ではなく適用直前のアイコン。
+    /// 元アイコンまで戻すと、履歴の行が残っているのに前回の FolderArt アイコンが消えてしまう
+    func testHistoryWriteFailureRollsBackToPreviousIcon() async throws {
+        let a = try folder("A")
+        var settings = CompositionSettings()
+        settings.opacity = 1.0   // 合成後の色をそのまま判定できるようにする
+        let manual = FolderIconManager(backupDirectory: root.appendingPathComponent("manual"))
+        let green = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .green)
+        let blue = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .blue)
+
+        // 手で付けた元アイコン (緑) → 1 回目の適用 (赤) は成功。この赤が巻き戻し先
+        try manual.applyIcon(green, to: a)
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
+                                    settings: settings, to: [a])
+
+        // 2 回目 (青) は履歴の書き込みに失敗させる
+        let locked = root.appendingPathComponent("locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
+        let c = ApplyCoordinator(history: lockedHistory, iconManager: iconManager)
+
+        let outcome = await c.apply(overlayImage: blue, overlay: .text("2"), settings: settings, to: [a])
+
+        XCTAssertEqual(outcome.failed.count, 1)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
+        let icon = NSWorkspace.shared.icon(forFile: a.path)
+        XCTAssertTrue(TestSupport.contains(color: .red, in: icon))    // 1 回目のまま
+        XCTAssertFalse(TestSupport.contains(color: .blue, in: icon))  // 2 回目は残っていない
+        XCTAssertFalse(TestSupport.contains(color: .green, in: icon)) // 元アイコンまでは戻さない
+        XCTAssertEqual(history.tasks.count, 1)
+    }
 }
