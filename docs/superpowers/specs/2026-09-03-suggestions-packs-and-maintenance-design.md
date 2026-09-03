@@ -46,28 +46,29 @@ struct SuggestionEngine {
 }
 ```
 
-知識は 3 層。優先順は 辞書 → お気に入り → SF Symbols の検索語 → 規則。
+知識は 3 層。優先順は **お気に入り → 辞書 → SF Symbols の検索語 → 規則** (お気に入りは自分で作った見た目なので最優先)。
 
-1. **同梱辞書 `Resources/suggestions.json`**: `[{ "keys": ["写真", "photo", "photos", "pictures"], "symbol": "photo.fill", "emoji": "📷" }, ...]` を約 150 語、日英で用意する。記号名は `SymbolCatalog.names` に含まれるものだけを使う (制限付き記号を辞書に入れない。テストで検証)。
-2. **お気に入り**: `preset.name` がフォルダ名に含まれる (大文字小文字と全角半角を無視) お気に入りを候補にする。
+1. **お気に入り**: `preset.name` がフォルダ名に含まれる (大文字小文字と全角半角を無視) お気に入りを候補にする。
+2. **同梱辞書 `Resources/suggestions.json`**: `[{ "keys": ["写真", "photo", "photos", "pictures"], "symbol": "photo.fill", "emoji": "📷" }, ...]` を約 150 語、日英で用意する。記号名は `SymbolCatalog.names` に含まれるものだけを使う (制限付き記号を辞書に入れない。テストで検証)。
 3. **SF Symbols の検索語**: 辞書に無い英単語を `SymbolCatalog` の検索語索引 (`symbol_search.plist`) で引き、最初の一致を記号候補にする。
 4. **規則**: 4 桁の数字 (`2025`) や 2 文字以内の英数字 (`A`, `Q3`) は文字候補にする。
 
 ### 3.2 語の切り出し
 
 - 英数字: 空白・`_`・`-`・`.`・`(`・`)`・camelCase の境界で分割し、小文字化して辞書の `keys` と完全一致。
-- 日本語: 分かち書きしないので、辞書の `keys` (日本語) をフォルダ名の部分文字列として探す。長い語から先に当てる。
-- 全角英数字は半角に正規化 (`String.applyingTransform(.fullwidthToHalfwidth)`)。
+- 日本語: 分かち書きしないので、辞書の `keys` (日本語) をフォルダ名の部分文字列として探す。長い語から先に当てる。誤爆を避けるため辞書の日本語キーは **2 文字以上** とし、「書」「金」のような一般的な 1 文字は入れない。
+- 正規化: フォルダ名と辞書キーの両方を NFKC で正規化する (全角英数字 → 半角、半角カナ → 全角カナ、大文字 → 小文字)。ひらがな・カタカナの相互変換は行わない (辞書側に両方を書く)。
+- テストに「無関係な語の中に短いキーが含まれるケース」の否定例を入れる。
 
 ### 3.3 候補の組み立て
 
 - 記号 1、絵文字 1、文字 1 を上限に最大 3 つ。お気に入り候補は記号枠を使う (最優先)。
 - 同じ記号・絵文字・文字は重複させない。
-- 何も当たらなければ空配列を返し、帯は表示しない。
+- 何も当たらなければ空配列を返す。帯 (§3.4) は高さを保ったまま空にする (レイアウトを動かさない)。
 
 ### 3.4 画面
 
-- `OverlayPickerView` のタブの上に `SuggestionStripView` (高さ 36pt 固定、候補が無いときも高さを保つ) を置く。「提案:」ラベルの後にチップ。チップの見た目は `PresetStripView` のチップと同じ (サムネイルは `OverlayRenderer` で 128px を 1 回描いてキャッシュ)。
+- `OverlayPickerView` のタブの上に `SuggestionStripView` (高さ 36pt 固定。候補が無いときはチップを出さず空のまま高さを保つ) を置く。「提案:」ラベルの後にチップ。チップの見た目は `PresetStripView` のチップと同じ (サムネイルは `OverlayRenderer` で 128px を 1 回描いてキャッシュ)。
 - クリックの挙動: 記号 → 記号タブに切り替えて `symbolName` を設定。絵文字 → 絵文字タブ + `emoji`。文字 → 文字タブ + `text`。お気に入り → `applyPreset` (設定まで復元)。記号・絵文字・文字の候補では色などの設定は変えない。
 - 対象フォルダは `FolderSelection` から導出: 選択があれば選択中の行のうちリスト順で最後のもの、選択が無ければ `folders.last`。`AppModel` が `folders.$folders` と `$selectedIDs` を購読して `suggestions` を更新する。計算は同期・純関数なのでデバウンス不要。
 - 適用中 (`isApplying`) はチップを無効にする。
@@ -115,15 +116,30 @@ enum PresetImporter {
 }
 ```
 
-- `PresetImporter`: 各項目について、画像があれば `AssetStore.store(_:)` で新しい ID に複製して `overlay = .image(assetID: newID)` に置き換える。既存のお気に入りと `overlay` と `settings` が完全に等しいものは `skippedIdentical` に数えて追加しない。名前が重なれば `PresetStore.defaultName` と同じ規則で「名前 2」。追加は `PresetStore.addAll(_:)` で **1 回の保存** にまとめる (途中で失敗したら 1 件も追加しない。複製した PNG は次回起動の掃除に任せず、その場で削除する)。
+- `PresetImporter`: 各項目について、画像があれば `AssetStore.store(_:)` で新しい ID に複製して `overlay = .image(assetID: newID)` に置き換える。重複判定は **既存のお気に入り + このパックで既に追加を決めた項目** に対して行い、`overlay` と `settings` が完全に等しいものは `skippedIdentical` に数えて追加しない (パック内の重複も 1 つにまとまる)。名前が重なれば `PresetStore.defaultName` と同じ規則で「名前 2」(こちらも既存 + 追加予定の名前に対して)。追加は `PresetStore.addAll(_:)` で **1 回の保存** にまとめる (途中で失敗したら 1 件も追加しない。複製した PNG は次回起動の掃除に任せず、その場で削除する)。
 - 書き出しのファイル名の既定値: `FolderArt-お気に入り-<yyyyMMdd>.folderartpack`。
 
 ### 4.3 入り口
 
 - `PresetStripView` 右端に「…」メニュー (`Menu`): 「パックを書き出す…」「パックを読み込む…」。お気に入りが 0 件なら書き出しは無効。
 - メニューバー「ファイル」に同じ 2 項目 (`FolderArtApp` の `.commands`)。
-- `.folderartpack` のダブルクリック: `Info.plist` に `CFBundleDocumentTypes` (Viewer) と `UTExportedTypeDeclarations` を宣言し、`ContentView` の `onOpenURL` で `AppModel.importPack(url:)` を呼ぶ。
+- `.folderartpack` のダブルクリック: `project.yml` の `info.properties` に次を宣言し (XcodeGen が `Info.plist` に出力)、`ContentView` の `onOpenURL` で `AppModel.importPack(url:)` を呼ぶ。
+
+```yaml
+CFBundleDocumentTypes:
+  - CFBundleTypeName: FolderArt Preset Pack
+    CFBundleTypeRole: Viewer
+    LSHandlerRank: Owner
+    LSItemContentTypes: [com.example.folderart.pack]
+UTExportedTypeDeclarations:
+  - UTTypeIdentifier: com.example.folderart.pack
+    UTTypeDescription: FolderArt Preset Pack
+    UTTypeConformsTo: [public.json]
+    UTTypeTagSpecification:
+      public.filename-extension: [folderartpack]
+```
 - `AppModel.exportPack()` は `NSSavePanel`、`importPack(url:)` は読み込み → 概要をアラート「3 件追加しました (1 件は同じものがあるため省略)」。適用中は両方とも拒否。
+- サンドボックス: パネルや `onOpenURL` から受け取った URL は `startAccessingSecurityScopedResource()` で囲んで読み書きし、`defer` で閉じる (パネル由来の URL は権限付きで渡されるが、`onOpenURL` 経由は明示的に開く)。
 
 ### 4.4 失敗の扱い
 
@@ -131,7 +147,7 @@ enum PresetImporter {
 |------|------|
 | `format` が未対応 | 「このパックは新しいバージョンの FolderArt で作られています」アラート。何も追加しない |
 | JSON が壊れている | 「パックを読み込めません」アラート |
-| 画像が復号できない | その項目ではなくパック全体を拒否 (一括で入るか入らないか) |
+| `overlay` が `.image` なのに `image` が無い、PNG として復号できない | その項目ではなくパック全体を拒否 (一括で入るか入らないか)。検証は PNG を 1 枚も保存する前に全項目に対して行う |
 | 200 件超 | 拒否してアラート |
 | 保存に失敗 | 追加せず、複製した PNG を削除してアラート |
 | 書き出しの保存に失敗 | アラート |
@@ -146,17 +162,19 @@ enum PresetImporter {
 
 ### 5.1 移動したフォルダの履歴の同一性
 
-- `IconTask` に `fileID: String?` を追加 (`URLResourceKey.fileResourceIdentifierKey` を `String(describing:)` したもの)。`decodeIfPresent` で読むので既存の v2 行は `nil`。版数 (`currentVersion = 2`) は変えない。
+- `IconTask` に `fileID: String?` を追加。値は `<volumeUUID>:<fileIdentifier>` の形で、`URLResourceKey.volumeUUIDStringKey` と `fileResourceIdentifierKey` から作る (識別子が `Data` なら Base64、`NSNumber` なら 10 進文字列、それ以外や取得失敗なら `nil`。ボリューム UUID が取れない場合も `nil`)。`decodeIfPresent` で読むので既存の v2 行は `nil`。版数 (`currentVersion = 2`) は変えない。
+- 効く範囲: 同一ボリューム内の名前変更・移動。コピーや別ボリュームへの移動、削除して作り直したフォルダは別物として扱う (path 比較に落ちる)。
 - 適用時に `fileID` を取得して記録する。取得できなければ `nil`。
-- `HistoryStore.upsert` は「`folderPath` が同じ」または「`fileID` が同じ (nil 同士は不一致)」の行を置き換える。
+- `HistoryStore.upsert` は「`folderPath` が同じ」または「`fileID` が同じ (nil 同士は不一致)」の行を置き換える。置き換え時は既存行の `backupPath` を引き継ぐ (第1段階の規則どおり)。
+- バックアップの鍵は引き続き適用時の path (base64) だが、**参照は常に行の `backupPath` を正とする**。リセット後のバックアップ削除 (`removeBackup`) も現在の URL から鍵を導くのではなく `task.backupPath` の親ディレクトリを消す。これで移動後も掃除 (§5.3) と整合する。
 - テスト: 同じ `fileID` で path が違う行を upsert すると 1 行に置き換わる。`fileID` が nil 同士の別 path は 2 行のまま。
 
 ### 5.2 一括適用の履歴書き込みを 1 回に
 
-- `HistoryStore.upsertAll(_ tasks: [IconTask]) throws`: 全件を置き換え規則で反映し、保存は 1 回。
-- `ApplyCoordinator.apply`: フォルダごとに バックアップ → 適用 → ブックマーク を行い、`IconTask` と巻き戻し用スナップショットを溜める。ループ後に `upsertAll` を 1 回。失敗したら **その回に適用した全フォルダを直前のスナップショットに巻き戻し**、全件を失敗として報告する (理由に「履歴の保存に失敗」)。第1段階の「失敗 = 変更なし」を保つ。
-- バックアップ PNG の書き出し (`backupCurrentIcon`) は `Task.detached` で行い、`await` で結果を受ける。`NSWorkspace.setIcon` はメインのまま。
-- テスト: 3 フォルダ適用で `history.json` の書き込みが 1 回 (`CodableStore` に書き込み回数のフックを持たせるか、ファイルの更新回数で確認)。最終保存失敗で 3 フォルダとも `Icon\r` が元に戻り、履歴が増えない。
+- `HistoryStore.upsertAll(_ tasks: [IconTask]) throws`: 現在の `tasks` から置き換え規則で `updated` を組み、`save(updated)` が成功してから `tasks = updated` を代入する (第1段階の `upsert` と同じ「保存してから反映」)。失敗時はメモリ上の履歴も変わらない。テストは `history.json` だけでなくメモリ上の `tasks` も検査する。
+- `ApplyCoordinator.apply`: フォルダごとに バックアップ → 適用 → ブックマーク を行い、成功した分の `IconTask` と巻き戻し用スナップショットを溜める。**フォルダ単位の失敗 (存在しない、書けない) は従来どおり部分失敗** として集計し、残りは続ける。ループ後に成功分だけを `upsertAll` で 1 回保存する。**この最終保存だけが失敗した場合**、その回に適用が成功した全フォルダを直前のスナップショットに巻き戻し、それらを失敗として報告する (理由に「履歴の保存に失敗」)。第1段階の「失敗 = 変更なし」を保つ。
+- バックアップ (`backupCurrentIcon`) は `NSWorkspace.icon(forFile:)` と AppKit の画像エンコードを含むため、第2段階では **メインアクターのまま** にする (I/O の主因は履歴の N 回書き込みで、それは上で解消する)。`NSWorkspace.setIcon` もメインのまま。
+- テスト: 3 フォルダ適用で `history.json` の書き込みが 1 回 (`CodableStore` に書き込み回数のフックを持たせる)。1 フォルダが存在しない場合は残り 2 件が成功として保存される。最終保存失敗で成功していた全フォルダの `Icon\r` が元に戻り、メモリ上もファイル上も履歴が増えない。
 
 ### 5.3 掃除
 
