@@ -76,11 +76,25 @@ final class OverlayRendererTests: XCTestCase {
     }
 
     func testImageKeepsAspectInsideSquare() throws {
-        // 300x100 の赤い画像 → 256x256 の中で上下に透明帯ができる
+        // 300x100 の赤い画像 → clipToFolderShape が OFF のときは aspect-FIT され、
+        // 256x256 の中で上下に透明帯ができる
         let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 300, height: 100), color: .red))
-        let image = render(.image(assetID: id))!
+        var settings = CompositionSettings()
+        settings.clipToFolderShape = false
+        let image = render(.image(assetID: id), settings: settings)!
         let rep = TestSupport.bitmap(of: image)
         XCTAssertEqual(rep.colorAt(x: 128, y: 128)!.alphaComponent, 1.0, accuracy: 0.01) // 中央は不透明
         XCTAssertEqual(rep.colorAt(x: 128, y: 4)!.alphaComponent, 0.0, accuracy: 0.01)   // 上端は透明
+    }
+
+    /// clipToFolderShape が ON (デフォルト) かつ中央配置のときは aspect-FILL され、
+    /// 正方形いっぱいに敷き詰められて透明帯ができない (IconComposer が最終的にフォルダー
+    /// 形状で切り抜くため、ここで透明帯があると 1.0.1 のようにフォルダーの外周が透明に抜ける)
+    func testImageAspectFillsSquareWhenClippedToFolderShapeAtCenter() throws {
+        let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 300, height: 100), color: .red))
+        let image = render(.image(assetID: id))!   // デフォルト設定: clipToFolderShape = true, position = .center
+        let rep = TestSupport.bitmap(of: image)
+        XCTAssertEqual(rep.colorAt(x: 128, y: 128)!.alphaComponent, 1.0, accuracy: 0.01) // 中央は不透明
+        XCTAssertEqual(rep.colorAt(x: 128, y: 4)!.alphaComponent, 1.0, accuracy: 0.01)   // 上端も不透明 (帯なし)
     }
 }

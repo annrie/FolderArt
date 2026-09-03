@@ -8,6 +8,13 @@ enum OverlayRenderer {
         switch overlay {
         case .image(let id):
             guard let image = assets.image(for: id) else { return nil }
+            // フォルダー形状に切り抜いて中央配置する設定では、IconComposer 側がこの正方形画像
+            // をそのままフォルダーいっぱいに敷き詰める。ここで aspect-FIT すると透明な帯を
+            // 含んだ正方形になり、その帯がそのままフォルダーの外周に透明帯として出てしまうため、
+            // その場合だけ中央基準で aspect-FILL して正方形を隙間なく埋める
+            if settings.clipToFolderShape && settings.position == .center {
+                return aspectFillSquare(image, side: side)
+            }
             return fitIntoSquare(image, side: side)
 
         case .symbol(let name):
@@ -43,6 +50,20 @@ enum OverlayRenderer {
                 tint.setFill()
                 NSRect(origin: .zero, size: canvas).fill(using: .sourceAtop)
             }
+        }
+    }
+
+    /// アスペクト比を保ったまま正方形いっぱいに敷き詰め、はみ出た部分は中央基準で切り取る。
+    private static func aspectFillSquare(_ image: NSImage, side: CGFloat) -> NSImage? {
+        let size = image.size
+        guard size.width > 0, size.height > 0 else { return nil }
+        let ratio = max(side / size.width, side / size.height)
+        let drawSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        let origin = CGPoint(x: (side - drawSize.width) / 2, y: (side - drawSize.height) / 2)
+        return BitmapCanvas.draw(size: CGSize(width: side, height: side)) { _ in
+            image.draw(in: NSRect(origin: origin, size: drawSize),
+                       from: NSRect(origin: .zero, size: size),
+                       operation: .sourceOver, fraction: 1)
         }
     }
 
