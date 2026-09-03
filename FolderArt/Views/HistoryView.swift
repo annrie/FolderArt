@@ -4,6 +4,7 @@ struct HistoryView: View {
     @ObservedObject var historyStore: HistoryStore
     let onReset: (IconTask) -> Void
     let onReapply: (IconTask) -> Void
+    var isApplying: Bool = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -56,11 +57,11 @@ struct HistoryView: View {
                             Spacer()
                             Button("再適用") { onReapply(task) }
                                 .buttonStyle(.bordered).controlSize(.small)
-                                .disabled(!task.overlay.canReapply)
+                                .disabled(!task.overlay.canReapply || isApplying)
                                 .help(Text("この見た目とフォルダーを画面に戻す"))
                             Button("リセット") { onReset(task) }
                                 .buttonStyle(.bordered).controlSize(.small)
-                                .disabled(task.bookmarkData.isEmpty)
+                                .disabled(task.bookmarkData.isEmpty || isApplying)
                         }
                         .padding(.vertical, 4)
                     }

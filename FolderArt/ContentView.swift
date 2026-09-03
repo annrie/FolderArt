@@ -77,7 +77,8 @@ struct ContentView: View {
             HistoryView(
                 historyStore: model.history,
                 onReset: { task in model.reset(task: task); showHistory = false },
-                onReapply: { task in model.restore(from: task); showHistory = false }
+                onReapply: { task in model.restore(from: task); showHistory = false },
+                isApplying: model.isApplying
             )
         }
         // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
@@ -96,6 +97,7 @@ struct ContentView: View {
             Spacer()
             Button { showHistory = true } label: { Label("履歴", systemImage: "clock") }
                 .buttonStyle(.borderless)
+                .disabled(model.isApplying)
         }
         .padding(.horizontal).padding(.vertical, 10)
     }

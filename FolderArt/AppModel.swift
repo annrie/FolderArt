@@ -93,6 +93,7 @@ final class AppModel: ObservableObject {
 
     /// 適用先 (選択 or 全部) のうち、FolderArt が適用したフォルダだけアイコンを戻す
     func resetTargets() {
+        guard !isApplying else { return }
         for url in folders.targets where hasHistory(url) {
             do { try coordinator.reset(folder: url) }
             catch { errorMessage = error.localizedDescription }
@@ -105,6 +106,7 @@ final class AppModel: ObservableObject {
     }
 
     func reset(task: IconTask) {
+        guard !isApplying else { return }
         do { try coordinator.reset(task) }
         catch { errorMessage = error.localizedDescription }
         reapAssets()

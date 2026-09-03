@@ -135,6 +135,30 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.folders.folders.count, 1)
     }
 
+    /// 適用中は履歴からの reset(task:) が効かない (二重操作を防ぐ)。resetTargets() は
+    /// フォルダを直接触らないここでは検証しないが、同じガードで守られている
+    func testResetTaskIsIgnoredWhileApplying() async throws {
+        let a = root.appendingPathComponent("A")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        model.addFolders([a])
+        model.overlay.activeTab = .text
+        model.overlay.text = "x"
+        model.overlay.updatePreviewNow()
+        await model.apply()
+
+        let task = try XCTUnwrap(model.history.task(forFolderPath: a.standardizedFileURL.path))
+        let iconFile = a.appendingPathComponent("Icon\r")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: iconFile.path))
+
+        model.isApplying = true
+        model.reset(task: task)
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: iconFile.path))
+        XCTAssertNotNil(model.history.task(forFolderPath: a.standardizedFileURL.path))
+
+        model.isApplying = false
+    }
+
     /// ブックマークが無く生パスも存在しないフォルダは FolderSelection.add で黙って弾かれるので、
     /// restore はそれをエラーとして表面化し、オーバーレイは変更しない
     func testRestoreShowsErrorWhenBookmarkFailsToResolve() throws {
