@@ -17,6 +17,12 @@ final class AppModel: ObservableObject {
     @Published var isApplying = false
     @Published var progress: (done: Int, total: Int)?
     private var cancellables: Set<AnyCancellable> = []
+    /// 履歴から開いたセキュリティスコープ。鍵は標準化した URL、値はスコープを持つ URL 本体
+    /// (stop は start を呼んだ URL に対して呼ぶ必要がある)
+    private var scopedURLs: [URL: URL] = [:]
+
+    /// テスト用: 開きっぱなしのスコープの数
+    var scopedURLCount: Int { scopedURLs.count }
 
     init(history: HistoryStore = HistoryStore(),
          presets: PresetStore = PresetStore(),
@@ -35,6 +41,11 @@ final class AppModel: ObservableObject {
                       presets.objectWillChange.eraseToAnyPublisher()] {
             child.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         }
+
+        // リストから消えたフォルダのスコープは閉じる (再適用のたびに開きっぱなしにしない)
+        folders.$folders
+            .sink { [weak self] list in self?.releaseScopes(keeping: list) }
+            .store(in: &cancellables)
 
         if let e = history.loadError ?? presets.loadError {
             errorMessage = String(localized: "保存データの読み込みに失敗しました: \(e.localizedDescription)")
@@ -169,10 +180,26 @@ final class AppModel: ObservableObject {
               let url = try? BookmarkManager.resolveBookmark(task.bookmarkData) else {
             return URL(fileURLWithPath: task.folderPath)
         }
-        // リストに残っている間ずっとアクセス権が要る。このセッションの間は開いたままにする
-        // (アプリ終了時に OS がまとめて解放する)
-        _ = url.startAccessingSecurityScopedResource()
+        // リストに残っている間ずっとアクセス権が要るので開いたままにする。
+        // 同じフォルダを何度も再適用しても二重に開かない (閉じる回数と釣り合わなくなるため)
+        let key = url.standardizedFileURL
+        if scopedURLs[key] == nil, url.startAccessingSecurityScopedResource() {
+            scopedURLs[key] = url
+        }
         return url
+    }
+
+    /// リストに無くなったフォルダのセキュリティスコープを閉じる
+    private func releaseScopes(keeping list: [URL]) {
+        let keep = Set(list)
+        for (key, url) in scopedURLs where !keep.contains(key) {
+            url.stopAccessingSecurityScopedResource()
+            scopedURLs.removeValue(forKey: key)
+        }
+    }
+
+    deinit {
+        for url in scopedURLs.values { url.stopAccessingSecurityScopedResource() }
     }
 
     func removePreset(_ preset: Preset) {

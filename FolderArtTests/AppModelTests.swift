@@ -104,6 +104,22 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.overlay.text, "26")   // 旧形式は無視
     }
 
+    /// 再適用のたびにセキュリティスコープを開き直さない。リストから消えたら閉じる
+    func testSecurityScopeIsOpenedOnceAndClosedWithTheList() throws {
+        let a = root.appendingPathComponent("A")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        let task = IconTask(folderPath: a.path,
+                            bookmarkData: try BookmarkManager.createBookmark(for: a),
+                            backupPath: nil, overlay: .text("1"), settings: CompositionSettings())
+
+        model.restore(from: task)
+        model.restore(from: task)
+        XCTAssertEqual(model.scopedURLCount, 1)
+
+        model.folders.removeAll()
+        XCTAssertEqual(model.scopedURLCount, 0)
+    }
+
     func testSavePresetAndReapKeepsReferencedAssets() throws {
         let png = root.appendingPathComponent("pic.png")
         try TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red)).write(to: png)
