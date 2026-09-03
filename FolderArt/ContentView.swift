@@ -51,7 +51,8 @@ struct ContentView: View {
 
             HStack(alignment: .top, spacing: 12) {
                 ControlsView(settings: settingsBinding,
-                             showsTint: model.overlay.activeTab == .symbol || model.overlay.activeTab == .text)
+                             showsTint: model.overlay.activeTab == .symbol || model.overlay.activeTab == .text,
+                             sizeLockedByFill: model.overlay.activeTab == .image)
                     .frame(maxWidth: .infinity)
                 PreviewView(image: model.overlay.previewImage,
                             placeholder: "フォルダーと\n重ねるものを選択")

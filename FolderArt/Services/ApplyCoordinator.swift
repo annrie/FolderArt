@@ -49,7 +49,8 @@ final class ApplyCoordinator {
         progress: @escaping (Int, Int) -> Void = { _, _ in }
     ) async -> ApplyOutcome {
         // 合成は 1 回だけ (512px 1 枚なのでメインで同期的に描いて問題ない)
-        guard let icon = IconComposer.compose(overlay: overlayImage, settings: settings) else {
+        guard let icon = IconComposer.compose(overlay: overlayImage, settings: settings,
+                                              fillsWhenClipped: overlay.fillsFolderWhenClipped) else {
             let failures = folders.map { ApplyFailure(folder: $0, reason: ApplyError.composeFailed.localizedDescription) }
             return ApplyOutcome(succeeded: [], failed: failures)
         }

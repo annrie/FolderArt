@@ -136,4 +136,37 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(TestSupport.pngData(a), TestSupport.pngData(b))
         XCTAssertTrue(TestSupport.contains(color: .red, in: a))
     }
+
+    /// 記号・絵文字・文字 (fillsWhenClipped=false) は切り抜き ON + 中央でもサイズが効く
+    func testGlyphKeepsScaleWhenClippedAndCentered() {
+        let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0, clipToFolderShape: true)
+        let rect = IconComposer.calculateRect(for: CGSize(width: 100, height: 100), in: CGSize(width: 512, height: 512),
+                                              settings: settings, fillsWhenClipped: false)
+        XCTAssertEqual(rect.width, 256, accuracy: 0.1)
+        XCTAssertEqual(rect.height, 256, accuracy: 0.1)
+        XCTAssertEqual(rect.origin.x, 128, accuracy: 0.1)
+    }
+
+    /// 画像 (fillsWhenClipped=true、既定) は従来どおり敷き詰める
+    func testImageStillFillsWhenClippedAndCentered() {
+        let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0, clipToFolderShape: true)
+        let rect = IconComposer.calculateRect(for: CGSize(width: 100, height: 100), in: CGSize(width: 512, height: 512),
+                                              settings: settings, fillsWhenClipped: true)
+        XCTAssertEqual(rect.width, 512, accuracy: 0.1)
+        XCTAssertEqual(rect.height, 512, accuracy: 0.1)
+    }
+
+    /// compose にも伝わる: 敷き詰めない合成では中央以外にフォルダの色が残る
+    func testComposeRespectsFillsWhenClipped() {
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+        let settings = CompositionSettings(position: .center, scale: 0.4, opacity: 1.0, clipToFolderShape: true)
+        let filled = IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: true)!
+        let scaled = IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: false)!
+        XCTAssertNotEqual(TestSupport.pngData(filled), TestSupport.pngData(scaled))
+        // 敷き詰めた方は (60, 300) も赤、縮小した方はそこにフォルダの色 (赤ではない) が見える
+        let f = TestSupport.bitmap(of: filled).colorAt(x: 60, y: 300)!.usingColorSpace(.sRGB)!
+        let s = TestSupport.bitmap(of: scaled).colorAt(x: 60, y: 300)!.usingColorSpace(.sRGB)!
+        XCTAssertGreaterThan(f.redComponent, 0.8)
+        XCTAssertLessThan(s.redComponent, 0.5)
+    }
 }

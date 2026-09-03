@@ -24,6 +24,15 @@ enum Overlay: Codable, Equatable, Hashable, Sendable {
         return nil
     }
 
+    /// 切り抜き ON + 中央のとき、フォルダ全体に敷き詰めるか (画像だけ true)。
+    /// 記号・絵文字・文字はサイズ指定どおりに置き、フォルダの形からはみ出す部分だけを切り抜く。
+    var fillsFolderWhenClipped: Bool {
+        switch self {
+        case .image, .legacyImage: return true
+        case .symbol, .emoji, .text: return false
+        }
+    }
+
     var canReapply: Bool {
         if case .legacyImage = self { return false }
         return true

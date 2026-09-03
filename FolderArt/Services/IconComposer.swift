@@ -13,13 +13,17 @@ enum IconComposer {
     }()
 
     /// 土台アイコンにオーバーレイ画像 (OverlayRenderer の出力) を合成して返す
+    /// - Parameter fillsWhenClipped: 切り抜き ON + 中央のとき、フォルダ全体に敷き詰める (画像) か、
+    ///   サイズ指定どおりに置いてはみ出しだけ切り抜く (記号・絵文字・文字) か。
     static func compose(
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
-        base: NSImage = standardFolderIcon
+        base: NSImage = standardFolderIcon,
+        fillsWhenClipped: Bool = true
     ) -> NSImage? {
         let size = iconSize
-        let overlayRect = calculateRect(for: overlayImage.size, in: size, settings: settings)
+        let overlayRect = calculateRect(for: overlayImage.size, in: size, settings: settings,
+                                        fillsWhenClipped: fillsWhenClipped)
 
         return BitmapCanvas.draw(size: size) { _ in
             base.draw(in: NSRect(origin: .zero, size: size),
@@ -58,7 +62,8 @@ enum IconComposer {
     static func calculateRect(
         for imageSize: CGSize,
         in containerSize: CGSize,
-        settings: CompositionSettings
+        settings: CompositionSettings,
+        fillsWhenClipped: Bool = true
     ) -> NSRect {
         let aspectRatio = imageSize.width > 0 ? imageSize.width / imageSize.height : 1.0
         let customWidth: CGFloat
@@ -66,7 +71,7 @@ enum IconComposer {
 
         switch settings.position {
         case .center:
-            if settings.clipToFolderShape {
+            if settings.clipToFolderShape && fillsWhenClipped {
                 let containerAspect = containerSize.width / containerSize.height
                 if aspectRatio >= containerAspect {
                     customHeight = containerSize.height
