@@ -79,6 +79,8 @@ struct ContentView: View {
                 onReapply: { task in model.restore(from: task); showHistory = false }
             )
         }
+        // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
+        .onAppear { showError = (model.errorMessage != nil) }
         .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
         .alert("お知らせ", isPresented: $showError) {
             Button("OK") { model.errorMessage = nil }
