@@ -1,0 +1,208 @@
+# FolderArt 第2段階: 自動提案・お気に入りパック・内部改善
+
+作成日: 2026-09-03
+対象バージョン: 1.3.0 (現行 1.2.0)
+状態: 設計確定 (実装計画は別ファイル)
+前提: 第1段階 spec `2026-09-02-overlay-sources-and-batch-design.md` (v1.2.0 で実装済み)
+
+## 1. 範囲
+
+第2段階で扱うのは次の 3 つ。
+
+| 記号 | 内容 |
+|------|------|
+| A | フォルダ名からの自動提案 (記号・絵文字・文字・お気に入りの候補をタブの上に最大 3 つ) |
+| C | お気に入りパックの書き出しと読み込み (`.folderartpack`、画像を内包する単一 JSON) |
+| D | 第1段階からの持ち越し: 移動したフォルダの履歴の同一性、一括適用の履歴書き込みを 1 回に、`backups/` と `.corrupt-*` の掃除 |
+
+加えて README のメイン画像を 1.3.0 の画面に差し替える (§8)。
+
+第3段階以降に送るもの: フォルダの中身からの生成 (B)、お気に入りの一部だけの書き出し、提案辞書のユーザー編集、多言語化、フォント・太さの UI。
+
+## 2. 決定事項 (対話で確定)
+
+- 提案は **チップで見せるだけ**。自動では適用しない。
+- 提案の元になるフォルダは **選択中の行、無ければ最後に追加した行**。
+- パックは **単一ファイル `.folderartpack` (JSON、画像は Base64 内包)**。
+- 読み込み時の重複は **全部追加し、名前が重なれば「名前 2」**。オーバーレイと設定が完全に同一なら追加しない。
+- 入り口は **お気に入りの帯の「…」メニュー + メニューバー「ファイル」+ `.folderartpack` のダブルクリック**。書き出す対象はお気に入り全部。
+- 新しいウィンドウやシートは増やさない (第1段階と同じ方針)。
+
+## 3. 自動提案 (A)
+
+### 3.1 SuggestionEngine
+
+```swift
+struct Suggestion: Equatable, Identifiable {
+    enum Kind { case symbol(String), emoji(String), text(String), preset(Preset) }
+    let kind: Kind
+    let reason: String        // ツールチップ用 (例: 「"photo" に一致」)
+    var id: String            // kind から導出
+}
+
+struct SuggestionEngine {
+    init(dictionary: SuggestionDictionary, catalog: SymbolCatalog)
+    func suggest(for folderName: String, presets: [Preset]) -> [Suggestion]   // 最大 3
+}
+```
+
+知識は 3 層。優先順は 辞書 → お気に入り → SF Symbols の検索語 → 規則。
+
+1. **同梱辞書 `Resources/suggestions.json`**: `[{ "keys": ["写真", "photo", "photos", "pictures"], "symbol": "photo.fill", "emoji": "📷" }, ...]` を約 150 語、日英で用意する。記号名は `SymbolCatalog.names` に含まれるものだけを使う (制限付き記号を辞書に入れない。テストで検証)。
+2. **お気に入り**: `preset.name` がフォルダ名に含まれる (大文字小文字と全角半角を無視) お気に入りを候補にする。
+3. **SF Symbols の検索語**: 辞書に無い英単語を `SymbolCatalog` の検索語索引 (`symbol_search.plist`) で引き、最初の一致を記号候補にする。
+4. **規則**: 4 桁の数字 (`2025`) や 2 文字以内の英数字 (`A`, `Q3`) は文字候補にする。
+
+### 3.2 語の切り出し
+
+- 英数字: 空白・`_`・`-`・`.`・`(`・`)`・camelCase の境界で分割し、小文字化して辞書の `keys` と完全一致。
+- 日本語: 分かち書きしないので、辞書の `keys` (日本語) をフォルダ名の部分文字列として探す。長い語から先に当てる。
+- 全角英数字は半角に正規化 (`String.applyingTransform(.fullwidthToHalfwidth)`)。
+
+### 3.3 候補の組み立て
+
+- 記号 1、絵文字 1、文字 1 を上限に最大 3 つ。お気に入り候補は記号枠を使う (最優先)。
+- 同じ記号・絵文字・文字は重複させない。
+- 何も当たらなければ空配列を返し、帯は表示しない。
+
+### 3.4 画面
+
+- `OverlayPickerView` のタブの上に `SuggestionStripView` (高さ 36pt 固定、候補が無いときも高さを保つ) を置く。「提案:」ラベルの後にチップ。チップの見た目は `PresetStripView` のチップと同じ (サムネイルは `OverlayRenderer` で 128px を 1 回描いてキャッシュ)。
+- クリックの挙動: 記号 → 記号タブに切り替えて `symbolName` を設定。絵文字 → 絵文字タブ + `emoji`。文字 → 文字タブ + `text`。お気に入り → `applyPreset` (設定まで復元)。記号・絵文字・文字の候補では色などの設定は変えない。
+- 対象フォルダは `FolderSelection` から導出: 選択があれば選択中の行のうちリスト順で最後のもの、選択が無ければ `folders.last`。`AppModel` が `folders.$folders` と `$selectedIDs` を購読して `suggestions` を更新する。計算は同期・純関数なのでデバウンス不要。
+- 適用中 (`isApplying`) はチップを無効にする。
+
+### 3.5 テスト
+
+- 辞書ヒット (日英)、日本語の部分一致、年号と短い英数字の規則、上限 3 と種類の重複なし、お気に入りの取り込みと最優先、何も当たらないとき空。
+- 辞書の全 `symbol` が `SymbolCatalog.names` に含まれる (制限付き記号が混ざっていない)。
+
+## 4. パック (C)
+
+### 4.1 ファイル形式
+
+拡張子 `.folderartpack`、UTType `com.example.folderart.pack` (`public.json` に準拠)。
+
+```json
+{
+  "format": 1,
+  "app": "FolderArt",
+  "appVersion": "1.3.0",
+  "exportedAt": "2026-09-03T12:00:00Z",
+  "presets": [
+    { "name": "写真", "overlay": { "symbol": { "name": "photo.fill" } }, "settings": { ... } },
+    { "name": "ロゴ", "overlay": { "image": { "assetID": "..." } }, "settings": { ... },
+      "image": "<Base64 PNG>" }
+  ]
+}
+```
+
+- `overlay` と `settings` は `Preset` の JSON をそのまま使う。`id` と `createdAt` は書き出さない (受け取り側で振り直す)。
+- `.image(assetID:)` の項目だけ `AssetStore` の PNG を Base64 で `image` に添える。`assetID` の値は読み込み側で無視する。
+- 上限: 1 パック 200 件。読み込み時、画像は `AssetStore.store(_:)` を通すので 512px に再縮小される。
+
+### 4.2 部品
+
+```swift
+struct PackEntry: Codable { var name: String; var overlay: Overlay; var settings: CompositionSettings; var image: Data? }
+struct Pack: Codable { var format: Int; var app: String; var appVersion: String; var exportedAt: Date; var presets: [PackEntry] }
+
+enum PackWriter { static func write(_ presets: [Preset], assets: AssetStore) throws -> Data }
+enum PackReader { static func read(_ data: Data) throws -> Pack }           // format != 1 や壊れた JSON は throw
+struct ImportSummary: Equatable { var added: Int; var skippedIdentical: Int }
+enum PresetImporter {
+    static func importPack(_ pack: Pack, into store: PresetStore, assets: AssetStore) throws -> ImportSummary
+}
+```
+
+- `PresetImporter`: 各項目について、画像があれば `AssetStore.store(_:)` で新しい ID に複製して `overlay = .image(assetID: newID)` に置き換える。既存のお気に入りと `overlay` と `settings` が完全に等しいものは `skippedIdentical` に数えて追加しない。名前が重なれば `PresetStore.defaultName` と同じ規則で「名前 2」。追加は `PresetStore.addAll(_:)` で **1 回の保存** にまとめる (途中で失敗したら 1 件も追加しない。複製した PNG は次回起動の掃除に任せず、その場で削除する)。
+- 書き出しのファイル名の既定値: `FolderArt-お気に入り-<yyyyMMdd>.folderartpack`。
+
+### 4.3 入り口
+
+- `PresetStripView` 右端に「…」メニュー (`Menu`): 「パックを書き出す…」「パックを読み込む…」。お気に入りが 0 件なら書き出しは無効。
+- メニューバー「ファイル」に同じ 2 項目 (`FolderArtApp` の `.commands`)。
+- `.folderartpack` のダブルクリック: `Info.plist` に `CFBundleDocumentTypes` (Viewer) と `UTExportedTypeDeclarations` を宣言し、`ContentView` の `onOpenURL` で `AppModel.importPack(url:)` を呼ぶ。
+- `AppModel.exportPack()` は `NSSavePanel`、`importPack(url:)` は読み込み → 概要をアラート「3 件追加しました (1 件は同じものがあるため省略)」。適用中は両方とも拒否。
+
+### 4.4 失敗の扱い
+
+| 事象 | 扱い |
+|------|------|
+| `format` が未対応 | 「このパックは新しいバージョンの FolderArt で作られています」アラート。何も追加しない |
+| JSON が壊れている | 「パックを読み込めません」アラート |
+| 画像が復号できない | その項目ではなくパック全体を拒否 (一括で入るか入らないか) |
+| 200 件超 | 拒否してアラート |
+| 保存に失敗 | 追加せず、複製した PNG を削除してアラート |
+| 書き出しの保存に失敗 | アラート |
+
+### 4.5 テスト
+
+- `PackWriter` → `PackReader` の往復 (記号・文字・画像入り)。画像の Base64 が `AssetStore` の PNG と一致。
+- `PresetImporter`: 名前の付け直し、完全一致の省略、画像の再複製と ID の振り直し、`format: 2` の拒否、壊れた JSON の拒否、201 件の拒否、保存失敗時に PNG が残らない。
+- `PresetStore.addAll` が 1 回の保存で全件入る (途中失敗で 0 件)。
+
+## 5. 持ち越し (D)
+
+### 5.1 移動したフォルダの履歴の同一性
+
+- `IconTask` に `fileID: String?` を追加 (`URLResourceKey.fileResourceIdentifierKey` を `String(describing:)` したもの)。`decodeIfPresent` で読むので既存の v2 行は `nil`。版数 (`currentVersion = 2`) は変えない。
+- 適用時に `fileID` を取得して記録する。取得できなければ `nil`。
+- `HistoryStore.upsert` は「`folderPath` が同じ」または「`fileID` が同じ (nil 同士は不一致)」の行を置き換える。
+- テスト: 同じ `fileID` で path が違う行を upsert すると 1 行に置き換わる。`fileID` が nil 同士の別 path は 2 行のまま。
+
+### 5.2 一括適用の履歴書き込みを 1 回に
+
+- `HistoryStore.upsertAll(_ tasks: [IconTask]) throws`: 全件を置き換え規則で反映し、保存は 1 回。
+- `ApplyCoordinator.apply`: フォルダごとに バックアップ → 適用 → ブックマーク を行い、`IconTask` と巻き戻し用スナップショットを溜める。ループ後に `upsertAll` を 1 回。失敗したら **その回に適用した全フォルダを直前のスナップショットに巻き戻し**、全件を失敗として報告する (理由に「履歴の保存に失敗」)。第1段階の「失敗 = 変更なし」を保つ。
+- バックアップ PNG の書き出し (`backupCurrentIcon`) は `Task.detached` で行い、`await` で結果を受ける。`NSWorkspace.setIcon` はメインのまま。
+- テスト: 3 フォルダ適用で `history.json` の書き込みが 1 回 (`CodableStore` に書き込み回数のフックを持たせるか、ファイルの更新回数で確認)。最終保存失敗で 3 フォルダとも `Icon\r` が元に戻り、履歴が増えない。
+
+### 5.3 掃除
+
+- `MaintenanceSweep.run(history: HistoryStore, backups: URL, appSupport: URL, now: Date)` を起動時に 1 回、メインの外で実行。
+  1. 履歴のどの行の `backupPath` にも含まれない `backups/<key>/` を削除。履歴の読み込みに失敗している (`loadError != nil`) 起動では行わない。
+  2. `history.json.corrupt-*` と `presets.json.corrupt-*` のうち、更新日時が 30 日より古いものを削除。
+- 失敗は無視 (次回また試す)。
+- テスト: 参照あり/なしのバックアップ、29 日と 31 日前の `.corrupt-*`、`loadError` 時にバックアップを消さない。
+
+## 6. 画面と状態のまとめ
+
+- 新規: `Services/SuggestionEngine.swift`、`Services/SuggestionDictionary.swift` (JSON の読み込み)、`Resources/suggestions.json`、`Views/SuggestionStripView.swift`、`Services/PackWriter.swift`、`Services/PackReader.swift`、`Services/PresetImporter.swift`、`Services/MaintenanceSweep.swift`。
+- 変更: `AppModel` (`suggestions`、`applySuggestion(_:)`、`exportPack()`、`importPack(url:)`、起動時の掃除)、`FolderArtApp` (`.commands`、`onOpenURL` は `ContentView`)、`OverlayPickerView` (提案の帯)、`PresetStripView` (「…」メニュー)、`PresetStore` (`addAll`)、`HistoryStore` (`upsertAll`、`fileID` 判定)、`IconTask` (`fileID`)、`ApplyCoordinator` (最後に 1 回保存)、`project.yml` / `Info.plist` (UTType、1.3.0 / ビルド 5)。
+- 文言はすべて `Text("…")` / `String(localized:)`。
+
+## 7. エラー処理
+
+| 事象 | 扱い |
+|------|------|
+| 提案辞書が読めない | 規則と検索語だけで動く。ユーザーには見せない |
+| パックの読み書き失敗 | §4.4 のとおりアラート。部分的な取り込みはしない |
+| 一括適用の最終保存失敗 | 全件巻き戻し + 全件失敗として報告 |
+| 掃除の失敗 | 無視 |
+
+## 8. README のメイン画像
+
+- README の `<img src="https://github.com/user-attachments/...">` (1.0.1 の画面) を、リポジトリ内 `docs/images/main.png` への相対参照に置き換える。
+- 画像は 1.3.0 の実機画面 (フォルダ 3 件、記号タブ、提案の帯にチップ 3 つ、お気に入りのチップ 2 つ、プレビュー表示) を Retina 2x で撮り、幅 1520px 程度で保存する。撮影は第1段階と同じ自動化 (CGWindowID 指定の `screencapture`) で行う。
+- 日英併記の機能一覧に「自動提案」「お気に入りパック」を追記する。
+
+## 9. テスト方針の要約
+
+新規テストは §3.5、§4.5、§5 の各項目。既存 102 件は維持。UI は実機で撮って確認 (提案チップのクリック、「…」メニューからの書き出しと読み込み、ダブルクリックでの読み込み、同一名の付け直し)。
+
+## 10. 影響を受ける既存ファイル
+
+| ファイル | 変更 |
+|----------|------|
+| `Models/IconTask.swift` | `fileID: String?` |
+| `Stores/HistoryStore.swift` | `upsertAll`、`fileID` による置き換え |
+| `Stores/PresetStore.swift` | `addAll` |
+| `Services/ApplyCoordinator.swift` | 最後に 1 回保存、全件巻き戻し、バックアップの非同期化 |
+| `AppModel.swift` | 提案・パック・掃除の呼び出し |
+| `FolderArtApp.swift` | ファイルメニュー |
+| `ContentView.swift` | `onOpenURL`、提案の帯 |
+| `Views/OverlayPickerView.swift` | 提案の帯を上に配置 |
+| `Views/PresetStripView.swift` | 「…」メニュー |
+| `project.yml`, `Info.plist` | UTType 宣言、1.3.0 / ビルド 5、`Resources/suggestions.json` |
+| `README.md` | 画像差し替え、機能一覧 |
