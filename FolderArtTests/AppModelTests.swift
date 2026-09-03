@@ -161,6 +161,23 @@ final class AppModelTests: XCTestCase {
 
     /// ブックマークが無く生パスも存在しないフォルダは FolderSelection.add で黙って弾かれるので、
     /// restore はそれをエラーとして表面化し、オーバーレイは変更しない
+    /// ブックマークは解決できたがリストに追加できない (フォルダが通常ファイルに置き換わった) 場合、
+    /// 開いたばかりのセキュリティスコープを残さない
+    func testRestoreReleasesScopeWhenFolderCannotBeAdded() throws {
+        // ブックマークが通常ファイルを指している (フォルダが差し替わった) と、解決はできるが追加は拒否される
+        let a = root.appendingPathComponent("A")
+        try "file".data(using: .utf8)!.write(to: a)
+        let bookmark = try BookmarkManager.createBookmark(for: a)
+        let task = IconTask(folderPath: a.path, bookmarkData: bookmark, backupPath: nil,
+                            overlay: .text("7"), settings: CompositionSettings())
+
+        model.restore(from: task)
+
+        XCTAssertTrue(model.folders.folders.isEmpty)
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertEqual(model.scopedURLCount, 0)
+    }
+
     func testRestoreShowsErrorWhenBookmarkFailsToResolve() throws {
         let missing = root.appendingPathComponent("MissingFolder")   // 作成しない
         let task = IconTask(folderPath: missing.path, bookmarkData: Data(), backupPath: nil,

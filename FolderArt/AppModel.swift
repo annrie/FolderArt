@@ -185,6 +185,8 @@ final class AppModel: ObservableObject {
         let url = folderURL(for: task)
         folders.add([url])
         guard folders.folders.contains(url.standardizedFileURL) else {
+            // 追加できなかった URL のために開いたスコープは、リストに無いので即座に閉じる
+            releaseScopes(keeping: folders.folders)
             let name = url.lastPathComponent
             errorMessage = String(localized: "フォルダーを開けません: \(name)。フォルダーを追加し直してください。")
             return
