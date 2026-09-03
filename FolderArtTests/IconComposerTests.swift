@@ -86,6 +86,28 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(TestSupport.pixelSize(of: result!), IconComposer.iconSize)
     }
 
+    /// OverlayRenderer が切り抜き+中央配置のときに正方形へ切り抜かず縦長のまま長辺基準で
+    /// 縮小して渡すようになった (round5)。ここではその出力を模した縦長オーバーレイを
+    /// verticalOffset で上にパンして合成し、下端まできちんと覆われる (途中でフォルダーの
+    /// 地色が透明な帯として見えてしまわない) ことを確認する
+    func testClippedCenterPortraitOverlayCoversFolderBodyWhenPannedUp() throws {
+        var settings = CompositionSettings(position: .center, opacity: 1.0, clipToFolderShape: true)
+        settings.verticalOffset = 0.2
+        // OverlayRenderer.render が 100x300 の画像を side=512 で長辺基準に縮小すると
+        // およそ 171x512 になる (round5 の OverlayRendererTests と対応)
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 171, height: 512), color: .red)
+
+        let composed = try XCTUnwrap(IconComposer.compose(overlay: overlay, settings: settings))
+        let rep = TestSupport.bitmap(of: composed)
+
+        for y in [200, 450] {
+            let color = try XCTUnwrap(TestSupport.srgbColor(of: rep, x: 256, y: y), "y=\(y)")
+            XCTAssertGreaterThan(color.alphaComponent, 0.5, "y=\(y) はフォルダー本体の内側のはず")
+            XCTAssertGreaterThan(color.redComponent, 0.5, "y=\(y) が赤くない (フォルダーの地色が透けている)")
+            XCTAssertLessThan(color.greenComponent, 0.3, "y=\(y) が赤くない (フォルダーの地色が透けている)")
+        }
+    }
+
     func testComposeIsDeterministicAndDoesNotStack() {
         // 標準フォルダアイコンを土台にするので、同じ入力なら何度合成しても同じ結果
         let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)

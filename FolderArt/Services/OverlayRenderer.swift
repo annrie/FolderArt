@@ -1,6 +1,8 @@
 import AppKit
 
-/// Overlay を透明背景の正方形画像に描く。合成 (IconComposer) はこの出力だけを扱う。
+/// Overlay を透明背景の画像に描く。合成 (IconComposer) はこの出力だけを扱う。
+/// 出力は基本的に正方形だが、切り抜き+中央配置の画像だけは元のアスペクト比を保った
+/// 非正方形になる (calculateRect の AspectFill + verticalOffset にアスペクトごと委ねるため)。
 enum OverlayRenderer {
 
     static func render(_ overlay: Overlay, settings: CompositionSettings,
@@ -8,12 +10,14 @@ enum OverlayRenderer {
         switch overlay {
         case .image(let id):
             guard let image = assets.image(for: id) else { return nil }
-            // フォルダー形状に切り抜いて中央配置する設定では、IconComposer 側がこの正方形画像
-            // をそのままフォルダーいっぱいに敷き詰める。ここで aspect-FIT すると透明な帯を
-            // 含んだ正方形になり、その帯がそのままフォルダーの外周に透明帯として出てしまうため、
-            // その場合だけ中央基準で aspect-FILL して正方形を隙間なく埋める
+            // フォルダー形状に切り抜いて中央配置する設定では、IconComposer 側の calculateRect が
+            // AspectFill でフォルダーいっぱいに敷き詰め、verticalOffset で上下にパンする。
+            // ここで正方形に切り抜いてしまうと、パンする前に縦長/横長画像のはみ出し部分が
+            // 失われてしまい、パンしてもフォルダーの外周が透明/背景色のまま抜けて見える。
+            // そのためここでは切り抜かず、長辺を side に合わせて縮小するだけに留め、
+            // アスペクト比の判断は IconComposer 側にそのまま渡す
             if settings.clipToFolderShape && settings.position == .center {
-                return aspectFillSquare(image, side: side)
+                return scaleToLongSide(image, side: side)
             }
             return fitIntoSquare(image, side: side)
 
@@ -53,15 +57,14 @@ enum OverlayRenderer {
         }
     }
 
-    /// アスペクト比を保ったまま正方形いっぱいに敷き詰め、はみ出た部分は中央基準で切り取る。
-    private static func aspectFillSquare(_ image: NSImage, side: CGFloat) -> NSImage? {
+    /// アスペクト比を保ったまま長辺を side に合わせて縮小する (切り抜きも正方形化もしない)。
+    private static func scaleToLongSide(_ image: NSImage, side: CGFloat) -> NSImage? {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return nil }
-        let ratio = max(side / size.width, side / size.height)
-        let drawSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-        let origin = CGPoint(x: (side - drawSize.width) / 2, y: (side - drawSize.height) / 2)
-        return BitmapCanvas.draw(size: CGSize(width: side, height: side)) { _ in
-            image.draw(in: NSRect(origin: origin, size: drawSize),
+        let ratio = side / max(size.width, size.height)
+        let scaledSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        return BitmapCanvas.draw(size: scaledSize) { _ in
+            image.draw(in: NSRect(origin: .zero, size: scaledSize),
                        from: NSRect(origin: .zero, size: size),
                        operation: .sourceOver, fraction: 1)
         }

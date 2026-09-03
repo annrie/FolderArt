@@ -21,9 +21,13 @@ final class OverlayRendererTests: XCTestCase {
     }
 
     func testEachKindRendersSquare() throws {
+        // .image は切り抜き+中央配置だとアスペクトを保った非正方形になる (別テストで検証) ので、
+        // ここでは clipToFolderShape を OFF にして「通常は正方形に収まる」ことだけを確認する
         let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 300, height: 100), color: .red))
+        var settings = CompositionSettings()
+        settings.clipToFolderShape = false
         for overlay in [Overlay.image(assetID: id), .symbol(name: "star.fill"), .emoji("🎵"), .text("2026")] {
-            let image = try XCTUnwrap(render(overlay), "\(overlay)")
+            let image = try XCTUnwrap(render(overlay, settings: settings), "\(overlay)")
             XCTAssertEqual(TestSupport.pixelSize(of: image), CGSize(width: 256, height: 256), "\(overlay)")
         }
     }
@@ -87,14 +91,39 @@ final class OverlayRendererTests: XCTestCase {
         XCTAssertEqual(rep.colorAt(x: 128, y: 4)!.alphaComponent, 0.0, accuracy: 0.01)   // 上端は透明
     }
 
-    /// clipToFolderShape が ON (デフォルト) かつ中央配置のときは aspect-FILL され、
-    /// 正方形いっぱいに敷き詰められて透明帯ができない (IconComposer が最終的にフォルダー
-    /// 形状で切り抜くため、ここで透明帯があると 1.0.1 のようにフォルダーの外周が透明に抜ける)
-    func testImageAspectFillsSquareWhenClippedToFolderShapeAtCenter() throws {
-        let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 300, height: 100), color: .red))
-        let image = render(.image(assetID: id))!   // デフォルト設定: clipToFolderShape = true, position = .center
+    /// clipToFolderShape が ON (デフォルト) かつ中央配置のときは、正方形に切り抜かず元の
+    /// アスペクト比を保ったまま長辺を side に合わせて縮小するだけにする (round5)。
+    /// ここで正方形に切り抜くと、IconComposer 側の verticalOffset によるパンではみ出し部分が
+    /// 失われ、パンした先でフォルダーの地色が透明な帯として抜けてしまう (1.0.1 の巻き戻し)
+    func testImagePreservesAspectWhenClippedToFolderShapeAtCenter() throws {
+        // 100x300 の縦長画像 → side=512 なら長辺(300)基準で ~171x512 になる
+        let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 100, height: 300), color: .red))
+        let image = try XCTUnwrap(
+            OverlayRenderer.render(.image(assetID: id), settings: CompositionSettings(), side: 512, assets: assets))
+        let size = TestSupport.pixelSize(of: image)
+        XCTAssertEqual(size.height, 512, accuracy: 1)
+        XCTAssertEqual(size.width, 171, accuracy: 1)
+
         let rep = TestSupport.bitmap(of: image)
-        XCTAssertEqual(rep.colorAt(x: 128, y: 128)!.alphaComponent, 1.0, accuracy: 0.01) // 中央は不透明
-        XCTAssertEqual(rep.colorAt(x: 128, y: 4)!.alphaComponent, 1.0, accuracy: 0.01)   // 上端も不透明 (帯なし)
+        let x = Int(size.width) / 2
+        XCTAssertEqual(rep.colorAt(x: x, y: 4)!.alphaComponent, 1.0, accuracy: 0.01)                  // 下端も不透明
+        XCTAssertEqual(rep.colorAt(x: x, y: 256)!.alphaComponent, 1.0, accuracy: 0.01)                // 中央も不透明
+        XCTAssertEqual(rep.colorAt(x: x, y: Int(size.height) - 4)!.alphaComponent, 1.0, accuracy: 0.01) // 上端も不透明 (帯なし)
+    }
+
+    /// clipToFolderShape が OFF のときは今まで通り正方形に aspect-FIT され、
+    /// はみ出さない側 (この場合は左右) に透明帯ができる
+    func testImageFitsIntoSquareWithSideBandsWhenClipDisabled() throws {
+        let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 100, height: 300), color: .red))
+        var settings = CompositionSettings()
+        settings.clipToFolderShape = false
+        let image = try XCTUnwrap(
+            OverlayRenderer.render(.image(assetID: id), settings: settings, side: 512, assets: assets))
+        XCTAssertEqual(TestSupport.pixelSize(of: image), CGSize(width: 512, height: 512))
+
+        let rep = TestSupport.bitmap(of: image)
+        XCTAssertEqual(rep.colorAt(x: 256, y: 256)!.alphaComponent, 1.0, accuracy: 0.01) // 中央は不透明
+        XCTAssertEqual(rep.colorAt(x: 4, y: 256)!.alphaComponent, 0.0, accuracy: 0.01)   // 左端は透明 (帯)
+        XCTAssertEqual(rep.colorAt(x: 507, y: 256)!.alphaComponent, 0.0, accuracy: 0.01) // 右端は透明 (帯)
     }
 }
