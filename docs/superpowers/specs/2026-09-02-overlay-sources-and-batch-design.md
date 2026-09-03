@@ -1,7 +1,7 @@
 # FolderArt 第1段階: オーバーレイ供給源の拡張・お気に入り・一括適用
 
 作成日: 2026-09-02
-対象バージョン: 1.1.0 (現行 1.0.1)
+対象バージョン: 1.2.0 (現行 1.0.1。GitHub に旧 v1.1.0 リリースが存在するため 1.1.0 を飛ばす)
 状態: 設計確定 (実装計画は別ファイル)
 
 ## 1. 背景と目的
@@ -301,5 +301,5 @@ final class CodableStore<T: Codable> {
 | `Views/ControlsView.swift` | 色の行、表示名修正 |
 | `Views/HistoryView.swift` | `IconTask` v2 対応、legacy 行の表示 |
 | `FolderArtApp.swift` | ウィンドウサイズとリサイズ可 |
-| `project.yml` | バージョン 1.1.0、`Resources/restricted-symbols.txt` の追加 |
+| `project.yml` | バージョン 1.2.0、`Resources/restricted-symbols.txt` の追加 |
 | `FolderArtTests/*` | §10 |
