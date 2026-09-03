@@ -39,7 +39,7 @@
   {"keys": ["学校", "授業", "学習", "勉強", "school", "class", "classes", "study", "lecture", "lectures", "course", "courses"], "symbol": "graduationcap.fill", "emoji": "🏫"},
   {"keys": ["メモ", "ノート", "note", "notes", "memo", "memos"], "symbol": "note.text", "emoji": "📝"},
   {"keys": ["日記", "journal", "diary"], "symbol": "book.closed.fill", "emoji": "📔"},
-  {"keys": ["メール", "mail", "email", "emails", "inbox"], "symbol": "envelope.fill", "emoji": "✉️"},
+  {"keys": ["メール", "mail", "email", "emails"], "symbol": "envelope.fill", "emoji": "✉️"},
   {"keys": ["連絡先", "住所録", "contact", "contacts", "address"], "symbol": "person.crop.circle.fill", "emoji": "📇"},
   {"keys": ["予定", "カレンダー", "スケジュール", "calendar", "schedule", "events", "agenda"], "symbol": "calendar", "emoji": "📅"},
   {"keys": ["旅行", "trip", "trips", "travel", "vacation", "holiday", "holidays"], "symbol": "airplane", "emoji": "✈️"},
@@ -99,6 +99,6 @@
   {"keys": ["結婚", "ウェディング", "wedding"], "symbol": "heart.circle.fill", "emoji": "💍"},
   {"keys": ["クリスマス", "christmas", "xmas"], "symbol": "gift.fill", "emoji": "🎄"},
   {"keys": ["正月", "新年", "newyear"], "symbol": "sparkles", "emoji": "🎍"},
-  {"keys": ["summer"], "symbol": "sun.max.fill", "emoji": "☀️"},
-  {"keys": ["winter", "snow", "ski"], "symbol": "snowflake", "emoji": "❄️"}
+  {"keys": ["夏休み", "夏季", "summer"], "symbol": "sun.max.fill", "emoji": "☀️"},
+  {"keys": ["冬季", "雪山", "スキー", "winter", "snow", "ski"], "symbol": "snowflake", "emoji": "❄️"}
 ]

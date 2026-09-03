@@ -34,4 +34,17 @@ final class SuggestionDictionaryTests: XCTestCase {
                                              resourceName: "does-not-exist")
         XCTAssertEqual(dict, .empty)
     }
+
+    func testNoKeyAppearsInMultipleEntries() {
+        let dict = SuggestionDictionary.load(bundle: Bundle(for: SuggestionDictionaryTests.self))
+        var keyToCount: [String: Int] = [:]
+        for entry in dict.entries {
+            for key in entry.keys {
+                keyToCount[key, default: 0] += 1
+            }
+        }
+        for (key, count) in keyToCount {
+            XCTAssertEqual(count, 1, "key appears in multiple entries: \(key)")
+        }
+    }
 }
