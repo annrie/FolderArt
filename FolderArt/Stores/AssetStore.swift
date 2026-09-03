@@ -78,24 +78,31 @@ final class AssetStore {
     }
 
     /// 長辺が maxSide を超えていれば縮小し、常に単一ビットマップ表現の画像を返す。
+    /// 縮小元には最大解像度のビットマップ表現を使う (複数解像度を持つ画像の先頭表現が
+    /// サムネイルだと、それを縮小元にしてしまい粗い画像が保存されるため)。
     /// 極端な縦横比だと丸め前の短辺が 1px 未満になり BitmapCanvas.draw に弾かれて元画像に
     /// フォールバックしてしまうため、各辺は必ず 1px 以上にクランプする。
     static func downscaled(_ image: NSImage, maxSide: CGFloat) -> NSImage {
-        let pixel = pixelSize(of: image)
+        let bestRep = largestBitmapRep(of: image)
+        let pixel = bestRep.map { CGSize(width: $0.pixelsWide, height: $0.pixelsHigh) } ?? image.size
         let ratio = min(1, maxSide / max(pixel.width, pixel.height))
         let target = CGSize(width: max(1, (pixel.width * ratio).rounded()),
                              height: max(1, (pixel.height * ratio).rounded()))
         return BitmapCanvas.draw(size: target) { size in
-            image.draw(in: NSRect(origin: .zero, size: size),
-                       from: NSRect(origin: .zero, size: image.size),
-                       operation: .sourceOver, fraction: 1)
+            if let bestRep {
+                bestRep.draw(in: NSRect(origin: .zero, size: size))
+            } else {
+                image.draw(in: NSRect(origin: .zero, size: size),
+                           from: NSRect(origin: .zero, size: image.size),
+                           operation: .sourceOver, fraction: 1)
+            }
         } ?? image
     }
 
-    private static func pixelSize(of image: NSImage) -> CGSize {
-        if let rep = image.representations.first {
-            return CGSize(width: rep.pixelsWide, height: rep.pixelsHigh)
-        }
-        return image.size
+    /// 面積 (pixelsWide * pixelsHigh) が最大のビットマップ表現。無ければ nil
+    private static func largestBitmapRep(of image: NSImage) -> NSBitmapImageRep? {
+        image.representations
+            .compactMap { $0 as? NSBitmapImageRep }
+            .max { $0.pixelsWide * $0.pixelsHigh < $1.pixelsWide * $1.pixelsHigh }
     }
 }

@@ -50,6 +50,20 @@ final class AssetStoreTests: XCTestCase {
         XCTAssertThrowsError(try store.store(contentsOf: dir.appendingPathComponent("missing.png")))
     }
 
+    /// 複数解像度のビットマップ表現を持つ画像 (例: マルチレゾ TIFF) は、先頭の表現が
+    /// サムネイルだと縮小元がそれになってしまい、粗い画像が保存される (round7)。
+    /// 最大のビットマップ表現から縮小するようにする。
+    func testMultiResolutionImageScalesFromLargestRepresentation() throws {
+        let image = NSImage(size: CGSize(width: 1024, height: 1024))
+        image.addRepresentation(TestSupport.bitmap(of: TestSupport.makeSolidImage(
+            size: CGSize(width: 16, height: 16), color: .red)))
+        image.addRepresentation(TestSupport.bitmap(of: TestSupport.makeSolidImage(
+            size: CGSize(width: 1024, height: 1024), color: .red)))
+        let id = try store.store(image)
+        let loaded = try XCTUnwrap(store.image(for: id))
+        XCTAssertEqual(TestSupport.pixelSize(of: loaded), CGSize(width: 512, height: 512))
+    }
+
     func testRemoveAndReap() throws {
         let a = try store.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red))
         let b = try store.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red))
