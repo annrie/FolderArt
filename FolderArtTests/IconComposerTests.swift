@@ -15,7 +15,7 @@ final class IconComposerTests: XCTestCase {
             for: imageSize,
             in: containerSize,
             settings: settings
-        )
+        , fillsWhenClipped: true)
 
         let expectedSide = containerSize.width * settings.scale  // 256
         XCTAssertEqual(rect.width, expectedSide, accuracy: 0.1)
@@ -36,7 +36,7 @@ final class IconComposerTests: XCTestCase {
             for: imageSize,
             in: containerSize,
             settings: settings
-        )
+        , fillsWhenClipped: true)
 
         // AspectFill: 幅方向でコンテナを満たす（2:1 画像→横がはみ出す）
         XCTAssertGreaterThanOrEqual(rect.width, containerSize.width - 0.1)
@@ -53,7 +53,7 @@ final class IconComposerTests: XCTestCase {
             for: imageSize,
             in: containerSize,
             settings: settings
-        )
+        , fillsWhenClipped: true)
 
         // バッジは右下 → x + width が containerSize.width 付近
         XCTAssertGreaterThan(rect.origin.x, containerSize.width / 2)
@@ -72,7 +72,7 @@ final class IconComposerTests: XCTestCase {
             for: imageSize,
             in: containerSize,
             settings: settings
-        )
+        , fillsWhenClipped: true)
 
         let padding: CGFloat = 20
         XCTAssertEqual(rect.maxX, containerSize.width - padding, accuracy: 0.1)
@@ -90,7 +90,7 @@ final class IconComposerTests: XCTestCase {
             for: imageSize,
             in: containerSize,
             settings: settings
-        )
+        , fillsWhenClipped: true)
 
         let aspectRatio = rect.width / rect.height
         XCTAssertEqual(aspectRatio, 2.0, accuracy: 0.01)
@@ -99,7 +99,7 @@ final class IconComposerTests: XCTestCase {
     func testComposeReturnsNonNilImage() {
         let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
         let settings = CompositionSettings(position: .center, scale: 0.6, opacity: 0.9)
-        let result = IconComposer.compose(overlay: overlay, settings: settings)
+        let result = IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: true)
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.size, IconComposer.iconSize)
         XCTAssertEqual(TestSupport.pixelSize(of: result!), IconComposer.iconSize)
@@ -116,7 +116,7 @@ final class IconComposerTests: XCTestCase {
         // およそ 171x512 になる (round5 の OverlayRendererTests と対応)
         let overlay = TestSupport.makeSolidImage(size: CGSize(width: 171, height: 512), color: .red)
 
-        let composed = try XCTUnwrap(IconComposer.compose(overlay: overlay, settings: settings))
+        let composed = try XCTUnwrap(IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: true))
         let rep = TestSupport.bitmap(of: composed)
 
         for y in [200, 450] {
@@ -131,9 +131,42 @@ final class IconComposerTests: XCTestCase {
         // 標準フォルダアイコンを土台にするので、同じ入力なら何度合成しても同じ結果
         let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
         let settings = CompositionSettings(position: .badge, scale: 0.8, opacity: 1.0, clipToFolderShape: false)
-        let a = IconComposer.compose(overlay: overlay, settings: settings)!
-        let b = IconComposer.compose(overlay: overlay, settings: settings)!
+        let a = IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: true)!
+        let b = IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: true)!
         XCTAssertEqual(TestSupport.pngData(a), TestSupport.pngData(b))
         XCTAssertTrue(TestSupport.contains(color: .red, in: a))
+    }
+
+    /// 記号・絵文字・文字 (fillsWhenClipped=false) は切り抜き ON + 中央でもサイズが効く
+    func testGlyphKeepsScaleWhenClippedAndCentered() {
+        let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0, clipToFolderShape: true)
+        let rect = IconComposer.calculateRect(for: CGSize(width: 100, height: 100), in: CGSize(width: 512, height: 512),
+                                              settings: settings, fillsWhenClipped: false)
+        XCTAssertEqual(rect.width, 256, accuracy: 0.1)
+        XCTAssertEqual(rect.height, 256, accuracy: 0.1)
+        XCTAssertEqual(rect.origin.x, 128, accuracy: 0.1)
+    }
+
+    /// 画像 (fillsWhenClipped=true、既定) は従来どおり敷き詰める
+    func testImageStillFillsWhenClippedAndCentered() {
+        let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0, clipToFolderShape: true)
+        let rect = IconComposer.calculateRect(for: CGSize(width: 100, height: 100), in: CGSize(width: 512, height: 512),
+                                              settings: settings, fillsWhenClipped: true)
+        XCTAssertEqual(rect.width, 512, accuracy: 0.1)
+        XCTAssertEqual(rect.height, 512, accuracy: 0.1)
+    }
+
+    /// compose にも伝わる: 敷き詰めない合成では中央以外にフォルダの色が残る
+    func testComposeRespectsFillsWhenClipped() {
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+        let settings = CompositionSettings(position: .center, scale: 0.4, opacity: 1.0, clipToFolderShape: true)
+        let filled = IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: true)!
+        let scaled = IconComposer.compose(overlay: overlay, settings: settings, fillsWhenClipped: false)!
+        XCTAssertNotEqual(TestSupport.pngData(filled), TestSupport.pngData(scaled))
+        // 敷き詰めた方は (60, 300) も赤、縮小した方はそこにフォルダの色 (赤ではない) が見える
+        let f = TestSupport.bitmap(of: filled).colorAt(x: 60, y: 300)!.usingColorSpace(.sRGB)!
+        let s = TestSupport.bitmap(of: scaled).colorAt(x: 60, y: 300)!.usingColorSpace(.sRGB)!
+        XCTAssertGreaterThan(f.redComponent, 0.8)
+        XCTAssertLessThan(s.redComponent, 0.5)
     }
 }

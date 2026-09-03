@@ -4,6 +4,8 @@ struct ControlsView: View {
     @Binding var settings: CompositionSettings
     /// 画像タブでは色は効かないので無効表示にする
     var showsTint: Bool = true
+    /// 切り抜き ON + 中央でサイズが効かなくなるのは画像 (敷き詰め) だけ。記号・絵文字・文字ではサイズは常に有効
+    var sizeLockedByFill: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -23,8 +25,8 @@ struct ControlsView: View {
 
             SliderRow(label: "サイズ:", value: $settings.scale, range: 0.2...1.0,
                       format: { "\(Int($0 * 100))%" })
-                .disabled(settings.clipToFolderShape && settings.position == .center)
-                .opacity(settings.clipToFolderShape && settings.position == .center ? 0.4 : 1.0)
+                .disabled(sizeLockedByFill && settings.clipToFolderShape && settings.position == .center)
+                .opacity(sizeLockedByFill && settings.clipToFolderShape && settings.position == .center ? 0.4 : 1.0)
 
             SliderRow(label: "不透明度:", value: $settings.opacity, range: 0.1...1.0,
                       format: { "\(Int($0 * 100))%" })

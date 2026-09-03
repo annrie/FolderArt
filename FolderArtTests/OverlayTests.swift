@@ -27,4 +27,12 @@ final class OverlayTests: XCTestCase {
         XCTAssertFalse(Overlay.legacyImage(name: "old.png").canReapply)
         XCTAssertTrue(Overlay.text("a").canReapply)
     }
+
+    func testOnlyImagesFillTheFolderWhenClipped() {
+        XCTAssertTrue(Overlay.image(assetID: UUID()).fillsFolderWhenClipped)
+        XCTAssertTrue(Overlay.legacyImage(name: "x").fillsFolderWhenClipped)
+        XCTAssertFalse(Overlay.symbol(name: "star.fill").fillsFolderWhenClipped)
+        XCTAssertFalse(Overlay.emoji("🎵").fillsFolderWhenClipped)
+        XCTAssertFalse(Overlay.text("26").fillsFolderWhenClipped)
+    }
 }

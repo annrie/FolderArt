@@ -84,6 +84,7 @@ final class OverlayState: ObservableObject {
             return
         }
         overlayImage = rendered
-        previewImage = IconComposer.compose(overlay: rendered, settings: settings)
+        previewImage = IconComposer.compose(overlay: rendered, settings: settings,
+                                            fillsWhenClipped: newOverlay.fillsFolderWhenClipped)
     }
 }

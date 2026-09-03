@@ -83,7 +83,8 @@ private struct PresetChip: View {
     /// 128px で合成した小さなサムネイル
     private var thumbnail: NSImage? {
         guard let rendered = OverlayRenderer.render(preset.overlay, settings: preset.settings, side: 128, assets: assets),
-              let composed = IconComposer.compose(overlay: rendered, settings: preset.settings) else { return nil }
+              let composed = IconComposer.compose(overlay: rendered, settings: preset.settings,
+                                                  fillsWhenClipped: preset.overlay.fillsFolderWhenClipped) else { return nil }
         return composed
     }
 }
