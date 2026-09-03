@@ -32,6 +32,15 @@ final class AssetStoreTests: XCTestCase {
         XCTAssertEqual(TestSupport.pixelSize(of: loaded), CGSize(width: 512, height: 256))
     }
 
+    /// 極端な縦横比 (2000x1) を縮小すると短辺が 1px 未満になり BitmapCanvas.draw が nil を返して
+    /// 元画像にフォールバックしてしまう (round7)。短辺は必ず 1px にクランプする。
+    func testExtremeAspectRatioIsClampedToAtLeastOnePixel() throws {
+        let image = TestSupport.makeSolidImage(size: CGSize(width: 2000, height: 1), color: .red)
+        let id = try store.store(image)
+        let loaded = try XCTUnwrap(store.image(for: id))
+        XCTAssertEqual(TestSupport.pixelSize(of: loaded), CGSize(width: 512, height: 1))
+    }
+
     func testStoreFromFileURL() throws {
         let src = dir.appendingPathComponent("src.png")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

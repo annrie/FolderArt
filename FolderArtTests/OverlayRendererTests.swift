@@ -115,4 +115,17 @@ final class OverlayRendererTests: XCTestCase {
         XCTAssertEqual(rep.colorAt(x: x, y: 256)!.alphaComponent, 1.0, accuracy: 0.01)                // 中央も不透明
         XCTAssertEqual(rep.colorAt(x: x, y: Int(size.height) - 4)!.alphaComponent, 1.0, accuracy: 0.01) // 上端も不透明 (帯なし)
     }
+
+    /// 極端な縦横比の画像 (保存済みアセットの長辺がそのまま 512 の 512x1 のような画像) を
+    /// お気に入りサムネイル (side=128) のようにさらに縮小すると、丸め前の短辺が 1px 未満になり
+    /// BitmapCanvas.draw のガードに弾かれて nil を返し、プレビューが消えてしまう (round7)。
+    /// 短辺は必ず 1px にクランプする。
+    func testExtremeAspectRatioImageClampsShortSideToAtLeastOnePixel() throws {
+        let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 512, height: 1), color: .red))
+        let image = try XCTUnwrap(
+            OverlayRenderer.render(.image(assetID: id), settings: CompositionSettings(), side: 128, assets: assets))
+        let size = TestSupport.pixelSize(of: image)
+        XCTAssertEqual(size.width, 128, accuracy: 1)
+        XCTAssertEqual(size.height, 1, accuracy: 0.001)
+    }
 }

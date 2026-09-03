@@ -77,11 +77,14 @@ final class AssetStore {
         return count
     }
 
-    /// 長辺が maxSide を超えていれば縮小し、常に単一ビットマップ表現の画像を返す
+    /// 長辺が maxSide を超えていれば縮小し、常に単一ビットマップ表現の画像を返す。
+    /// 極端な縦横比だと丸め前の短辺が 1px 未満になり BitmapCanvas.draw に弾かれて元画像に
+    /// フォールバックしてしまうため、各辺は必ず 1px 以上にクランプする。
     static func downscaled(_ image: NSImage, maxSide: CGFloat) -> NSImage {
         let pixel = pixelSize(of: image)
         let ratio = min(1, maxSide / max(pixel.width, pixel.height))
-        let target = CGSize(width: (pixel.width * ratio).rounded(), height: (pixel.height * ratio).rounded())
+        let target = CGSize(width: max(1, (pixel.width * ratio).rounded()),
+                             height: max(1, (pixel.height * ratio).rounded()))
         return BitmapCanvas.draw(size: target) { size in
             image.draw(in: NSRect(origin: .zero, size: size),
                        from: NSRect(origin: .zero, size: image.size),

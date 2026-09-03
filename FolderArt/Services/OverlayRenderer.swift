@@ -54,11 +54,14 @@ enum OverlayRenderer {
     }
 
     /// アスペクト比を保ったまま長辺を side に合わせて縮小する (切り抜きも正方形化もしない)。
+    /// 極端な縦横比だと丸め前の短辺が 1px 未満になり BitmapCanvas.draw に弾かれるため、
+    /// 各辺は必ず 1px 以上にクランプする。
     private static func scaleToLongSide(_ image: NSImage, side: CGFloat) -> NSImage? {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return nil }
         let ratio = side / max(size.width, size.height)
-        let scaledSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        let scaledSize = CGSize(width: max(1, (size.width * ratio).rounded()),
+                                 height: max(1, (size.height * ratio).rounded()))
         return BitmapCanvas.draw(size: scaledSize) { _ in
             image.draw(in: NSRect(origin: .zero, size: scaledSize),
                        from: NSRect(origin: .zero, size: size),
