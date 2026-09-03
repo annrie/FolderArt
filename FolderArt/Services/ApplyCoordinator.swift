@@ -95,13 +95,20 @@ final class ApplyCoordinator {
             } catch {
                 // 履歴に残せなかったフォルダはアイコンを適用直前に戻し、「失敗 = 変更なし」を保つ
                 var reason = error.localizedDescription
-                if iconApplied,
-                   !NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: []) {
-                    reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)"
+                // 巻き戻しを試みていない (iconApplied == false) 場合はフォルダのアイコンに
+                // 手を付けていないので「成功」扱いにしておく
+                var rollbackSucceeded = true
+                if iconApplied {
+                    rollbackSucceeded = NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: [])
+                    if !rollbackSucceeded {
+                        reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)"
+                    }
                 }
                 // 今回新たに作ったバックアップも巻き戻す。残すと履歴に行が無いのに
-                // バックアップだけが残り、次回の適用時に誤って「元のアイコン」として使われる
-                if createdBackup {
+                // バックアップだけが残り、次回の適用時に誤って「元のアイコン」として使われる。
+                // ただし巻き戻し自体が失敗した場合は、このバックアップがユーザーの元アイコンを
+                // 復元できる唯一の手がかりになるため消してはいけない
+                if Self.shouldRemoveFreshBackup(createdBackup: createdBackup, rollbackSucceeded: rollbackSucceeded) {
                     iconManager.removeBackup(for: folder)
                 }
                 failed.append(ApplyFailure(folder: folder, reason: reason))
@@ -110,6 +117,13 @@ final class ApplyCoordinator {
             await Task.yield()   // 進捗表示を描画させる
         }
         return ApplyOutcome(succeeded: succeeded, failed: failed)
+    }
+
+    /// 新しく作ったバックアップを消してよいかどうかを判定する純粋関数。
+    /// 巻き戻し (setIcon) に失敗した場合は、そのバックアップだけがユーザーの元アイコンを
+    /// 復元できる手がかりになるため、たとえ今回新規に作ったものでも残す。
+    static func shouldRemoveFreshBackup(createdBackup: Bool, rollbackSucceeded: Bool) -> Bool {
+        createdBackup && rollbackSucceeded
     }
 
     /// 適用直前のアイコンをビットマップに焼き取る。カスタムアイコンが無ければ nil

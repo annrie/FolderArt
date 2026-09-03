@@ -244,4 +244,17 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertFalse(TestSupport.contains(color: .green, in: icon)) // 元アイコンまでは戻さない
         XCTAssertEqual(history.tasks.count, 1)
     }
+
+    /// 巻き戻しに失敗したときは、新規バックアップが元アイコンを復元できる唯一の手がかりになる
+    /// ため消してはいけない。実際の NSWorkspace で巻き戻し失敗を再現するのは難しいため、
+    /// 判定ロジック単体 (shouldRemoveFreshBackup) の真理値表で検証する
+    func testShouldRemoveFreshBackupTruthTable() {
+        // 新規バックアップがあり、巻き戻しにも成功 → もう不要なので消してよい
+        XCTAssertTrue(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: true, rollbackSucceeded: true))
+        // 新規バックアップはあるが巻き戻しに失敗 → 元アイコンの唯一の手がかりなので残す
+        XCTAssertFalse(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: true, rollbackSucceeded: false))
+        // 新規に作っていない (既存バックアップを引き継いだだけ) → 何もしない
+        XCTAssertFalse(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: false, rollbackSucceeded: true))
+        XCTAssertFalse(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: false, rollbackSucceeded: false))
+    }
 }
