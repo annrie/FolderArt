@@ -27,17 +27,20 @@ struct SuggestionEngine {
             break
         }
 
-        // 2. 辞書: 一致した項目を「当たったキーの長い順、同じ長さならフォルダ名の先に出た順」に並べる
-        //    (sort は安定でないので位置で決定的にする)
+        // 2. 辞書: 項目ごとに一致したキーのうち最長のもの (同じ長さなら先に出た方) を採用し、
+        //    項目間は「キーの長い順、同じ長さならフォルダ名の先に出た順」に並べる。
+        //    (Swift の sort は 5.0 以降安定だが、位置によるタイブレークで並び順を明示的に決定的にする)
+        func position(of key: String) -> Int {
+            normalized.range(of: key).map { normalized.distance(from: normalized.startIndex, to: $0.lowerBound) } ?? Int.max
+        }
         var hits: [(key: String, position: Int, entry: SuggestionEntry)] = []
         for entry in dictionary.entries {
-            for key in entry.keys {
+            let matching = entry.keys.filter { key in
                 let isLatin = key.unicodeScalars.allSatisfy { $0.isASCII }
-                let matched = isLatin ? tokens.contains(key) : normalized.contains(key)
-                if matched {
-                    let position = normalized.range(of: key).map { normalized.distance(from: normalized.startIndex, to: $0.lowerBound) } ?? Int.max
-                    hits.append((key, position, entry)); break
-                }
+                return isLatin ? tokens.contains(key) : normalized.contains(key)
+            }
+            if let best = matching.max(by: { ($0.count, -position(of: $0)) < ($1.count, -position(of: $1)) }) {
+                hits.append((best, position(of: best), entry))
             }
         }
         hits.sort { ($0.key.count, -$0.position) > ($1.key.count, -$1.position) }

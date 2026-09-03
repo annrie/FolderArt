@@ -30,6 +30,18 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertEqual(s.map(\.kind), [.symbol("doc.text.fill"), .emoji("🧾"), .text("2025")])
     }
 
+    func testLongestMatchingKeyWinsWithinEntry() {
+        // 項目内に短いキーと長いキーの両方が一致する場合、最長のキーを採用する (reason にも反映される)
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["請求", "請求書"], symbol: "doc.text.fill", emoji: "🧾"),
+            SuggestionEntry(keys: ["控え"], symbol: "star.fill", emoji: "⭐"),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        let s = localEngine.suggest(for: "2025年 請求書 控え", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("doc.text.fill"))
+        XCTAssertTrue(s.first?.reason.contains("請求書") ?? false)
+    }
+
     func testJapaneseKeyDoesNotMatchInsideUnrelatedWord() {
         // 「設定」は含まれない。「定」だけ、「設」だけの語には当たらない
         let s = engine.suggest(for: "予定表", presets: [])
