@@ -1,0 +1,6 @@
+# Claude Code local tooling
+.claude/
+.superpowers/
+
+# Derived data from local smoke checks
+build/

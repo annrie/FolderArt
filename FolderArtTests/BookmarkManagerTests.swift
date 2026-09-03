@@ -21,4 +21,13 @@ final class BookmarkManagerTests: XCTestCase {
         let invalidData = Data("invalid".utf8)
         XCTAssertThrowsError(try BookmarkManager.resolveBookmark(invalidData))
     }
+
+    /// 単体テストは FolderArt.app 自身をホストとして実行されるため、FolderArt.entitlements
+    /// が app-sandbox を有効にしている以上テストプロセスでも isSandboxed は true になる。
+    /// それでも testCreateAndResolveBookmark が通るのは、一時ディレクトリがサンドボックス
+    /// コンテナ内にあってセキュリティスコープ付きの作成/解決がそのまま成功するからで、
+    /// 非セキュリティスコープのフォールバックには最初から依存していない。
+    func testIsSandboxedTrueInHostedTestProcess() {
+        XCTAssertTrue(BookmarkManager.isSandboxed)
+    }
 }

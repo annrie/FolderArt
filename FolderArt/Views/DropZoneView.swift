@@ -2,14 +2,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
 
+/// 画像タブのドロップゾーン。フォルダのリストは FolderListView が受け持つ。
 struct DropZoneView: View {
-    enum Mode {
-        case folder
-        case image
-    }
-
-    let mode: Mode
-    let onDropURL: (URL) -> Void
+    /// フォルダ・画像を問わず全件をそのまま渡す (振り分けは AppModel が行う)
+    let onDropURLs: ([URL]) -> Void
     let onTapButton: () -> Void
 
     @State private var isTargeted = false
@@ -17,38 +13,29 @@ struct DropZoneView: View {
     private let previewImage: NSImage?
 
     init(
-        mode: Mode,
         selectedURL: URL?,
         previewImage: NSImage?,
-        onDropURL: @escaping (URL) -> Void,
+        onDropURLs: @escaping ([URL]) -> Void,
         onTapButton: @escaping () -> Void
     ) {
-        self.mode = mode
         self.displayURL = selectedURL
         self.previewImage = previewImage
-        self.onDropURL = onDropURL
+        self.onDropURLs = onDropURLs
         self.onTapButton = onTapButton
     }
 
-    private var placeholderIcon: String {
-        switch mode {
-        case .folder: return "folder.fill"
-        case .image:  return "photo.fill"
-        }
+    static func isDirectory(_ url: URL) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
     }
 
-    private var dropLabel: String {
-        switch mode {
-        case .folder: return "フォルダーをここにドロップ"
-        case .image:  return "画像をここにドロップ"
-        }
+    static func isImage(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
+        return type.conforms(to: .image)
     }
 
     private var buttonLabel: String {
-        switch mode {
-        case .folder: return displayURL == nil ? "フォルダーを選択..." : "変更..."
-        case .image:  return displayURL == nil ? "画像を選択..."     : "変更..."
-        }
+        displayURL == nil ? "画像を選択..." : "変更..."
     }
 
     var body: some View {
@@ -61,11 +48,11 @@ struct DropZoneView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .shadow(radius: 2)
             } else {
-                Image(systemName: placeholderIcon)
+                Image(systemName: "photo.fill")
                     .font(.system(size: 36))
                     .foregroundColor(isTargeted ? .accentColor : .secondary)
 
-                Text(dropLabel)
+                Text("画像をここにドロップ")
                     .font(.callout)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -73,15 +60,6 @@ struct DropZoneView: View {
 
             Button(buttonLabel, action: onTapButton)
                 .buttonStyle(.borderless)
-
-            if let url = displayURL {
-                Text(url.lastPathComponent)
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 8)
-            }
         }
         .frame(maxWidth: .infinity, minHeight: 140)
         .background(
@@ -97,18 +75,26 @@ struct DropZoneView: View {
         )
         // SwiftUI の onDrop は macOS で信頼性が低いため AppKit overlay で処理
         .overlay(
-            AppKitDropReceiver(mode: mode, isTargeted: $isTargeted, onDropURL: onDropURL)
+            FileDropReceiver(
+                isTargeted: $isTargeted,
+                // フォルダを落とされても弾かない。AppKit は下のビューへ落とし直してくれないので、
+                // ここで受けて AppModel に振り分けさせる
+                accepts: { $0.contains { Self.isDirectory($0) || Self.isImage($0) } },
+                onDrop: { onDropURLs($0) }
+            )
         )
         .padding(4)
     }
 }
 
-// MARK: - AppKit D&D レシーバー
+// MARK: - AppKit D&D レシーバー (再利用可能)
 
-private struct AppKitDropReceiver: NSViewRepresentable {
-    let mode: DropZoneView.Mode
+/// SwiftUI の onDrop は macOS で信頼性が低いため、NSView で .fileURL を受ける。
+/// クリックは透過させる (hitTest = nil) ので、下のボタン操作を妨げない。
+struct FileDropReceiver: NSViewRepresentable {
     @Binding var isTargeted: Bool
-    let onDropURL: (URL) -> Void
+    let accepts: ([URL]) -> Bool
+    let onDrop: ([URL]) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -122,87 +108,55 @@ private struct AppKitDropReceiver: NSViewRepresentable {
         context.coordinator.parent = self
     }
 
-    // MARK: Coordinator
+    final class Coordinator {
+        var parent: FileDropReceiver
+        init(_ parent: FileDropReceiver) { self.parent = parent }
 
-    class Coordinator {
-        var parent: AppKitDropReceiver
-
-        init(_ parent: AppKitDropReceiver) {
-            self.parent = parent
-        }
-
-        var mode: DropZoneView.Mode { parent.mode }
-
-        func setTargeted(_ value: Bool) {
-            DispatchQueue.main.async { self.parent.isTargeted = value }
-        }
-
-        func handleURL(_ url: URL) {
-            DispatchQueue.main.async { self.parent.onDropURL(url) }
-        }
+        func accepts(_ urls: [URL]) -> Bool { parent.accepts(urls) }
+        func setTargeted(_ value: Bool) { DispatchQueue.main.async { self.parent.isTargeted = value } }
+        func handle(_ urls: [URL]) { DispatchQueue.main.async { self.parent.onDrop(urls) } }
     }
 }
 
-// MARK: - AppKit ビュー（NSDraggingDestination）
-
-private class DropReceiverNSView: NSView {
-    var coordinator: AppKitDropReceiver.Coordinator?
+final class DropReceiverNSView: NSView {
+    var coordinator: FileDropReceiver.Coordinator?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         registerForDraggedTypes([.fileURL])
     }
-
     required init?(coder: NSCoder) { fatalError() }
 
-    // マウスクリックは透過させてボタン操作を妨げない
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-    // MARK: NSDraggingDestination
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         let valid = validate(sender)
         coordinator?.setTargeted(valid)
         return valid ? .copy : []
     }
-
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        return validate(sender) ? .copy : []
+        validate(sender) ? .copy : []
     }
-
-    override func draggingExited(_ sender: NSDraggingInfo?) {
-        coordinator?.setTargeted(false)
-    }
-
-    override func draggingEnded(_ sender: NSDraggingInfo) {
-        coordinator?.setTargeted(false)
-    }
+    override func draggingExited(_ sender: NSDraggingInfo?) { coordinator?.setTargeted(false) }
+    override func draggingEnded(_ sender: NSDraggingInfo) { coordinator?.setTargeted(false) }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         coordinator?.setTargeted(false)
-        guard let url = fileURL(from: sender) else { return false }
-        coordinator?.handleURL(url)
+        let urls = fileURLs(from: sender)
+        guard !urls.isEmpty, coordinator?.accepts(urls) == true else { return false }
+        coordinator?.handle(urls)
         return true
     }
-
-    // MARK: Helpers
 
     private func validate(_ sender: NSDraggingInfo) -> Bool {
-        guard let url = fileURL(from: sender) else { return false }
-        guard let mode = coordinator?.mode else { return false }
-        if case .folder = mode {
-            var isDir: ObjCBool = false
-            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-                && isDir.boolValue
-        }
-        return true
+        let urls = fileURLs(from: sender)
+        return !urls.isEmpty && (coordinator?.accepts(urls) ?? false)
     }
 
-    private func fileURL(from sender: NSDraggingInfo) -> URL? {
+    /// ドロップされた **全件** の file URL
+    private func fileURLs(from sender: NSDraggingInfo) -> [URL] {
         sender.draggingPasteboard
-            .readObjects(forClasses: [NSURL.self],
-                         options: [.urlReadingFileURLsOnly: true])
-            .flatMap { $0 as? [URL] }?
-            .first
+            .readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+            .flatMap { $0 as? [URL] } ?? []
     }
 }

@@ -1,142 +1,130 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var vm = ContentViewModel()
+    // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される
+    @StateObject private var model = AppModel()
     @State private var showHistory = false
-    @State private var showError   = false
+    @State private var showError = false
+    @State private var windowTargeted = false
+
+    /// `model.overlay` は let なので `$model.overlay.settings` は書けない。手で Binding を作る。
+    private var settingsBinding: Binding<CompositionSettings> {
+        Binding(get: { model.overlay.settings }, set: { model.overlay.settings = $0 })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-
-            // ツールバー
-            HStack {
-                Text("FolderArt")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    showHistory = true
-                } label: {
-                    Label("履歴", systemImage: "clock")
-                }
-                .buttonStyle(.borderless)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-
+            toolbar
             Divider()
 
-            // ドロップゾーン（上半分）
-            HStack(spacing: 16) {
-                DropZoneView(
-                    mode: .folder,
-                    selectedURL: vm.selectedFolderURL,
-                    previewImage: vm.selectedFolderURL.map {
-                        NSWorkspace.shared.icon(forFile: $0.path)
-                    },
-                    onDropURL: { url in vm.selectedFolderURL = url },
-                    onTapButton: { vm.selectFolder() }
+            HStack(alignment: .top, spacing: 12) {
+                FolderListView(
+                    selection: model.folders,
+                    onAdd: { model.selectFoldersWithPanel() },
+                    onDrop: { model.handleDroppedURLs($0) },
+                    isApplying: model.isApplying
                 )
+                .frame(minWidth: 240)
 
-                DropZoneView(
-                    mode: .image,
-                    selectedURL: vm.selectedImage != nil
-                        ? URL(fileURLWithPath: vm.imageName)
-                        : nil,
-                    previewImage: vm.selectedImage,
-                    onDropURL: { url in
-                        if let img = NSImage(contentsOf: url) {
-                            vm.selectedImage = img
-                            vm.imageName = url.lastPathComponent
-                        }
-                    },
-                    onTapButton: { vm.selectImage() }
+                OverlayPickerView(
+                    state: model.overlay,
+                    catalog: SymbolCatalog.shared,
+                    onPickImage: { model.selectImageWithPanel() },
+                    onDrop: { model.handleDroppedURLs($0) }
                 )
+                .frame(minWidth: 380)
             }
-            .padding()
+            .frame(height: 260)
+            .padding(12)
 
+            PresetStripView(
+                store: model.presets,
+                assets: model.assets,
+                canSave: model.overlay.overlay != nil,
+                isApplying: model.isApplying,
+                onSave: { model.saveCurrentAsPreset() },
+                onApply: { model.applyPreset($0) },
+                onRename: { model.renamePreset($0, to: $1) },
+                onRemove: { model.removePreset($0) }
+            )
             Divider()
 
-            // 設定コントロール
-            ControlsView(settings: $vm.settings)
-                .padding(.vertical, 8)
-
+            HStack(alignment: .top, spacing: 12) {
+                ControlsView(settings: settingsBinding,
+                             showsTint: model.overlay.activeTab == .symbol || model.overlay.activeTab == .text)
+                    .frame(maxWidth: .infinity)
+                PreviewView(image: model.overlay.previewImage,
+                            placeholder: "フォルダーと\n重ねるものを選択")
+                    .frame(width: 200)
+            }
+            .padding(.vertical, 12)
+            // hover の拡大プレビューを下のアクションバーより手前に出す
+            // (PreviewView 内側の zIndex は外側 VStack の兄弟には効かない)
+            .zIndex(1)
             Divider()
 
-            // プレビューエリア
-            VStack(spacing: 8) {
-                Text("プレビュー")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                if let preview = vm.previewImage {
-                    Image(nsImage: preview)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 128, height: 128)
-                        .shadow(radius: 4)
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.secondary.opacity(0.1))
-                        .frame(width: 128, height: 128)
-                        .overlay(
-                            Text("フォルダーと\n画像を選択")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        )
-                }
-            }
-            .padding()
-
-            Divider()
-
-            // アクションボタン
-            HStack {
-                Button {
-                    vm.resetCurrentIcon()
-                } label: {
-                    Label("リセット", systemImage: "arrow.uturn.backward")
-                }
-                .disabled(vm.selectedFolderURL == nil)
-
-                Button {
-                    vm.clearState()
-                } label: {
-                    Label("次のフォルダー", systemImage: "folder.badge.plus")
-                }
-                .disabled(vm.selectedFolderURL == nil && vm.selectedImage == nil)
-
-                Spacer()
-
-                Button {
-                    Task { await vm.applyIcon() }
-                } label: {
-                    Label(
-                        vm.isApplying ? "適用中..." : "アイコンを適用",
-                        systemImage: "checkmark.circle.fill"
-                    )
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!vm.canApply || vm.isApplying)
-            }
-            .padding()
+            actionBar
         }
+        .frame(minWidth: 760, minHeight: 720)
+        .background(
+            // 余白へのドロップ用。.background なので内側の受け口 (リストと画像タブ) が上に来て優先される
+            FileDropReceiver(
+                isTargeted: $windowTargeted,
+                accepts: { $0.contains { DropZoneView.isDirectory($0) || DropZoneView.isImage($0) } },
+                onDrop: { model.handleDroppedURLs($0) }
+            )
+        )
         .sheet(isPresented: $showHistory) {
             HistoryView(
-                historyStore: vm.historyStore,
-                onReset: { task in
-                    vm.resetIcon(task: task)
-                    showHistory = false
-                }
+                historyStore: model.history,
+                onReset: { task in model.reset(task: task); showHistory = false },
+                onReapply: { task in model.restore(from: task); showHistory = false },
+                isApplying: model.isApplying
             )
         }
-        .onChange(of: vm.errorMessage) { msg in
-            if msg != nil { showError = true }
-        }
-        .alert("エラー", isPresented: $showError) {
-            Button("OK") { vm.errorMessage = nil }
+        // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
+        .onAppear { showError = (model.errorMessage != nil) }
+        .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
+        .alert("お知らせ", isPresented: $showError) {
+            Button("OK") { model.errorMessage = nil }
         } message: {
-            Text(vm.errorMessage ?? "")
+            Text(model.errorMessage ?? "")
         }
+    }
+
+    private var toolbar: some View {
+        HStack {
+            Text("FolderArt").font(.headline)
+            Spacer()
+            Button { showHistory = true } label: { Label("履歴", systemImage: "clock") }
+                .buttonStyle(.borderless)
+                .disabled(model.isApplying)
+        }
+        .padding(.horizontal).padding(.vertical, 10)
+    }
+
+    private var actionBar: some View {
+        HStack {
+            Button { model.resetTargets() } label: { Label("リセット", systemImage: "arrow.uturn.backward") }
+                .disabled(!model.canReset)
+                .help(Text("適用先のフォルダーのアイコンを元に戻す"))
+
+            Button { model.folders.removeAll() } label: { Label("リストを空にする", systemImage: "xmark.bin") }
+                .disabled(model.folders.isEmpty || model.isApplying)
+
+            Spacer()
+
+            if let p = model.progress {
+                Text("\(p.done) / \(p.total)").font(.callout).monospacedDigit().foregroundColor(.secondary)
+            }
+
+            Button { Task { await model.apply() } } label: {
+                Label(model.applyButtonTitle, systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!model.canApply)
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding()
     }
 }
