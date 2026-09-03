@@ -120,6 +120,21 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.scopedURLCount, 0)
     }
 
+    /// 適用中は addFolders / handleDroppedURLs でリストが増えない (ウィンドウ全体・リストのドロップ両方がこれを通る)
+    func testFolderMutationsAreIgnoredWhileApplying() throws {
+        let a = root.appendingPathComponent("A")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+
+        model.isApplying = true
+        model.addFolders([a])
+        model.handleDroppedURLs([a])
+        XCTAssertTrue(model.folders.folders.isEmpty)
+
+        model.isApplying = false
+        model.addFolders([a])
+        XCTAssertEqual(model.folders.folders.count, 1)
+    }
+
     func testSavePresetAndReapKeepsReferencedAssets() throws {
         let png = root.appendingPathComponent("pic.png")
         try TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red)).write(to: png)

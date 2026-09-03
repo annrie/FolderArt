@@ -112,9 +112,13 @@ final class AppModel: ObservableObject {
 
     // MARK: - フォルダと画像の入力
 
-    func addFolders(_ urls: [URL]) { folders.add(urls) }
+    func addFolders(_ urls: [URL]) {
+        guard !isApplying else { return }
+        folders.add(urls)
+    }
 
     func selectFoldersWithPanel() {
+        guard !isApplying else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -139,6 +143,7 @@ final class AppModel: ObservableObject {
 
     /// ドロップされた URL をフォルダと画像に振り分ける。画像は最初の 1 枚だけ使う。
     func handleDroppedURLs(_ urls: [URL]) {
+        guard !isApplying else { return }
         var dirs: [URL] = []
         var firstImage: URL?
         for url in urls {
@@ -168,6 +173,7 @@ final class AppModel: ObservableObject {
 
     /// 履歴の行を現在の入力に戻す (旧形式は不可)。フォルダがまだあればリストに足す。
     func restore(from task: IconTask) {
+        guard !isApplying else { return }
         guard task.overlay.canReapply else { return }
         overlay.restore(overlay: task.overlay, settings: task.settings)
         folders.add([folderURL(for: task)])
