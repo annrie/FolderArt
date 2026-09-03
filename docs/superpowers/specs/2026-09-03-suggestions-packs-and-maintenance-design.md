@@ -187,7 +187,7 @@ UTExportedTypeDeclarations:
 ## 6. 画面と状態のまとめ
 
 - 新規: `Services/SuggestionEngine.swift`、`Services/SuggestionDictionary.swift` (JSON の読み込み)、`Resources/suggestions.json`、`Views/SuggestionStripView.swift`、`Services/PackWriter.swift`、`Services/PackReader.swift`、`Services/PresetImporter.swift`、`Services/MaintenanceSweep.swift`。
-- 変更: `AppModel` (`suggestions`、`applySuggestion(_:)`、`exportPack()`、`importPack(url:)`、起動時の掃除)、`FolderArtApp` (`.commands`、`onOpenURL` は `ContentView`)、`OverlayPickerView` (提案の帯)、`PresetStripView` (「…」メニュー)、`PresetStore` (`addAll`)、`HistoryStore` (`upsertAll`、`fileID` 判定)、`IconTask` (`fileID`)、`ApplyCoordinator` (最後に 1 回保存)、`project.yml` / `Info.plist` (UTType、1.3.0 / ビルド 5)。
+- 変更: `AppModel` (`suggestions`、`applySuggestion(_:)`、`exportPack()`、`importPack(url:)`、起動時の掃除)、`FolderArtApp` (`.commands`、`onOpenURL` は `ContentView`)、`OverlayPickerView` (提案の帯)、`PresetStripView` (「…」メニュー)、`PresetStore` (`addAll`)、`HistoryStore` (`upsertAll`、`fileID` 判定)、`IconTask` (`fileID`)、`ApplyCoordinator` (最後に 1 回保存)、`project.yml` / `Info.plist` (UTType、1.3.0 / ビルド 6)。
 - 文言はすべて `Text("…")` / `String(localized:)`。
 
 ## 7. エラー処理
@@ -222,5 +222,5 @@ UTExportedTypeDeclarations:
 | `ContentView.swift` | `onOpenURL`、提案の帯 |
 | `Views/OverlayPickerView.swift` | 提案の帯を上に配置 |
 | `Views/PresetStripView.swift` | 「…」メニュー |
-| `project.yml`, `Info.plist` | UTType 宣言、1.3.0 / ビルド 5、`Resources/suggestions.json` |
+| `project.yml`, `Info.plist` | UTType 宣言、1.3.0 / ビルド 6、`Resources/suggestions.json` |
 | `README.md` | 画像差し替え、機能一覧 |
