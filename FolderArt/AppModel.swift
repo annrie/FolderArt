@@ -172,11 +172,19 @@ final class AppModel: ObservableObject {
     }
 
     /// 履歴の行を現在の入力に戻す (旧形式は不可)。フォルダがまだあればリストに足す。
+    /// ブックマークが無い/解決できずサンドボックス下でアクセスできないフォルダは
+    /// FolderSelection.add で黙って弾かれるので、追加できたか確認してから初めてオーバーレイを戻す。
     func restore(from task: IconTask) {
         guard !isApplying else { return }
         guard task.overlay.canReapply else { return }
+        let url = folderURL(for: task)
+        folders.add([url])
+        guard folders.folders.contains(url.standardizedFileURL) else {
+            let name = url.lastPathComponent
+            errorMessage = String(localized: "フォルダーを開けません: \(name)。フォルダーを追加し直してください。")
+            return
+        }
         overlay.restore(overlay: task.overlay, settings: task.settings)
-        folders.add([folderURL(for: task)])
     }
 
     /// 履歴の行が指すフォルダ。App Sandbox 下では再起動後に素のパスでは書き込めないので、

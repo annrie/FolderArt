@@ -135,6 +135,20 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.folders.folders.count, 1)
     }
 
+    /// ブックマークが無く生パスも存在しないフォルダは FolderSelection.add で黙って弾かれるので、
+    /// restore はそれをエラーとして表面化し、オーバーレイは変更しない
+    func testRestoreShowsErrorWhenBookmarkFailsToResolve() throws {
+        let missing = root.appendingPathComponent("MissingFolder")   // 作成しない
+        let task = IconTask(folderPath: missing.path, bookmarkData: Data(), backupPath: nil,
+                            overlay: .text("42"), settings: CompositionSettings())
+
+        model.restore(from: task)
+
+        XCTAssertTrue(model.folders.folders.isEmpty)
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertEqual(model.overlay.text, "")
+    }
+
     func testSavePresetAndReapKeepsReferencedAssets() throws {
         let png = root.appendingPathComponent("pic.png")
         try TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red)).write(to: png)
