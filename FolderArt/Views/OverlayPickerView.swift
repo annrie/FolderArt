@@ -45,6 +45,7 @@ struct OverlayPickerView: View {
                     TextField("絵文字を入力", text: $state.emoji)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 28))
+                        .frame(height: 44)
                         .multilineTextAlignment(.center)
                         .onChange(of: state.emoji) { value in
                             // 1 文字 (1 書記素) に制限
