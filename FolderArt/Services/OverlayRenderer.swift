@@ -1,8 +1,7 @@
 import AppKit
 
 /// Overlay を透明背景の画像に描く。合成 (IconComposer) はこの出力だけを扱う。
-/// 出力は基本的に正方形だが、切り抜き+中央配置の画像だけは元のアスペクト比を保った
-/// 非正方形になる (calculateRect の AspectFill + verticalOffset にアスペクトごと委ねるため)。
+/// 画像は元のアスペクト比のまま (長辺 = side)、記号・文字は side x side になる。
 enum OverlayRenderer {
 
     static func render(_ overlay: Overlay, settings: CompositionSettings,
@@ -10,16 +9,13 @@ enum OverlayRenderer {
         switch overlay {
         case .image(let id):
             guard let image = assets.image(for: id) else { return nil }
-            // フォルダー形状に切り抜いて中央配置する設定では、IconComposer 側の calculateRect が
-            // AspectFill でフォルダーいっぱいに敷き詰め、verticalOffset で上下にパンする。
-            // ここで正方形に切り抜いてしまうと、パンする前に縦長/横長画像のはみ出し部分が
-            // 失われてしまい、パンしてもフォルダーの外周が透明/背景色のまま抜けて見える。
-            // そのためここでは切り抜かず、長辺を side に合わせて縮小するだけに留め、
-            // アスペクト比の判断は IconComposer 側にそのまま渡す
-            if settings.clipToFolderShape && settings.position == .center {
-                return scaleToLongSide(image, side: side)
-            }
-            return fitIntoSquare(image, side: side)
+            // 画像は配置設定 (中央/バッジ、切り抜き有無) に関わらず正方形に切り抜かず、
+            // 長辺を side に合わせて縮小するだけに留める。配置・アスペクト比の扱いは
+            // IconComposer 側の calculateRect (中央 fit / AspectFill / バッジ) にすべて委ねる。
+            // ここで正方形に押し込めてしまうと、余白ができたり (中央 fit・バッジ)、
+            // AspectFill + verticalOffset のパンではみ出し部分が失われてフォルダーの
+            // 地色が透けて見えたりする (1.0.1 の巻き戻し)
+            return scaleToLongSide(image, side: side)
 
         case .symbol(let name):
             guard let symbol = symbolImage(name: name, side: side, settings: settings) else { return nil }

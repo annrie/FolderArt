@@ -61,6 +61,25 @@ final class IconComposerTests: XCTestCase {
         XCTAssertLessThan(rect.origin.y, containerSize.height / 2)
     }
 
+    /// 画像はもう正方形に押し込められず元のアスペクト比のまま渡ってくる (round6)。
+    /// バッジ配置ではその画像が右下にぴったり収まる (パディング分だけ内側) ことを確認する
+    func testBadgePlacementFlushToBottomRightWithAspectPreservingImage() {
+        let settings = CompositionSettings(position: .badge, opacity: 1.0)
+        let imageSize = CGSize(width: 300, height: 100)  // OverlayRenderer が渡す非正方形画像を模す
+        let containerSize = CGSize(width: 512, height: 512)
+
+        let rect = IconComposer.calculateRect(
+            for: imageSize,
+            in: containerSize,
+            settings: settings
+        )
+
+        let padding: CGFloat = 20
+        XCTAssertEqual(rect.maxX, containerSize.width - padding, accuracy: 0.1)
+        XCTAssertEqual(rect.minY, padding, accuracy: 0.1)
+        XCTAssertEqual(rect.width / rect.height, 3.0, accuracy: 0.01)
+    }
+
     func testAspectRatioPreserved() {
         let settings = CompositionSettings(position: .center, scale: 0.8, opacity: 1.0)
         // 2:1 の横長画像
