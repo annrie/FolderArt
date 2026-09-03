@@ -173,6 +173,28 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.overlay.text, "")
     }
 
+    /// 適用中はお気に入りの削除も参照カウントの回収も止める (二重操作・回収レースの防止)。
+    /// 適用が終わったら通常どおり回収できる。
+    func testPresetMutationsAndReapAreIgnoredWhileApplying() throws {
+        let png = root.appendingPathComponent("pic.png")
+        try TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red)).write(to: png)
+        try model.overlay.selectImage(url: png)
+        model.saveCurrentAsPreset()
+        let preset = try XCTUnwrap(model.presets.presets.first)
+
+        let orphan = try model.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .blue))
+
+        model.isApplying = true
+        model.removePreset(preset)
+        model.reapAssets()
+        XCTAssertEqual(model.presets.presets.count, 1, "適用中は削除できない")
+        XCTAssertTrue(model.assets.allIDs().contains(orphan), "適用中は回収できない")
+
+        model.isApplying = false
+        model.reapAssets()
+        XCTAssertFalse(model.assets.allIDs().contains(orphan), "適用が終われば回収される")
+    }
+
     func testSavePresetAndReapKeepsReferencedAssets() throws {
         let png = root.appendingPathComponent("pic.png")
         try TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red)).write(to: png)

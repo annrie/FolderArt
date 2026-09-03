@@ -81,6 +81,8 @@ final class AppModel: ObservableObject {
             to: targets, progress: { [weak self] done, total in self?.progress = (done, total) })
         // 全件成功なら静かに終わる (既に出ているアラートを消さない)
         if let summary = outcome.summary { errorMessage = summary }
+        // reapAssets() は isApplying 中は何もしないので、defer の実行を待たずここで明示的に倒しておく
+        isApplying = false
         reapAssets()
     }
 
@@ -164,12 +166,13 @@ final class AppModel: ObservableObject {
     // MARK: - お気に入り
 
     func saveCurrentAsPreset() {
-        guard let o = overlay.overlay else { return }
+        guard !isApplying, let o = overlay.overlay else { return }
         do { try presets.add(name: nil, overlay: o, settings: overlay.settings) }
         catch { errorMessage = error.localizedDescription }
     }
 
     func applyPreset(_ preset: Preset) {
+        guard !isApplying else { return }
         overlay.restore(overlay: preset.overlay, settings: preset.settings)
     }
 
@@ -219,11 +222,13 @@ final class AppModel: ObservableObject {
     }
 
     func removePreset(_ preset: Preset) {
+        guard !isApplying else { return }
         do { try presets.remove(preset) } catch { errorMessage = error.localizedDescription }
         reapAssets()
     }
 
     func renamePreset(_ preset: Preset, to name: String) {
+        guard !isApplying else { return }
         do { try presets.rename(preset, to: name) } catch { errorMessage = error.localizedDescription }
     }
 
@@ -231,8 +236,9 @@ final class AppModel: ObservableObject {
 
     /// 履歴・お気に入り・現在の選択のどれからも参照されない PNG を消す。
     /// どちらかのストアが読めていない (空で始まっている) ときは、参照中の画像を消さないよう何もしない。
+    /// 適用中は履歴/お気に入りへの書き込みと競合しうるので何もしない (apply() 完了後に呼び直される)。
     func reapAssets() {
-        guard history.loadError == nil, presets.loadError == nil else { return }
+        guard !isApplying, history.loadError == nil, presets.loadError == nil else { return }
         var keep = history.referencedAssetIDs.union(presets.referencedAssetIDs)
         if let id = overlay.imageAssetID { keep.insert(id) }
         _ = try? assets.reap(keeping: keep)

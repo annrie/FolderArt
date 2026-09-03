@@ -5,6 +5,7 @@ struct PresetStripView: View {
     @ObservedObject var store: PresetStore
     let assets: AssetStore
     let canSave: Bool
+    var isApplying: Bool = false
     let onSave: () -> Void
     let onApply: (Preset) -> Void
     let onRename: (Preset, String) -> Void
@@ -21,10 +22,12 @@ struct PresetStripView: View {
                 HStack(spacing: 6) {
                     ForEach(store.presets) { preset in
                         PresetChip(preset: preset, assets: assets)
-                            .onTapGesture { onApply(preset) }
+                            .onTapGesture { guard !isApplying else { return }; onApply(preset) }
                             .contextMenu {
                                 Button("名前を変更…") { newName = preset.name; renaming = preset }
+                                    .disabled(isApplying)
                                 Button("削除", role: .destructive) { onRemove(preset) }
+                                    .disabled(isApplying)
                             }
                             .help(Text(preset.name))
                     }
@@ -36,7 +39,7 @@ struct PresetStripView: View {
 
             Button { onSave() } label: { Image(systemName: "star") }
                 .buttonStyle(.borderless)
-                .disabled(!canSave)
+                .disabled(!canSave || isApplying)
                 .help(Text("今の見た目をお気に入りに保存"))
         }
         .frame(height: 56)

@@ -41,6 +41,7 @@ struct ContentView: View {
                 store: model.presets,
                 assets: model.assets,
                 canSave: model.overlay.overlay != nil,
+                isApplying: model.isApplying,
                 onSave: { model.saveCurrentAsPreset() },
                 onApply: { model.applyPreset($0) },
                 onRename: { model.renamePreset($0, to: $1) },
