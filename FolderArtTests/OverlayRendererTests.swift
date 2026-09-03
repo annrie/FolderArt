@@ -67,6 +67,14 @@ final class OverlayRendererTests: XCTestCase {
         XCTAssertEqual(color.blueComponent,  0.6, accuracy: 0.03)
     }
 
+    func testEmojiRendersInColor() throws {
+        // 🍎 で検証: Apple のデザイン上 🎵 (音符) はほぼ黒一色で彩度が低く判定に使えないため、
+        // 赤/緑がはっきり出る絵文字で Apple Color Emoji フォントが使われているかを確認する
+        let image = try XCTUnwrap(
+            OverlayRenderer.render(.emoji("🍎"), settings: CompositionSettings(), side: 128, assets: assets))
+        XCTAssertTrue(TestSupport.containsSaturatedPixel(in: image))
+    }
+
     func testImageKeepsAspectInsideSquare() throws {
         // 300x100 の赤い画像 → 256x256 の中で上下に透明帯ができる
         let id = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 300, height: 100), color: .red))

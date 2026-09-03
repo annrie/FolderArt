@@ -15,7 +15,7 @@ enum OverlayRenderer {
             return fitIntoSquare(symbol, side: side, tint: settings.tintColor.nsColor)
 
         case .emoji(let s):
-            return renderString(s, side: side, settings: settings, applyTint: false)
+            return renderString(s, side: side, settings: settings, applyTint: false, useEmojiFont: true)
 
         case .text(let s):
             return renderString(s, side: side, settings: settings, applyTint: true)
@@ -54,21 +54,23 @@ enum OverlayRenderer {
         return configured
     }
 
-    private static func renderString(_ raw: String, side: CGFloat,
-                                     settings: CompositionSettings, applyTint: Bool) -> NSImage? {
+    private static func renderString(_ raw: String, side: CGFloat, settings: CompositionSettings,
+                                     applyTint: Bool, useEmojiFont: Bool = false) -> NSImage? {
         let string = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !string.isEmpty else { return nil }
 
         let maxSide = side * 0.9
         var fontSize = side * 0.8
-        var attributed = attributedString(string, fontSize: fontSize, settings: settings, applyTint: applyTint)
+        var attributed = attributedString(string, fontSize: fontSize, settings: settings,
+                                          applyTint: applyTint, useEmojiFont: useEmojiFont)
         var bounds = attributed.size()
         // 幅か高さがはみ出す場合は、はみ出しの大きい方に合わせて縮小して収める
         // (絵文字や行間の広いフォントは高さの方が先にはみ出す)
         let overflow = max(bounds.width / maxSide, bounds.height / maxSide)
         if overflow > 1 {
             fontSize /= overflow
-            attributed = attributedString(string, fontSize: fontSize, settings: settings, applyTint: applyTint)
+            attributed = attributedString(string, fontSize: fontSize, settings: settings,
+                                          applyTint: applyTint, useEmojiFont: useEmojiFont)
             bounds = attributed.size()
         }
 
@@ -78,12 +80,17 @@ enum OverlayRenderer {
         }
     }
 
-    private static func attributedString(_ string: String, fontSize: CGFloat,
-                                         settings: CompositionSettings, applyTint: Bool) -> NSAttributedString {
-        let font = makeFont(size: fontSize, settings: settings)
+    private static func attributedString(_ string: String, fontSize: CGFloat, settings: CompositionSettings,
+                                         applyTint: Bool, useEmojiFont: Bool = false) -> NSAttributedString {
+        let font = useEmojiFont ? emojiFont(size: fontSize) : makeFont(size: fontSize, settings: settings)
         var attrs: [NSAttributedString.Key: Any] = [.font: font]
         if applyTint { attrs[.foregroundColor] = settings.tintColor.nsColor }
         return NSAttributedString(string: string, attributes: attrs)
+    }
+
+    /// 絵文字はカラーで描くため専用フォントを使う。見つからない場合のみシステムフォントに退避。
+    private static func emojiFont(size: CGFloat) -> NSFont {
+        NSFont(name: "Apple Color Emoji", size: size) ?? NSFont.systemFont(ofSize: size)
     }
 
     /// fontName が nil ならシステムフォントの rounded デザイン
