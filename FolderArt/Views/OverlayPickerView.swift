@@ -43,10 +43,13 @@ struct OverlayPickerView: View {
             case .emoji:
                 VStack(spacing: 8) {
                     TextField("絵文字を入力", text: $state.emoji)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 28))
-                        .frame(height: 44)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 24))
                         .multilineTextAlignment(.center)
+                        .padding(.vertical, 8).padding(.horizontal, 12)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
+                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.secondary.opacity(0.3)))
+                        .frame(maxWidth: 320)
                         .onChange(of: state.emoji) { value in
                             // 1 文字 (1 書記素) に制限
                             if value.count > 1 { state.emoji = String(value.suffix(1)) }
