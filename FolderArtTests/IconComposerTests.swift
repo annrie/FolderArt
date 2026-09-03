@@ -167,6 +167,7 @@ final class IconComposerTests: XCTestCase {
         let f = TestSupport.bitmap(of: filled).colorAt(x: 60, y: 300)!.usingColorSpace(.sRGB)!
         let s = TestSupport.bitmap(of: scaled).colorAt(x: 60, y: 300)!.usingColorSpace(.sRGB)!
         XCTAssertGreaterThan(f.redComponent, 0.8)
-        XCTAssertLessThan(s.redComponent, 0.5)
+        // フォルダの色は外観モード (ライト/ダーク) で変わるので、絶対値ではなく敷き詰めた方との差で見る
+        XCTAssertLessThan(s.redComponent, f.redComponent - 0.3)
     }
 }
