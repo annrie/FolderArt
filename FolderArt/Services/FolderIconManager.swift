@@ -78,6 +78,14 @@ class FolderIconManager {
         return backupDirectory.appendingPathComponent(folderID)
     }
 
+    /// このフォルダーのバックアップファイルが既に存在するかどうか。
+    /// 適用が失敗して巻き戻すとき、今回の適用で新たにバックアップを作ったのか
+    /// 既存のものを再利用しただけなのかを判定するために使う。
+    func backupExists(for folderURL: URL) -> Bool {
+        let backupURL = backupFolder(for: folderURL).appendingPathComponent("original.png")
+        return FileManager.default.fileExists(atPath: backupURL.path)
+    }
+
     /// バックアップを破棄する。リセット完了後に呼ぶ。
     /// 残したままだと、ユーザーが後から別のカスタムアイコンを付けて再適用したときに
     /// 古い方が「元のアイコン」として再利用され、リセットで違うアイコンに戻ってしまう。

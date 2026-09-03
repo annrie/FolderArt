@@ -61,11 +61,24 @@ final class ApplyCoordinator {
         for (index, folder) in folders.enumerated() {
             var backupURL: URL?
             var iconApplied = false
+            // 今回の適用で新たにバックアップを作った場合だけ true。既存のバックアップ
+            // (再適用時に履歴から引き継いだもの) を失敗時に消してしまわないための区別
+            var createdBackup = false
             // 巻き戻し先は「元のアイコン」ではなく適用直前の状態。再適用のときは前回の
             // FolderArt アイコンに戻す (履歴の行は残っているので消してはいけない)
             let previousIcon = snapshotIcon(of: folder)
             do {
-                backupURL = try iconManager.backupCurrentIcon(for: folder)
+                let existing = history.task(forFolderPath: folder.standardizedFileURL.path)
+                if let existing {
+                    // 再適用: 最初の適用時に記録した元アイコン (nil = 元は標準アイコン) をそのまま引き継ぐ。
+                    // ここで backupCurrentIcon を呼ぶと、前回 FolderArt が付けた Icon\r を
+                    // 「元のアイコン」として誤って記録してしまう
+                    backupURL = existing.backupPath.map { URL(fileURLWithPath: $0) }
+                } else {
+                    let hadBackup = iconManager.backupExists(for: folder)
+                    backupURL = try iconManager.backupCurrentIcon(for: folder)
+                    createdBackup = !hadBackup && backupURL != nil
+                }
                 try iconManager.applyIcon(icon, to: folder)
                 iconApplied = true
                 // ブックマークは再起動後のリセット用。失敗しても適用は成功扱い (空 Data で記録)
@@ -85,6 +98,11 @@ final class ApplyCoordinator {
                 if iconApplied,
                    !NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: []) {
                     reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)"
+                }
+                // 今回新たに作ったバックアップも巻き戻す。残すと履歴に行が無いのに
+                // バックアップだけが残り、次回の適用時に誤って「元のアイコン」として使われる
+                if createdBackup {
+                    iconManager.removeBackup(for: folder)
                 }
                 failed.append(ApplyFailure(folder: folder, reason: reason))
             }

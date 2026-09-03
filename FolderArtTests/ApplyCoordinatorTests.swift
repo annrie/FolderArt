@@ -135,6 +135,64 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertFalse(TestSupport.contains(color: .red, in: backup))
     }
 
+    /// 元々カスタムアイコンが無いフォルダは、再適用してもバックアップを作ってはいけない。
+    /// 作ってしまうと FolderArt 自身のアイコンが「元のアイコン」として記録され、
+    /// リセットで標準アイコンではなく前回の見た目に戻ってしまう
+    func testReapplyWithoutOriginalIconNeverBacksUp() async throws {
+        let a = try folder("A")
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
+                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"),
+                                    settings: CompositionSettings(), to: [a])
+
+        let task = try XCTUnwrap(history.task(forFolderPath: a.standardizedFileURL.path))
+        XCTAssertNil(task.backupPath)
+        XCTAssertFalse(iconManager.backupExists(for: a))
+
+        try coordinator.reset(folder: a)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
+    }
+
+    /// 手でカスタムアイコン A を設定したフォルダを再適用しても、バックアップは
+    /// 最初の適用で記録した A のままでなければならない (2 回目の適用結果で上書きされない)
+    func testReapplyKeepsOriginalBackupFromFirstApply() async throws {
+        let a = try folder("A")
+        let manual = FolderIconManager(backupDirectory: root.appendingPathComponent("manual"))
+        let red = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
+        try manual.applyIcon(red, to: a)
+
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
+                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"),
+                                    settings: CompositionSettings(), to: [a])
+
+        let task = try XCTUnwrap(history.task(forFolderPath: a.standardizedFileURL.path))
+        let backupPath = try XCTUnwrap(task.backupPath)
+        let backup = try XCTUnwrap(NSImage(contentsOf: URL(fileURLWithPath: backupPath)))
+        XCTAssertTrue(TestSupport.contains(color: .red, in: backup))
+    }
+
+    /// 初回の適用でバックアップを作った直後に履歴の保存が失敗したら、
+    /// そのバックアップも巻き戻して残さない (残すと後の手動アイコンが二度とバックアップされない)
+    func testFirstApplyFailureRemovesFreshlyCreatedBackup() async throws {
+        let a = try folder("A")
+        let manual = FolderIconManager(backupDirectory: root.appendingPathComponent("manual"))
+        let red = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
+        try manual.applyIcon(red, to: a)
+
+        let locked = root.appendingPathComponent("locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
+        let c = ApplyCoordinator(history: lockedHistory, iconManager: iconManager)
+
+        let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                    settings: CompositionSettings(), to: [a])
+        XCTAssertEqual(outcome.failed.count, 1)
+        XCTAssertFalse(iconManager.backupExists(for: a))
+    }
+
     func testHistoryWriteFailureRollsBackIcon() async throws {
         let a = try folder("A")
         // history.json を書き込み不可のディレクトリに置く → upsert が throw する
