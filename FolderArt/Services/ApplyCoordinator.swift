@@ -81,8 +81,12 @@ final class ApplyCoordinator {
                 }
                 try iconManager.applyIcon(icon, to: folder)
                 iconApplied = true
-                // ブックマークは再起動後のリセット用。失敗しても適用は成功扱い (空 Data で記録)
-                let bookmark = (try? BookmarkManager.createBookmark(for: folder)) ?? Data()
+                // ブックマークは再起動後のリセット用。新規作成に失敗しても、再適用なら以前の
+                // ブックマークを引き継ぐ。どちらも無ければ空 Data で記録し、適用自体は成功扱い
+                let bookmark = Self.bookmarkToRecord(
+                    new: try? BookmarkManager.createBookmark(for: folder),
+                    existing: existing?.bookmarkData
+                )
                 let task = IconTask(
                     folderPath: folder.standardizedFileURL.path,
                     bookmarkData: bookmark,
@@ -117,6 +121,12 @@ final class ApplyCoordinator {
             await Task.yield()   // 進捗表示を描画させる
         }
         return ApplyOutcome(succeeded: succeeded, failed: failed)
+    }
+
+    /// 記録するブックマークを決める純粋関数。新規作成に成功すればそれを使い、失敗したら
+    /// 再適用で引き継いだ既存のブックマークを使う。どちらも無ければ空 Data。
+    static func bookmarkToRecord(new: Data?, existing: Data?) -> Data {
+        new ?? existing ?? Data()
     }
 
     /// 新しく作ったバックアップを消してよいかどうかを判定する純粋関数。

@@ -248,6 +248,19 @@ final class ApplyCoordinatorTests: XCTestCase {
     /// 巻き戻しに失敗したときは、新規バックアップが元アイコンを復元できる唯一の手がかりになる
     /// ため消してはいけない。実際の NSWorkspace で巻き戻し失敗を再現するのは難しいため、
     /// 判定ロジック単体 (shouldRemoveFreshBackup) の真理値表で検証する
+    /// bookmarkToRecord: 新規作成に成功すればそれを使い、失敗時は既存 (再適用時に引き継いだもの)
+    /// を使う。どちらも無ければ空 Data で、適用自体は失敗させない
+    func testBookmarkToRecordPrefersNewFallsBackToExisting() {
+        let newData = Data([1, 2, 3])
+        let existingData = Data([4, 5, 6])
+        // 新規作成に成功 → 新しい方を使う
+        XCTAssertEqual(ApplyCoordinator.bookmarkToRecord(new: newData, existing: existingData), newData)
+        // 新規作成に失敗したが既存のブックマークがある (再適用) → 以前のものを引き継ぐ
+        XCTAssertEqual(ApplyCoordinator.bookmarkToRecord(new: nil, existing: existingData), existingData)
+        // どちらも無い → 空 Data (適用自体は成功扱いにする)
+        XCTAssertEqual(ApplyCoordinator.bookmarkToRecord(new: nil, existing: nil), Data())
+    }
+
     func testShouldRemoveFreshBackupTruthTable() {
         // 新規バックアップがあり、巻き戻しにも成功 → もう不要なので消してよい
         XCTAssertTrue(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: true, rollbackSucceeded: true))
