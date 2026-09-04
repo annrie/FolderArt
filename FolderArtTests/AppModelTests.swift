@@ -13,7 +13,8 @@ final class AppModelTests: XCTestCase {
         model = AppModel(
             history: HistoryStore(storageURL: root.appendingPathComponent("history.json")),
             presets: PresetStore(storageURL: root.appendingPathComponent("presets.json")),
-            assets: AssetStore(directory: root.appendingPathComponent("assets")))
+            assets: AssetStore(directory: root.appendingPathComponent("assets")),
+            runsMaintenance: false)
     }
     override func tearDown() async throws {
         for t in model.history.tasks { NSWorkspace.shared.setIcon(nil, forFile: t.folderPath, options: []) }
@@ -78,7 +79,8 @@ final class AppModelTests: XCTestCase {
         try "x".data(using: .utf8)!.write(to: broken)
         let m = AppModel(history: HistoryStore(storageURL: broken),
                          presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
-                         assets: model.assets)
+                         assets: model.assets,
+                         runsMaintenance: false)
         let orphan = try m.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .blue))
         m.reapAssets()
         XCTAssertTrue(m.assets.allIDs().contains(orphan))

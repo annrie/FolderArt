@@ -30,7 +30,8 @@ final class AppModel: ObservableObject {
     init(history: HistoryStore = HistoryStore(),
          presets: PresetStore = PresetStore(),
          assets: AssetStore = AssetStore(),
-         suggestionEngine: SuggestionEngine = SuggestionEngine(dictionary: SuggestionDictionary.load(), catalog: SymbolCatalog.shared)) {
+         suggestionEngine: SuggestionEngine = SuggestionEngine(dictionary: SuggestionDictionary.load(), catalog: SymbolCatalog.shared),
+         runsMaintenance: Bool = true) {
         self.history = history
         self.presets = presets
         self.assets = assets
@@ -66,6 +67,18 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
 
         reapAssets()
+
+        // 起動時の掃除はメインの外で。履歴が読めていない起動ではバックアップを消さない
+        if runsMaintenance {
+            let referenced = Set(history.tasks.compactMap(\.backupPath))
+            let historyLoaded = history.loadError == nil
+            let backups = FolderIconManager.defaultBackupDirectory
+            let appSupport = HistoryStore.appSupportDirectory
+            Task.detached(priority: .background) {
+                _ = MaintenanceSweep.run(referencedBackupPaths: referenced, historyLoaded: historyLoaded,
+                                         backupDirectory: backups, appSupportDirectory: appSupport)
+            }
+        }
     }
 
     // MARK: - 適用
