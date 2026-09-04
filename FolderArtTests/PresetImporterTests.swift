@@ -20,6 +20,24 @@ final class PresetImporterTests: XCTestCase {
     }
     private func png() -> Data { TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .green)) }
 
+    /// 再エンコードすると必ず変わるフィクスチャ。
+    /// インターレース PNG (properties: [.interlaced: true]) は 8x8 の単色画像だと
+    /// AssetStore の再エンコード結果とバイト列が偶然一致してしまい RED を再現できなかったため、
+    /// 常に 8bit へ再エンコードされる (= 16bit のソースとは必ず変わる) 16bit-per-sample の
+    /// NSBitmapImageRep から PNG を作る。
+    private func png16Bit(size: CGSize, color: NSColor) -> Data {
+        let width = Int(size.width), height = Int(size.height)
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
+                                    bitsPerSample: 16, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                    colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        color.setFill()
+        NSRect(origin: .zero, size: size).fill()
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.representation(using: .png, properties: [:])!
+    }
+
     func testAddsEntriesAndRenamesDuplicates() throws {
         try store.add(name: "星", overlay: .text("x"), settings: CompositionSettings())
         let summary = try PresetImporter.importPack(pack([
@@ -39,7 +57,7 @@ final class PresetImporterTests: XCTestCase {
         XCTAssertEqual(store.presets.map(\.name), ["月", "星"])
     }
 
-    func testIdenticalImageEntriesAreSkippedByPixels() throws {
+    func testIdenticalImageEntriesAreSkippedByPNGBytes() throws {
         let entry = PackEntry(name: "ロゴ", overlay: .image(assetID: UUID()), settings: CompositionSettings(), image: png())
         let first = try PresetImporter.importPack(pack([entry, entry]), into: store, assets: assets)
         XCTAssertEqual(first, ImportSummary(added: 1, skippedIdentical: 1))
@@ -47,6 +65,34 @@ final class PresetImporterTests: XCTestCase {
         let second = try PresetImporter.importPack(pack([entry]), into: store, assets: assets)
         XCTAssertEqual(second, ImportSummary(added: 0, skippedIdentical: 1))
         XCTAssertEqual(assets.allIDs().count, 1)
+    }
+
+    /// パックの PNG バイト列をそのまま保存しないと、再エンコードでバイト列が変わってしまい、
+    /// 同じパックをもう一度読み込んだときに重複判定できない (round1 finding 1)。
+    func testPackImageBytesAreStoredVerbatimSoRepeatedImportsDedupe() throws {
+        let fixture = png16Bit(size: CGSize(width: 8, height: 8), color: .green)
+        let entry = PackEntry(name: "ロゴ", overlay: .image(assetID: UUID()), settings: CompositionSettings(), image: fixture)
+
+        let first = try PresetImporter.importPack(pack([entry]), into: store, assets: assets)
+        XCTAssertEqual(first, ImportSummary(added: 1, skippedIdentical: 0))
+        XCTAssertEqual(assets.allIDs().count, 1)
+        let id = try XCTUnwrap(store.presets.first?.overlay.assetID)
+        XCTAssertEqual(try Data(contentsOf: assets.url(for: id)), fixture)
+
+        let second = try PresetImporter.importPack(pack([entry]), into: store, assets: assets)
+        XCTAssertEqual(second, ImportSummary(added: 0, skippedIdentical: 1))
+        XCTAssertEqual(assets.allIDs().count, 1)
+    }
+
+    /// AssetStore の上限 (512px) を超えるパック画像は、そのまま保存せず縮小・再エンコードされる
+    func testOversizedPackImageIsDownscaledOnImport() throws {
+        let big = TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 600, height: 20), color: .green))
+        let entry = PackEntry(name: "ロゴ", overlay: .image(assetID: UUID()), settings: CompositionSettings(), image: big)
+        let summary = try PresetImporter.importPack(pack([entry]), into: store, assets: assets)
+        XCTAssertEqual(summary.added, 1)
+        let id = try XCTUnwrap(store.presets.first?.overlay.assetID)
+        let loaded = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: assets.url(for: id))))
+        XCTAssertLessThanOrEqual(loaded.pixelsWide, 512)
     }
 
     func testImageEntryIsCopiedIntoAssetsWithNewID() throws {

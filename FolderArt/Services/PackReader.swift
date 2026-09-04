@@ -18,8 +18,8 @@ enum PackReader {
         return pack
     }
 
-    /// PNG のシグネチャ (89 50 4E 47 0D 0A 1A 0A) で始まるか。パックの画像は PNG だけを受け付ける
+    /// パックの画像は PNG だけを受け付ける (シグネチャ判定は AssetStore に集約)
     static func isPNG(_ data: Data) -> Bool {
-        data.count >= 8 && data.prefix(8).elementsEqual([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        AssetStore.isPNG(data)
     }
 }

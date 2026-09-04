@@ -3,11 +3,13 @@ import AppKit
 enum AssetStoreError: LocalizedError {
     case unreadableImage(URL)
     case encodingFailed
+    case unreadableData
 
     var errorDescription: String? {
         switch self {
         case .unreadableImage(let url): return String(localized: "画像を読み込めません: \(url.lastPathComponent)")
         case .encodingFailed:           return String(localized: "画像の保存に失敗しました")
+        case .unreadableData:           return String(localized: "画像を読み込めません")
         }
     }
 }
@@ -46,6 +48,29 @@ final class AssetStore {
         let id = UUID()
         try png.write(to: url(for: id), options: .atomic)
         return id
+    }
+
+    /// PNG のバイト列をそのまま保存する。長辺が maxSide 以下の有効な PNG は再エンコードせずに書き込み、
+    /// それより大きいものだけ store(_:) で縮小・再エンコードする。
+    /// パックから取り込んだ画像を「保存済み PNG のバイト列」で重複判定できるようにするため
+    /// (再エンコードすると、同じパックをもう一度読み込んでも一致しなくなる)。
+    func store(png data: Data) throws -> UUID {
+        guard Self.isPNG(data), let rep = NSBitmapImageRep(data: data) else {
+            throw AssetStoreError.unreadableData
+        }
+        if max(rep.pixelsWide, rep.pixelsHigh) <= Int(Self.maxSide) {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let id = UUID()
+            try data.write(to: url(for: id), options: .atomic)
+            return id
+        }
+        guard let image = NSImage(data: data) else { throw AssetStoreError.unreadableData }
+        return try store(image)
+    }
+
+    /// PNG のシグネチャ (89 50 4E 47 0D 0A 1A 0A) で始まるか
+    static func isPNG(_ data: Data) -> Bool {
+        data.count >= 8 && data.prefix(8).elementsEqual([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
     }
 
     func image(for id: UUID) -> NSImage? {

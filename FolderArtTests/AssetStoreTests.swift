@@ -64,6 +64,16 @@ final class AssetStoreTests: XCTestCase {
         XCTAssertEqual(TestSupport.pixelSize(of: loaded), CGSize(width: 512, height: 512))
     }
 
+    func testStorePNGKeepsBytesWhenWithinLimit() throws {
+        let data = TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .green))
+        let id = try store.store(png: data)
+        XCTAssertEqual(try Data(contentsOf: store.url(for: id)), data)
+    }
+
+    func testStorePNGRejectsNonPNG() throws {
+        XCTAssertThrowsError(try store.store(png: Data("nope".utf8)))
+    }
+
     func testRemoveAndReap() throws {
         let a = try store.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red))
         let b = try store.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .red))

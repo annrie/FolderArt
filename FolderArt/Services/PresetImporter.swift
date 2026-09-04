@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 
 enum PresetImporter {
     /// パックをお気に入りに取り込む。重複は「既存 + このパックで追加を決めた項目」に対して判定。
@@ -8,13 +8,16 @@ enum PresetImporter {
         var createdAssets: [UUID] = []
         var skipped = 0
 
-        // 画像プリセットは assetID が違うので、PNG のバイト列で同一性を判定する
+        // 画像プリセットは assetID が違うので、PNG のバイト列で同一性を判定する。
+        // パックの画像は AssetStore にバイト列のまま保存する (store(png:)) ので、
+        // 保存済みファイルのバイト列と entry.image をそのまま比較できる。
         func pngData(of preset: Preset) -> Data? {
             preset.overlay.assetID.flatMap { try? Data(contentsOf: assets.url(for: $0)) }
         }
         func isIdentical(_ entry: PackEntry, _ p: Preset) -> Bool {
             guard p.settings == entry.settings else { return false }
-            if let image = entry.image, entry.overlay.assetID != nil {
+            if entry.overlay.assetID != nil {
+                guard let image = entry.image else { return false }
                 return p.overlay.assetID != nil && pngData(of: p) == image
             }
             return p.overlay == entry.overlay
@@ -28,10 +31,10 @@ enum PresetImporter {
                 }
                 var overlay = entry.overlay
                 if entry.overlay.assetID != nil {
-                    guard let data = entry.image, PackReader.isPNG(data), let image = NSImage(data: data) else {
+                    guard let data = entry.image, PackReader.isPNG(data) else {
                         throw PackError.invalidImage(entry.name)
                     }
-                    let id = try assets.store(image)
+                    let id = try assets.store(png: data)
                     createdAssets.append(id)
                     overlay = .image(assetID: id)
                 }
