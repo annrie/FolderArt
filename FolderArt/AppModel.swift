@@ -16,6 +16,8 @@ final class AppModel: ObservableObject {
 
     @Published var errorMessage: String?
     @Published var isApplying = false
+    /// パックの読み込み中 (多重起動しない)
+    private var isImportingPack = false
     @Published var progress: (done: Int, total: Int)?
     /// 提案 (フォルダ名から)。空なら帯はチップ無しで高さだけ保つ
     @Published private(set) var suggestions: [Suggestion] = []
@@ -372,7 +374,10 @@ final class AppModel: ObservableObject {
     /// ファイルの読み込みと検証 (JSON の復号・画像の検査) は 100 MB 級でも UI を止めないようメインの外で行い、
     /// お気に入りへの追加 (ストアの更新) だけメインで行う
     func importPack(url: URL) async {
-        guard !isApplying else { return }
+        // 同時に複数のパックを読まない (1 つ 100 MB まで読むので、重なるとメモリを食う)
+        guard !isApplying, !isImportingPack else { return }
+        isImportingPack = true
+        defer { isImportingPack = false }
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         let read = await Task.detached(priority: .userInitiated) { Self.readPack(at: url) }.value

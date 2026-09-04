@@ -228,4 +228,21 @@ final class PackTests: XCTestCase {
         XCTAssertNoThrow(try PackReader.read(try encode(pack([PackEntry(name: ok, overlay: .text("x"), settings: CompositionSettings(), image: nil)]))))
     }
 
+
+    /// 書き出しも読み込みと同じ長さの上限を使う (書き出せるのに読み戻せないパックを作らない)
+    func testWriterEnforcesTheSameFieldLimits() throws {
+        let longText = Preset(name: "t", overlay: .text(String(repeating: "a", count: PackReader.maxTextLength + 1)), settings: CompositionSettings())
+        XCTAssertThrowsError(try PackWriter.write([longText], assets: assets, appVersion: "1.3.0"))
+        let longName = Preset(name: String(repeating: "n", count: PackReader.maxNameLength + 1), overlay: .text("x"), settings: CompositionSettings())
+        XCTAssertThrowsError(try PackWriter.write([longName], assets: assets, appVersion: "1.3.0"))
+        var font = CompositionSettings(); font.fontName = String(repeating: "f", count: PackReader.maxNameLength + 1)
+        let longFont = Preset(name: "f", overlay: .text("x"), settings: font)
+        XCTAssertThrowsError(try PackWriter.write([longFont], assets: assets, appVersion: "1.3.0"))
+        // 読み込み側も fontName の長さを見る
+        let data = try encode(pack([PackEntry(name: "f", overlay: .text("x"), settings: font, image: nil)]))
+        XCTAssertThrowsError(try PackReader.read(data)) { error in
+            guard case PackError.invalidSettings("f") = error else { return XCTFail("\(error)") }
+        }
+    }
+
 }

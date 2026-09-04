@@ -404,15 +404,22 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertTrue(history.tasks.isEmpty)
     }
 
-    /// 前回回収できなかった控えは、次の一括適用で上書きされず、一緒に履歴へ保存される
+
+    /// 前回回収できなかった控えは、次の一括適用で上書きされず一緒に履歴へ保存される。
+    /// 控えの行のフォルダに再適用しても、今の FolderArt のアイコンを「元のアイコン」としてバックアップしない
     func testCarriesUnrecoveredJournalIntoTheNextBatch() async throws {
-        let a = try folder("A")
-        let carried = IconTask(folderPath: "/carried", bookmarkData: Data(), backupPath: nil,
-                               overlay: .text("old"), settings: CompositionSettings())
-        try history.journal([carried])
+        let a = try folder("A"), other = try folder("Other")
+        // 前回: A に適用したがその行は控えにしか残っていない (元は標準アイコンなので backupPath は nil)
+        let carriedA = IconTask(folderPath: a.standardizedFileURL.path, bookmarkData: Data(), backupPath: nil,
+                                overlay: .text("old"), settings: CompositionSettings(), fileID: FileIdentity.make(for: a))
+        try iconManager.applyIcon(overlayImage, to: a)
+        try history.journal([carriedA])
+
         _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                    settings: CompositionSettings(), to: [a])
-        XCTAssertEqual(Set(history.tasks.map(\.folderPath)), ["/carried", a.standardizedFileURL.path])
+                                    settings: CompositionSettings(), to: [a, other])
+        XCTAssertEqual(Set(history.tasks.map(\.folderPath)), [a.standardizedFileURL.path, other.standardizedFileURL.path])
+        XCTAssertNil(history.task(forFolderPath: a.standardizedFileURL.path)?.backupPath)   // 控えの行を既存扱いした
+        XCTAssertFalse(iconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
         XCTAssertFalse(FileManager.default.fileExists(atPath: history.journalURL.path))
     }
 

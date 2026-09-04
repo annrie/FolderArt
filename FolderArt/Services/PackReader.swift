@@ -22,6 +22,14 @@ enum PackReader {
         }
     }
 
+    /// 名前・文字・絵文字・フォント名の長さが全て上限内か。読み込みと書き出しの両方で同じ規則を使う
+    /// (書き出せるのに読み戻せないパックを作らない)
+    static func fieldsWithinLimits(name: String, overlay: Overlay, settings: CompositionSettings) -> Bool {
+        name.count <= maxNameLength
+            && payloadWithinLimits(overlay)
+            && (settings.fontName?.count ?? 0) <= maxNameLength
+    }
+
     /// PNG の IHDR (先頭チャンク) から宣言された (幅, 高さ) を読む。PNG でなければ nil
     static func pngDimensions(_ data: Data) -> (width: Int, height: Int)? {
         guard isPNG(data), data.count >= 24 else { return nil }
@@ -49,7 +57,7 @@ enum PackReader {
             // 手で書き換えたパックの範囲外の値 (scale 1e308、色 2.0、NaN など) をそのまま保存すると、
             // サムネイル描画で毎回失敗して起動のたびに問題になるので、ここで弾く
             guard entry.settings.isValid, entry.overlay.canReapply, entry.overlay.hasRenderablePayload,
-                  payloadWithinLimits(entry.overlay), entry.name.count <= maxNameLength else {
+                  fieldsWithinLimits(name: entry.name, overlay: entry.overlay, settings: entry.settings) else {
                 throw PackError.invalidSettings(String(entry.name.prefix(maxNameLength)))
             }
             if let catalog = symbolCatalog, case .symbol(let name) = entry.overlay, !catalog.contains(name) {

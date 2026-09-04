@@ -88,7 +88,10 @@ final class ApplyCoordinator {
             let previousIcon = snapshotIcon(of: folder)
             let fileID = FileIdentity.make(for: folder)
             do {
-                let existing = history.task(forFolderPath: folder.standardizedFileURL.path, fileID: fileID)
+                // 引き継いだ控えの行も既存扱い (その行のフォルダに再適用するとき、今の FolderArt のアイコンをバックアップしない)
+                let path = folder.standardizedFileURL.path
+                let existing = history.task(forFolderPath: path, fileID: fileID)
+                    ?? carried.first { HistoryStore.matches($0, folderPath: path, fileID: fileID) }
                 if let existing {
                     // 再適用: 最初の適用時に記録した元アイコン (nil = 元は標準アイコン) をそのまま引き継ぐ。
                     // ここで backupCurrentIcon を呼ぶと、前回 FolderArt が付けた Icon\r を

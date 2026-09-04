@@ -60,8 +60,11 @@ final class HistoryStore: ObservableObject {
     /// 取り込めなければ控えは残し、次回また試す
     private func recoverJournal() {
         guard loadError == nil, let pending = try? journalStore.load(), !pending.isEmpty else { return }
+        // 実際にアイコンが付いているフォルダの分だけ取り込む。巻き戻し済み (標準アイコンに戻った) のに
+        // 控えが消せなかった行を、適用されたままとして復元しないため
+        let applied = pending.filter { FileManager.default.fileExists(atPath: URL(fileURLWithPath: $0.folderPath).appendingPathComponent("Icon\r").path) }
         do {
-            try upsertAll(pending)
+            if !applied.isEmpty { try upsertAll(applied) }
             clearJournal()
         } catch {
             loadError = error
@@ -130,10 +133,13 @@ final class HistoryStore: ObservableObject {
 
     /// path か fileID で一致する行。行と引数の両方に fileID があるときは fileID だけで判定する (sameFolder と同じ規則)
     func task(forFolderPath path: String, fileID: String?) -> IconTask? {
-        tasks.first { row in
-            if let mine = row.fileID, let theirs = fileID { return mine == theirs }
-            return row.folderPath == path
-        }
+        tasks.first { Self.matches($0, folderPath: path, fileID: fileID) }
+    }
+
+    /// 行が (path, fileID) のフォルダを指すか。両方に fileID があれば fileID だけで判定
+    static func matches(_ row: IconTask, folderPath path: String, fileID: String?) -> Bool {
+        if let mine = row.fileID, let theirs = fileID { return mine == theirs }
+        return row.folderPath == path
     }
 
     var referencedAssetIDs: Set<UUID> {

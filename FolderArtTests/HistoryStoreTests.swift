@@ -209,26 +209,6 @@ final class HistoryStoreTests: XCTestCase {
     }
 
 
-    /// 一括適用の途中で終了しても、控え (ジャーナル) に残った行は次の起動で履歴へ取り込まれる
-    func testRecoversPendingJournalOnInit() throws {
-        try store.upsert(makeTask(folderPath: "/kept"))
-        let pending = [makeTask(folderPath: "/p1"), makeTask(folderPath: "/p2", overlay: .text("t"))]
-        try store.journal(pending)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: store.journalURL.path))
-        let reopened = HistoryStore(storageURL: tempHistoryURL)
-        XCTAssertEqual(Set(reopened.tasks.map(\.folderPath)), ["/kept", "/p1", "/p2"])
-        XCTAssertFalse(FileManager.default.fileExists(atPath: reopened.journalURL.path))
-        XCTAssertNil(reopened.loadError)
-        // 履歴が読めない起動では取り込まず、控えも残す (数行だけの履歴を書いてしまわない)
-        try store.journal(pending)
-        try Data("broken".utf8).write(to: tempHistoryURL)
-        let broken = HistoryStore(storageURL: tempHistoryURL)
-        XCTAssertNotNil(broken.loadError)
-        XCTAssertTrue(broken.tasks.isEmpty)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: broken.journalURL.path))
-        try? FileManager.default.removeItem(at: broken.journalURL)
-    }
-
 
     func testPendingJournalReturnsRowsLeftUnrecovered() throws {
         XCTAssertTrue(store.pendingJournal().isEmpty)
@@ -236,6 +216,35 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.pendingJournal().map(\.folderPath), ["/p1", "/p2"])
         store.clearJournal()
         XCTAssertTrue(store.pendingJournal().isEmpty)
+    }
+
+
+    /// 一括適用の途中で終了しても、控え (ジャーナル) に残った行のうちアイコンが実際に付いているフォルダの分は
+    /// 次の起動で履歴へ取り込まれる。巻き戻し済み (Icon\r が無い) の行は取り込まない
+    func testRecoversPendingJournalOnInit() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("journal_\(UUID().uuidString)")
+        let applied = root.appendingPathComponent("applied"), rolledBack = root.appendingPathComponent("rolledBack")
+        try FileManager.default.createDirectory(at: applied, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: rolledBack, withIntermediateDirectories: true)
+        try Data().write(to: applied.appendingPathComponent("Icon\r"))
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try store.upsert(makeTask(folderPath: "/kept"))
+        try store.journal([makeTask(folderPath: applied.path), makeTask(folderPath: rolledBack.path, overlay: .text("t"))])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.journalURL.path))
+        let reopened = HistoryStore(storageURL: tempHistoryURL)
+        XCTAssertEqual(Set(reopened.tasks.map(\.folderPath)), ["/kept", applied.path])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: reopened.journalURL.path))
+        XCTAssertNil(reopened.loadError)
+
+        // 履歴が読めない起動では取り込まず、控えも残す (数行だけの履歴を書いてしまわない)
+        try store.journal([makeTask(folderPath: applied.path)])
+        try Data("broken".utf8).write(to: tempHistoryURL)
+        let broken = HistoryStore(storageURL: tempHistoryURL)
+        XCTAssertNotNil(broken.loadError)
+        XCTAssertTrue(broken.tasks.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: broken.journalURL.path))
+        try? FileManager.default.removeItem(at: broken.journalURL)
     }
 
 }
