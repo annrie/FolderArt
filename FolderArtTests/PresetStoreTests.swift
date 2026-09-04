@@ -51,4 +51,24 @@ final class PresetStoreTests: XCTestCase {
         XCTAssertNotNil(s.loadError)
         XCTAssertTrue(s.presets.isEmpty)
     }
+
+    func testAddAllInsertsInOrderWithOneSave() throws {
+        try store.add(name: "old", overlay: .text("o"), settings: CompositionSettings())
+        let a = Preset(name: "a", overlay: .text("a"), settings: CompositionSettings())
+        let b = Preset(name: "b", overlay: .text("b"), settings: CompositionSettings())
+        try store.addAll([a, b])
+        XCTAssertEqual(store.presets.map(\.name), ["a", "b", "old"])
+        XCTAssertEqual(PresetStore(storageURL: url).presets.map(\.name), ["a", "b", "old"])
+    }
+
+    func testAddAllIsAllOrNothing() throws {
+        // 保存先を書けなくして addAll → メモリにもファイルにも増えない
+        let locked = url.deletingLastPathComponent().appendingPathComponent("locked_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let s = PresetStore(storageURL: locked.appendingPathComponent("presets.json"))
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        XCTAssertThrowsError(try s.addAll([Preset(name: "a", overlay: .text("a"), settings: CompositionSettings())]))
+        XCTAssertTrue(s.presets.isEmpty)
+    }
 }
