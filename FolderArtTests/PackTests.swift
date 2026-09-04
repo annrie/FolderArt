@@ -216,4 +216,16 @@ final class PackTests: XCTestCase {
         XCTAssertNoThrow(try PackReader.read(try encode(pack([PackEntry(name: "ok", overlay: .text(ok), settings: CompositionSettings(), image: nil)]))))
     }
 
+
+    /// お気に入りの名前にも長さの上限がある
+    func testRejectsOverlongPresetName() throws {
+        let long = String(repeating: "n", count: PackReader.maxNameLength + 1)
+        let data = try encode(pack([PackEntry(name: long, overlay: .text("x"), settings: CompositionSettings(), image: nil)]))
+        XCTAssertThrowsError(try PackReader.read(data)) { error in
+            guard case PackError.invalidSettings = error else { return XCTFail("\(error)") }
+        }
+        let ok = String(repeating: "n", count: PackReader.maxNameLength)
+        XCTAssertNoThrow(try PackReader.read(try encode(pack([PackEntry(name: ok, overlay: .text("x"), settings: CompositionSettings(), image: nil)]))))
+    }
+
 }

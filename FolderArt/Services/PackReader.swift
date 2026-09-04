@@ -10,6 +10,8 @@ enum PackReader {
     /// 文字・絵文字の長さ (書記素数) の上限。1 行のラベルなので十分。巨大な文字列を保存してレイアウトで固まらないようにする
     static let maxTextLength = 100
     static let maxEmojiLength = 8
+    /// お気に入りの名前の長さ (書記素数) の上限。保存と表示のたびに巨大な文字列を扱わないようにする
+    static let maxNameLength = 100
 
     /// 文字・絵文字の長さが上限内か (他の種類は常に true)
     static func payloadWithinLimits(_ overlay: Overlay) -> Bool {
@@ -47,8 +49,8 @@ enum PackReader {
             // 手で書き換えたパックの範囲外の値 (scale 1e308、色 2.0、NaN など) をそのまま保存すると、
             // サムネイル描画で毎回失敗して起動のたびに問題になるので、ここで弾く
             guard entry.settings.isValid, entry.overlay.canReapply, entry.overlay.hasRenderablePayload,
-                  payloadWithinLimits(entry.overlay) else {
-                throw PackError.invalidSettings(entry.name)
+                  payloadWithinLimits(entry.overlay), entry.name.count <= maxNameLength else {
+                throw PackError.invalidSettings(String(entry.name.prefix(maxNameLength)))
             }
             if let catalog = symbolCatalog, case .symbol(let name) = entry.overlay, !catalog.contains(name) {
                 throw PackError.symbolUnavailable(entry.name, name)

@@ -81,6 +81,8 @@ final class ApplyCoordinator {
             // 今回の適用で新たにバックアップを作った場合だけ true。既存のバックアップ
             // (再適用時に履歴から引き継いだもの) を失敗時に消してしまわないための区別
             var createdBackup = false
+            // 控えに書けずアイコンを戻そうとして戻せなかった (FolderArt のアイコンが残っている)
+            var rollbackFailed = false
             // 履歴の保存 (最後にまとめて 1 回) が失敗したときの巻き戻し先として使う。
             // ここで撮る時点ではまだ何も変更していない
             let previousIcon = snapshotIcon(of: folder)
@@ -119,17 +121,21 @@ final class ApplyCoordinator {
                 do {
                     try history.journal(carried + applied.map(\.task) + [task])
                 } catch {
-                    _ = NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: [])
+                    // 戻せなかったら FolderArt のアイコンが残るので、元アイコンの唯一の控えであるバックアップは消さない
+                    rollbackFailed = !NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: [])
                     throw ApplyError.journalFailed(error)
                 }
                 applied.append(Applied(folder: folder, task: task, previousIcon: previousIcon, createdBackup: createdBackup))
             } catch {
                 // ここに来る時点ではフォルダのアイコンは変更前の状態 (バックアップ作成かアイコンの適用自体が
                 // 失敗したか、控えに書けずに戻した)。今回新たに作ったバックアップだけ、使われないまま残さず消す
-                if createdBackup {
+                // (最終保存の巻き戻しと同じ規則: 戻せなかったときは残す)
+                if Self.shouldRemoveFreshBackup(createdBackup: createdBackup, rollbackSucceeded: !rollbackFailed) {
                     iconManager.removeBackup(for: folder, fileID: fileID)
                 }
-                failed.append(ApplyFailure(folder: folder, reason: error.localizedDescription))
+                var reason = error.localizedDescription
+                if rollbackFailed { reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)" }
+                failed.append(ApplyFailure(folder: folder, reason: reason))
             }
             progress(index + 1, total)
             await Task.yield()   // 進捗表示を描画させる
