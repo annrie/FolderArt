@@ -2,10 +2,14 @@ import Foundation
 
 /// 起動時の掃除。失敗は無視する (次回また試す)。
 ///
-/// バックアップの掃除は「候補の列挙 (backupCandidates)」と「削除 (removeBackupDirectories)」に分かれている。
-/// 列挙はメインの外で行ってよいが、削除は呼び出し側 (AppModel) がメインアクターで最新の履歴と
-/// 照合してから行う。列挙から削除までの間に適用が既存のバックアップを再利用して履歴に載せることが
+/// バックアップの掃除は「候補の列挙 (backupCandidates)」と「片付け (removeBackupDirectories)」に分かれている。
+/// 列挙はメインの外で行ってよいが、片付けは呼び出し側 (AppModel) がメインアクターで最新の履歴と
+/// 照合してから行う。列挙から片付けまでの間に適用が既存のバックアップを再利用して履歴に載せることが
 /// あり、そのまま消すと履歴が消えたバックアップを指してしまうため。
+///
+/// 片付けは完全削除ではなくゴミ箱へ移す (moveToTrash)。履歴は壊れることがあり、壊れた後に
+/// 書き直された 1 行だけの history.json を「正」と信じて残り全部を消すと元アイコンが取り戻せなくなる。
+/// 同じ理由で、history.json の隔離ファイルが残っている間はバックアップの片付けを丸ごと見送る。
 enum MaintenanceSweep {
     struct Result: Equatable {
         var backupsRemoved: Int
@@ -14,18 +18,29 @@ enum MaintenanceSweep {
 
     static let corruptFileMaxAge: TimeInterval = 30 * 24 * 60 * 60
 
-    /// 列挙と削除をまとめて行う (テストと単純な呼び出し用)
+    /// バックアップをゴミ箱へ移すか (false なら完全削除)。テストがゴミ箱を汚さないためのスイッチで、アプリでは常に true
+    static var moveToTrash = true
+
+    /// 列挙と片付けをまとめて行う (テストと単純な呼び出し用)
     static func run(referencedBackupPaths: Set<String>, historyLoaded: Bool,
                     backupDirectory: URL, appSupportDirectory: URL, now: Date = Date()) -> Result {
-        let candidates = backupCandidates(referencedBackupPaths: referencedBackupPaths, historyLoaded: historyLoaded,
+        let trusted = historyLoaded && !hasHistoryQuarantine(in: appSupportDirectory)
+        let candidates = backupCandidates(referencedBackupPaths: referencedBackupPaths, historyLoaded: trusted,
                                           backupDirectory: backupDirectory, now: now)
-        let backups = removeBackupDirectories(candidates, stillReferencedBackupPaths: referencedBackupPaths)
+        let removed = removeBackupDirectories(candidates, stillReferencedBackupPaths: referencedBackupPaths)
         let corrupt = removeOldCorruptFiles(in: appSupportDirectory, now: now)
-        return Result(backupsRemoved: backups, corruptFilesRemoved: corrupt)
+        return Result(backupsRemoved: removed.count, corruptFilesRemoved: corrupt)
+    }
+
+    /// `history.json` の隔離ファイルがあるうちは、今の履歴が全部そろっている保証がない
+    /// (壊れた履歴を退避した直後の適用で 1 行だけの history.json が書かれる) ので、バックアップは触らない
+    static func hasHistoryQuarantine(in appSupportDirectory: URL) -> Bool {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: appSupportDirectory.path)) ?? []
+        return names.contains { $0.hasPrefix("history.json.corrupt-") && isQuarantineFileName($0) }
     }
 
     /// どの履歴行からも参照されないバックアップディレクトリを列挙する (まだ消さない)。
-    /// 履歴が読めていないときは空。ディレクトリ以外 (.DS_Store など)、作成日時が取れないもの、
+    /// 履歴が読めていない (信用できない) ときは空。ディレクトリ以外 (.DS_Store など)、作成日時が取れないもの、
     /// 起動時刻 (now) 以降に作られたもの (今のセッションのもの) は候補にしない
     static func backupCandidates(referencedBackupPaths: Set<String>, historyLoaded: Bool,
                                  backupDirectory: URL, now: Date) -> [URL] {
@@ -42,15 +57,23 @@ enum MaintenanceSweep {
         }
     }
 
-    /// 候補のうち、今の履歴からも参照されていないものだけ消して、消した数を返す
+    /// 候補のうち、今の履歴からも参照されていないものを片付け (ゴミ箱へ、または削除)、片付けたものの URL を返す
+    /// (ゴミ箱に入れた場合は移動先の URL)
     @discardableResult
-    static func removeBackupDirectories(_ candidates: [URL], stillReferencedBackupPaths: Set<String>) -> Int {
+    static func removeBackupDirectories(_ candidates: [URL], stillReferencedBackupPaths: Set<String>) -> [URL] {
         let referenced = referencedDirectories(stillReferencedBackupPaths)
-        var count = 0
+        var removed: [URL] = []
         for dir in candidates where !referenced.contains(dir.standardizedFileURL.path) {
-            if (try? FileManager.default.removeItem(at: dir)) != nil { count += 1 }
+            if moveToTrash {
+                var trashed: NSURL?
+                if (try? FileManager.default.trashItem(at: dir, resultingItemURL: &trashed)) != nil {
+                    removed.append((trashed as URL?) ?? dir)
+                }
+            } else if (try? FileManager.default.removeItem(at: dir)) != nil {
+                removed.append(dir)
+            }
         }
-        return count
+        return removed
     }
 
     /// 30 日より古い隔離ファイル (CodableStore が作る `<name>.json.corrupt-yyyyMMdd-HHmmss`) を消す

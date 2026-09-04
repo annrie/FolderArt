@@ -337,4 +337,12 @@ final class AppModelTests: XCTestCase {
         model.importPack(url: file)
         XCTAssertTrue(model.presets.presets.isEmpty)
     }
+
+    /// ファイルメニューからの書き出しは常に選べるので、お気に入りが無いときは理由を伝える (黙って戻らない)
+    func testExportWithNoPresetsExplains() {
+        XCTAssertTrue(model.presets.presets.isEmpty)
+        model.exportPack()
+        XCTAssertEqual(model.errorMessage, "書き出せるお気に入りがありません。")
+    }
+
 }

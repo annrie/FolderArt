@@ -78,11 +78,13 @@ final class AppModel: ObservableObject {
             let appSupport = HistoryStore.appSupportDirectory
             let launched = Date()
             Task.detached(priority: .background) { [weak self] in
-                // 候補の列挙と隔離ファイルの削除はメインの外で
-                let candidates = MaintenanceSweep.backupCandidates(referencedBackupPaths: referenced, historyLoaded: historyLoaded,
+                // 候補の列挙と隔離ファイルの削除はメインの外で。
+                // history.json の隔離ファイルが残っている間は今の履歴を「全部」とは信じない (バックアップは触らない)
+                let trusted = historyLoaded && !MaintenanceSweep.hasHistoryQuarantine(in: appSupport)
+                let candidates = MaintenanceSweep.backupCandidates(referencedBackupPaths: referenced, historyLoaded: trusted,
                                                                     backupDirectory: backups, now: launched)
                 let corrupt = MaintenanceSweep.removeOldCorruptFiles(in: appSupport, now: launched)
-                // バックアップの削除だけはメインアクターで、最新の履歴と照合してから行う
+                // バックアップの片付け (ゴミ箱へ) だけはメインアクターで、最新の履歴と照合してから行う
                 // (列挙中に適用が既存のバックアップを再利用して履歴に載せることがあるため)
                 let removed = await self?.removeUnreferencedBackups(candidates) ?? 0
                 if removed > 0 || corrupt > 0 {
@@ -93,11 +95,11 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// 起動時の掃除の削除段階。適用中なら見送る (適用が再利用したバックアップを消さないため。次回起動で改めて掃除する)
+    /// 起動時の掃除の片付け段階。適用中なら見送る (適用が再利用したバックアップを消さないため。次回起動で改めて掃除する)
     private func removeUnreferencedBackups(_ candidates: [URL]) -> Int {
         guard !candidates.isEmpty, !isApplying else { return 0 }
         let referencedNow = Set(history.tasks.compactMap(\.backupPath))
-        return MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: referencedNow)
+        return MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: referencedNow).count
     }
 
     // MARK: - 適用
@@ -328,7 +330,12 @@ final class AppModel: ObservableObject {
 
     /// お気に入り全部を 1 ファイルに書き出す (NSSavePanel)
     func exportPack() {
-        guard !isApplying, !presets.presets.isEmpty else { return }
+        guard !isApplying else { return }
+        // ファイルメニューからは常に選べるので、帯の「…」と違って黙って戻らず理由を伝える
+        guard !presets.presets.isEmpty else {
+            errorMessage = String(localized: "書き出せるお気に入りがありません。")
+            return
+        }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [Self.packType]
         let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyyMMdd"

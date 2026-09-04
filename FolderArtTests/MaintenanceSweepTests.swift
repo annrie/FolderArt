@@ -10,8 +10,13 @@ final class MaintenanceSweepTests: XCTestCase {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("Sweep_\(UUID().uuidString)")
         backups = root.appendingPathComponent("backups")
         try? FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+        MaintenanceSweep.moveToTrash = false   // テストではゴミ箱を汚さない (ゴミ箱の経路は専用テストで確認)
     }
-    override func tearDown() { try? FileManager.default.removeItem(at: root); super.tearDown() }
+    override func tearDown() {
+        MaintenanceSweep.moveToTrash = true
+        try? FileManager.default.removeItem(at: root)
+        super.tearDown()
+    }
 
     private func makeBackup(_ key: String) throws -> String {
         let dir = backups.appendingPathComponent(key)
@@ -132,7 +137,7 @@ final class MaintenanceSweepTests: XCTestCase {
         XCTAssertEqual(Set(candidates.map(\.lastPathComponent)), ["a", "b"])
         // 列挙後に適用が a を再利用して履歴に載せた → a は消さない
         let removed = MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: [a])
-        XCTAssertEqual(removed, 1)
+        XCTAssertEqual(removed.count, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: a))
         XCTAssertFalse(FileManager.default.fileExists(atPath: b))
     }
@@ -150,6 +155,45 @@ final class MaintenanceSweepTests: XCTestCase {
         XCTAssertTrue(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-20260904-181500"))
         XCTAssertFalse(MaintenanceSweep.isQuarantineFileName(".json.corrupt-20260904-181500"))
         XCTAssertFalse(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-2026090-1815000"))
+    }
+
+
+    // MARK: - 壊れた履歴の後の起動で元アイコンを失わない
+
+    /// history.json の隔離ファイルが残っている間は、今の履歴が全部そろっている保証がないのでバックアップを触らない
+    func testSkipsBackupSweepWhileHistoryQuarantineExists() throws {
+        let orphan = try makeBackup("orphan")
+        try makeCorrupt("history.json.corrupt-20260901-000000", ageDays: 1)
+        let future = Date().addingTimeInterval(60)
+        let r = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                     backupDirectory: backups, appSupportDirectory: root, now: future)
+        XCTAssertEqual(r.backupsRemoved, 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: orphan))
+        XCTAssertTrue(MaintenanceSweep.hasHistoryQuarantine(in: root))
+        // presets.json の隔離ファイルだけならバックアップの掃除は行う
+        try FileManager.default.removeItem(at: root.appendingPathComponent("history.json.corrupt-20260901-000000"))
+        try makeCorrupt("presets.json.corrupt-20260901-000000", ageDays: 1)
+        XCTAssertFalse(MaintenanceSweep.hasHistoryQuarantine(in: root))
+        let r2 = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                      backupDirectory: backups, appSupportDirectory: root, now: future)
+        XCTAssertEqual(r2.backupsRemoved, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: orphan))
+    }
+
+    /// アプリではバックアップを完全削除せずゴミ箱へ移す (誤って消しても元アイコンを取り戻せる)
+    func testUnreferencedBackupGoesToTrash() throws {
+        let orphan = try makeBackup("orphan")
+        MaintenanceSweep.moveToTrash = true
+        let future = Date().addingTimeInterval(60)
+        let candidates = MaintenanceSweep.backupCandidates(referencedBackupPaths: [], historyLoaded: true,
+                                                           backupDirectory: backups, now: future)
+        let moved = MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: [])
+        defer { moved.forEach { try? FileManager.default.removeItem(at: $0) } }   // ゴミ箱に残さない
+        XCTAssertEqual(moved.count, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: orphan))
+        let trashed = try XCTUnwrap(moved.first)
+        XCTAssertNotEqual(trashed.standardizedFileURL.path, URL(fileURLWithPath: orphan).deletingLastPathComponent().standardizedFileURL.path)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: trashed.path))
     }
 
 }

@@ -11,8 +11,14 @@ enum PresetImporter {
         // 画像プリセットは assetID が違うので、PNG のバイト列で同一性を判定する。
         // パックの画像は AssetStore にバイト列のまま保存する (store(png:)) ので、
         // 保存済みファイルのバイト列と entry.image をそのまま比較できる。
+        // 既存のお気に入りの PNG は項目ごとに読み直さず、1 回読んだら使い回す (項目 × お気に入りの総当たりになるため)
+        var pngCache: [UUID: Data?] = [:]
         func pngData(of preset: Preset) -> Data? {
-            preset.overlay.assetID.flatMap { try? Data(contentsOf: assets.url(for: $0)) }
+            guard let id = preset.overlay.assetID else { return nil }
+            if let cached = pngCache[id] { return cached }
+            let data = try? Data(contentsOf: assets.url(for: id))
+            pngCache[id] = data
+            return data
         }
         // 512px を超える画像は AssetStore.store(png:) が縮小・再エンコードするため、そのようなパックを
         // もう一度読み込んでもバイト列が一致せず重複判定をすり抜ける。FolderArt が書き出すパックの画像は
