@@ -14,6 +14,9 @@ enum PresetImporter {
         func pngData(of preset: Preset) -> Data? {
             preset.overlay.assetID.flatMap { try? Data(contentsOf: assets.url(for: $0)) }
         }
+        // 512px を超える画像は AssetStore.store(png:) が縮小・再エンコードするため、そのようなパックを
+        // もう一度読み込んでもバイト列が一致せず重複判定をすり抜ける。FolderArt が書き出すパックの画像は
+        // 常に 512px 以下なので、手で作ったパックだけの制限として受け入れている
         func isIdentical(_ entry: PackEntry, _ p: Preset) -> Bool {
             guard p.settings == entry.settings else { return false }
             if entry.overlay.assetID != nil {

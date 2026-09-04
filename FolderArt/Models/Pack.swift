@@ -24,6 +24,9 @@ enum PackError: LocalizedError, Equatable {
     case tooManyPresets(Int)
     case missingImage(String)
     case invalidImage(String)
+    case invalidSettings(String)
+    case fileTooLarge
+    case imageTooLarge(String)
 
     var errorDescription: String? {
         switch self {
@@ -37,6 +40,12 @@ enum PackError: LocalizedError, Equatable {
             return String(localized: "「\(name)」の画像がパックに含まれていません。")
         case .invalidImage(let name):
             return String(localized: "「\(name)」の画像を読み込めません。")
+        case .invalidSettings(let name):
+            return String(localized: "「\(name)」の設定が範囲外です。")
+        case .fileTooLarge:
+            return String(localized: "パックが大きすぎます (上限 \(PackReader.maxFileBytes / 1024 / 1024) MB)。")
+        case .imageTooLarge(let name):
+            return String(localized: "「\(name)」の画像が大きすぎます (上限 \(PackReader.maxImageBytes / 1024 / 1024) MB)。")
         }
     }
 }

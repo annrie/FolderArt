@@ -23,15 +23,15 @@ struct ControlsView: View {
 
             Divider()
 
-            SliderRow(label: "サイズ:", value: $settings.scale, range: 0.2...1.0,
+            SliderRow(label: "サイズ:", value: $settings.scale, range: CompositionSettings.scaleRange,
                       format: { "\(Int($0 * 100))%" })
                 .disabled(sizeLockedByFill && settings.clipToFolderShape && settings.position == .center)
                 .opacity(sizeLockedByFill && settings.clipToFolderShape && settings.position == .center ? 0.4 : 1.0)
 
-            SliderRow(label: "不透明度:", value: $settings.opacity, range: 0.1...1.0,
+            SliderRow(label: "不透明度:", value: $settings.opacity, range: CompositionSettings.opacityRange,
                       format: { "\(Int($0 * 100))%" })
 
-            SliderRow(label: "上下位置:", value: $settings.verticalOffset, range: -0.4...0.4,
+            SliderRow(label: "上下位置:", value: $settings.verticalOffset, range: CompositionSettings.verticalOffsetRange,
                       format: { v in
                           if abs(v) < 0.01 { return String(localized: "中央") }
                           return v > 0 ? String(localized: "上\(Int(v * 100))%") : String(localized: "下\(Int(-v * 100))%")

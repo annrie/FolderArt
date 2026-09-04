@@ -318,4 +318,18 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertFalse(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: false, rollbackSucceeded: true))
         XCTAssertFalse(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: false, rollbackSucceeded: false))
     }
+
+    /// 改名・移動したフォルダも fileID で見つけてリセットできる (履歴の行は古い path のまま)
+    func testResetByFolderFindsRenamedFolderViaFileID() async throws {
+        let a = try folder("A")
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                    settings: CompositionSettings(), to: [a])
+        XCTAssertEqual(history.tasks.count, 1)
+        let moved = root.appendingPathComponent("A-moved")
+        try FileManager.default.moveItem(at: a, to: moved)
+        try coordinator.reset(folder: moved)
+        XCTAssertTrue(history.tasks.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: moved.appendingPathComponent("Icon\r").path))
+    }
+
 }

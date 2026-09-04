@@ -11,6 +11,22 @@ struct CompositionSettings: Codable, Equatable, Sendable {
     var fontWeight: FontWeightValue = .bold
 }
 
+extension CompositionSettings {
+    /// UI のスライダーと同じ範囲。パックなど外から来た値の検証にも使う (範囲の定義はここだけ)
+    static let scaleRange: ClosedRange<Double> = 0.2...1.0
+    static let opacityRange: ClosedRange<Double> = 0.1...1.0
+    static let verticalOffsetRange: ClosedRange<Double> = -0.4...0.4
+
+    /// 全ての数値が有限で範囲内、色成分が 0...1、fontName が空文字でないこと
+    var isValid: Bool {
+        Self.scaleRange.contains(scale)
+            && Self.opacityRange.contains(opacity)
+            && Self.verticalOffsetRange.contains(verticalOffset)
+            && tintColor.isValid
+            && (fontName.map { !$0.isEmpty } ?? true)
+    }
+}
+
 // memberwise init を残すため、カスタムデコードは extension に置く
 extension CompositionSettings {
     private enum CodingKeys: String, CodingKey {

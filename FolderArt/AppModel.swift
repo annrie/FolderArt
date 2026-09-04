@@ -77,15 +77,27 @@ final class AppModel: ObservableObject {
             let backups = FolderIconManager.defaultBackupDirectory
             let appSupport = HistoryStore.appSupportDirectory
             let launched = Date()
-            Task.detached(priority: .background) {
-                let result = MaintenanceSweep.run(referencedBackupPaths: referenced, historyLoaded: historyLoaded,
-                                                   backupDirectory: backups, appSupportDirectory: appSupport, now: launched)
-                if result.backupsRemoved > 0 || result.corruptFilesRemoved > 0 {
+            Task.detached(priority: .background) { [weak self] in
+                // 候補の列挙と隔離ファイルの削除はメインの外で
+                let candidates = MaintenanceSweep.backupCandidates(referencedBackupPaths: referenced, historyLoaded: historyLoaded,
+                                                                    backupDirectory: backups, now: launched)
+                let corrupt = MaintenanceSweep.removeOldCorruptFiles(in: appSupport, now: launched)
+                // バックアップの削除だけはメインアクターで、最新の履歴と照合してから行う
+                // (列挙中に適用が既存のバックアップを再利用して履歴に載せることがあるため)
+                let removed = await self?.removeUnreferencedBackups(candidates) ?? 0
+                if removed > 0 || corrupt > 0 {
                     Logger(subsystem: Bundle.main.bundleIdentifier ?? "FolderArt", category: "maintenance")
-                        .info("sweep: removed \(result.backupsRemoved) backup(s), \(result.corruptFilesRemoved) corrupt file(s)")
+                        .info("sweep: removed \(removed) backup(s), \(corrupt) corrupt file(s)")
                 }
             }
         }
+    }
+
+    /// 起動時の掃除の削除段階。適用中なら見送る (適用が再利用したバックアップを消さないため。次回起動で改めて掃除する)
+    private func removeUnreferencedBackups(_ candidates: [URL]) -> Int {
+        guard !candidates.isEmpty, !isApplying else { return 0 }
+        let referencedNow = Set(history.tasks.compactMap(\.backupPath))
+        return MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: referencedNow)
     }
 
     // MARK: - 適用
@@ -141,8 +153,9 @@ final class AppModel: ObservableObject {
         reapAssets()
     }
 
+    /// 移動・改名したフォルダも fileID で見つける (履歴の行は古い path のままでもリセットできる)
     private func hasHistory(_ url: URL) -> Bool {
-        history.task(forFolderPath: url.standardizedFileURL.path) != nil
+        history.task(forFolderPath: url.standardizedFileURL.path, fileID: FileIdentity.make(for: url)) != nil
     }
 
     func reset(task: IconTask) {
@@ -354,6 +367,9 @@ final class AppModel: ObservableObject {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         do {
+            // 読む前にサイズで弾く (巨大なファイルを丸ごとメモリに載せない)
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+            guard size <= PackReader.maxFileBytes else { throw PackError.fileTooLarge }
             let data = try Data(contentsOf: url)
             let pack = try PackReader.read(data)
             let summary = try PresetImporter.importPack(pack, into: presets, assets: assets)

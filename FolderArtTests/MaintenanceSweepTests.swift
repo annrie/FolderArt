@@ -105,4 +105,51 @@ final class MaintenanceSweepTests: XCTestCase {
                                      backupDirectory: missingBackups, appSupportDirectory: missingAppSupport)
         XCTAssertEqual(r, MaintenanceSweep.Result(backupsRemoved: 0, corruptFilesRemoved: 0))
     }
+
+    // MARK: - 列挙と削除の分離 (適用が再利用したバックアップを消さない)
+
+    func testCandidatesExcludeReferencedNewAndNonDirectories() throws {
+        let kept = try makeBackup("kept")
+        _ = try makeBackup("orphan")
+        try Data([0]).write(to: backups.appendingPathComponent(".DS_Store"))
+        // now が過去 = 全部「起動後」に作られた扱い → 候補なし
+        let past = Date().addingTimeInterval(-60)
+        XCTAssertEqual(MaintenanceSweep.backupCandidates(referencedBackupPaths: [kept], historyLoaded: true,
+                                                         backupDirectory: backups, now: past), [])
+        let future = Date().addingTimeInterval(60)
+        let candidates = MaintenanceSweep.backupCandidates(referencedBackupPaths: [kept], historyLoaded: true,
+                                                           backupDirectory: backups, now: future)
+        XCTAssertEqual(candidates.map(\.lastPathComponent), ["orphan"])
+        XCTAssertEqual(MaintenanceSweep.backupCandidates(referencedBackupPaths: [kept], historyLoaded: false,
+                                                         backupDirectory: backups, now: future), [])
+    }
+
+    func testRemoveSkipsCandidatesReferencedSinceTheScan() throws {
+        let a = try makeBackup("a"), b = try makeBackup("b")
+        let future = Date().addingTimeInterval(60)
+        let candidates = MaintenanceSweep.backupCandidates(referencedBackupPaths: [], historyLoaded: true,
+                                                           backupDirectory: backups, now: future)
+        XCTAssertEqual(Set(candidates.map(\.lastPathComponent)), ["a", "b"])
+        // 列挙後に適用が a を再利用して履歴に載せた → a は消さない
+        let removed = MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: [a])
+        XCTAssertEqual(removed, 1)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: a))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: b))
+    }
+
+    func testOnlyQuarantineFileNamesAreSwept() throws {
+        try makeCorrupt("history.json.corrupt-20260101-000000", ageDays: 31)
+        try makeCorrupt("presets.json.corrupt-20260101-000000", ageDays: 31)
+        try makeCorrupt("notes.corrupt-1", ageDays: 31)
+        try makeCorrupt("history.json.corrupt-2026", ageDays: 31)
+        let result = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                          backupDirectory: backups, appSupportDirectory: root)
+        XCTAssertEqual(result.corruptFilesRemoved, 2)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("notes.corrupt-1").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("history.json.corrupt-2026").path))
+        XCTAssertTrue(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-20260904-181500"))
+        XCTAssertFalse(MaintenanceSweep.isQuarantineFileName(".json.corrupt-20260904-181500"))
+        XCTAssertFalse(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-2026090-1815000"))
+    }
+
 }

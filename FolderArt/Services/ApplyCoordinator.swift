@@ -177,7 +177,8 @@ final class ApplyCoordinator {
     /// (手で設定したカスタムアイコンを消してしまわないため)。
     func reset(folder: URL) throws {
         let path = folder.standardizedFileURL.path
-        guard let task = history.task(forFolderPath: path) else { return }
+        // 移動・改名したフォルダも fileID で見つける (履歴の行は古い path のまま)
+        guard let task = history.task(forFolderPath: path, fileID: FileIdentity.make(for: folder)) else { return }
         try iconManager.resetIcon(for: folder, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
         iconManager.removeBackup(atBackupPath: task.backupPath)

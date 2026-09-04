@@ -56,8 +56,8 @@ final class PackTests: XCTestCase {
     }
 
     func testRejectsTooManyPresets() throws {
-        let many = (0..<201).map { Preset(name: "p\($0)", overlay: .text("\($0)"), settings: CompositionSettings()) }
-        let data = try PackWriter.write(many, assets: assets, appVersion: "1.3.0")
+        let many = (0..<201).map { PackEntry(name: "p\($0)", overlay: .text("\($0)"), settings: CompositionSettings(), image: nil) }
+        let data = try encode(pack(many))
         XCTAssertThrowsError(try PackReader.read(data)) { error in
             guard case PackError.tooManyPresets(201) = error else { return XCTFail("\(error)") }
         }
@@ -80,4 +80,57 @@ final class PackTests: XCTestCase {
             guard case PackError.invalidImage("x") = error else { return XCTFail("\(error)") }
         }
     }
+
+    // MARK: - 検証 (範囲外の設定・サイズ上限・書き出し件数)
+
+    private func pack(_ entries: [PackEntry]) -> Pack {
+        Pack(format: 1, app: "FolderArt", appVersion: "1.3.0", exportedAt: Date(), presets: entries)
+    }
+    private func encode(_ pack: Pack) throws -> Data {
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(pack)
+    }
+
+    func testRejectsOutOfRangeSettings() throws {
+        var huge = CompositionSettings(); huge.scale = 1e308
+        var tint = CompositionSettings(); tint.tintColor = CodableColor(red: 2, green: 0, blue: 0, alpha: 1)
+        var low = CompositionSettings(); low.verticalOffset = -0.5
+        for (label, settings) in [("scale", huge), ("tint", tint), ("offset", low)] {
+            let data = try encode(pack([PackEntry(name: label, overlay: .text("x"), settings: settings, image: nil)]))
+            XCTAssertThrowsError(try PackReader.read(data), label) { error in
+                guard case PackError.invalidSettings(label) = error else { return XCTFail("\(label): \(error)") }
+            }
+        }
+        // 境界値はそのまま通る
+        var edge = CompositionSettings(); edge.scale = 0.2; edge.opacity = 1.0; edge.verticalOffset = -0.4
+        XCTAssertNoThrow(try PackReader.read(try encode(pack([PackEntry(name: "ok", overlay: .text("x"), settings: edge, image: nil)]))))
+    }
+
+    func testRejectsLegacyImageOverlay() throws {
+        let data = try encode(pack([PackEntry(name: "old", overlay: .legacyImage(name: "x.png"), settings: CompositionSettings(), image: nil)]))
+        XCTAssertThrowsError(try PackReader.read(data)) { error in
+            guard case PackError.invalidSettings("old") = error else { return XCTFail("\(error)") }
+        }
+    }
+
+    func testRejectsOversizedImageAndFile() throws {
+        // 画像は PNG 判定の前にバイト数で弾く
+        let big = Data(count: PackReader.maxImageBytes + 1)
+        let data = try encode(pack([PackEntry(name: "big", overlay: .image(assetID: UUID()), settings: CompositionSettings(), image: big)]))
+        XCTAssertThrowsError(try PackReader.read(data)) { error in
+            guard case PackError.imageTooLarge("big") = error else { return XCTFail("\(error)") }
+        }
+        // ファイル全体は JSON を読む前にサイズで弾く
+        XCTAssertThrowsError(try PackReader.read(Data(count: PackReader.maxFileBytes + 1))) { error in
+            guard case PackError.fileTooLarge = error else { return XCTFail("\(error)") }
+        }
+    }
+
+    func testWriterRejectsTooManyPresets() throws {
+        let many = (0..<201).map { Preset(name: "p\($0)", overlay: .text("\($0)"), settings: CompositionSettings()) }
+        XCTAssertThrowsError(try PackWriter.write(many, assets: assets, appVersion: "1.3.0")) { error in
+            guard case PackError.tooManyPresets(201) = error else { return XCTFail("\(error)") }
+        }
+    }
+
 }
