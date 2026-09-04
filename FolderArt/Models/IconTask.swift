@@ -23,6 +23,7 @@ struct IconTask: Codable, Identifiable, Equatable, Sendable {
     let backupPath: String?
     let overlay: Overlay
     let settings: CompositionSettings
+    let fileID: String?
 
     init(
         id: UUID = UUID(),
@@ -31,7 +32,8 @@ struct IconTask: Codable, Identifiable, Equatable, Sendable {
         appliedAt: Date = Date(),
         backupPath: String?,
         overlay: Overlay,
-        settings: CompositionSettings
+        settings: CompositionSettings,
+        fileID: String? = nil
     ) {
         self.version = Self.currentVersion
         self.id = id
@@ -41,10 +43,17 @@ struct IconTask: Codable, Identifiable, Equatable, Sendable {
         self.backupPath = backupPath
         self.overlay = overlay
         self.settings = settings
+        self.fileID = fileID
+    }
+
+    /// backupPath だけ差し替えたコピーを返す (upsert でのバックアップ引き継ぎ用)
+    func withBackupPath(_ path: String?) -> IconTask {
+        IconTask(id: id, folderPath: folderPath, bookmarkData: bookmarkData, appliedAt: appliedAt,
+                 backupPath: path, overlay: overlay, settings: settings, fileID: fileID)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, id, folderPath, bookmarkData, appliedAt, backupPath, overlay, settings
+        case version, id, folderPath, bookmarkData, appliedAt, backupPath, overlay, settings, fileID
         // v1 only
         case imageName, position, scale, opacity, verticalOffset, clipToFolderShape
     }
@@ -57,6 +66,7 @@ struct IconTask: Codable, Identifiable, Equatable, Sendable {
         appliedAt    = try c.decode(Date.self,   forKey: .appliedAt)
         let rawBackup = try c.decodeIfPresent(String.self, forKey: .backupPath)
         backupPath   = (rawBackup?.isEmpty ?? true) ? nil : rawBackup
+        fileID       = try c.decodeIfPresent(String.self, forKey: .fileID)
         version      = Self.currentVersion
 
         if let v = try c.decodeIfPresent(Int.self, forKey: .version), v >= 2 {
@@ -86,5 +96,6 @@ struct IconTask: Codable, Identifiable, Equatable, Sendable {
         try c.encodeIfPresent(backupPath, forKey: .backupPath)
         try c.encode(overlay,      forKey: .overlay)
         try c.encode(settings,     forKey: .settings)
+        try c.encodeIfPresent(fileID, forKey: .fileID)
     }
 }

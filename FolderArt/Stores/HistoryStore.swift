@@ -36,12 +36,26 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    /// 同じ folderPath の行があれば置き換え、先頭に置く
+    /// 同じ folderPath か、同じ fileID (nil 同士は不一致) の行があれば置き換え、先頭に置く。
+    /// 置き換えられる行が backupPath を持ち、新しい行が持たなければ引き継ぐ (元アイコンの記録を失わない)
     func upsert(_ task: IconTask) throws {
-        var updated = tasks.filter { $0.folderPath != task.folderPath }
-        updated.insert(task, at: 0)
+        let replaced = tasks.first { Self.sameFolder($0, task) }
+        let merged = Self.inheritingBackupPath(task, from: replaced)
+        var updated = tasks.filter { !Self.sameFolder($0, merged) }
+        updated.insert(merged, at: 0)
         try save(updated)
         tasks = updated
+    }
+
+    static func inheritingBackupPath(_ task: IconTask, from replaced: IconTask?) -> IconTask {
+        guard task.backupPath == nil, let inherited = replaced?.backupPath else { return task }
+        return task.withBackupPath(inherited)
+    }
+
+    static func sameFolder(_ a: IconTask, _ b: IconTask) -> Bool {
+        if a.folderPath == b.folderPath { return true }
+        if let x = a.fileID, let y = b.fileID, x == y { return true }
+        return false
     }
 
     func remove(_ task: IconTask) throws {
@@ -61,6 +75,11 @@ final class HistoryStore: ObservableObject {
 
     func task(forFolderPath path: String) -> IconTask? {
         tasks.first { $0.folderPath == path }
+    }
+
+    /// path か fileID のどちらかで一致する行
+    func task(forFolderPath path: String, fileID: String?) -> IconTask? {
+        tasks.first { $0.folderPath == path || (fileID != nil && $0.fileID == fileID) }
     }
 
     var referencedAssetIDs: Set<UUID> {

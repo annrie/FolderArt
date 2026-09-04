@@ -91,6 +91,30 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.tasks.count, 1)
     }
 
+    func testUpsertReplacesRowWithSameFileIDEvenIfPathChanged() throws {
+        try store.upsert(IconTask(folderPath: "/old/A", bookmarkData: Data(), backupPath: nil,
+                                  overlay: .text("1"), settings: CompositionSettings(), fileID: "vol:1"))
+        try store.upsert(IconTask(folderPath: "/new/A", bookmarkData: Data(), backupPath: nil,
+                                  overlay: .text("2"), settings: CompositionSettings(), fileID: "vol:1"))
+        XCTAssertEqual(store.tasks.count, 1)
+        XCTAssertEqual(store.tasks.first?.folderPath, "/new/A")
+        XCTAssertEqual(store.task(forFolderPath: "/gone", fileID: "vol:1")?.overlay, .text("2"))
+    }
+
+    func testUpsertInheritsBackupPathFromReplacedRow() throws {
+        try store.upsert(IconTask(folderPath: "/a", bookmarkData: Data(), backupPath: "/backups/k/original.png",
+                                  overlay: .text("1"), settings: CompositionSettings()))
+        try store.upsert(makeTask(folderPath: "/a", overlay: .text("2")))   // backupPath nil
+        XCTAssertEqual(store.tasks.first?.backupPath, "/backups/k/original.png")
+        XCTAssertEqual(store.tasks.first?.overlay, .text("2"))
+    }
+
+    func testNilFileIDsNeverMatchEachOther() throws {
+        try store.upsert(makeTask(folderPath: "/a"))
+        try store.upsert(makeTask(folderPath: "/b"))
+        XCTAssertEqual(store.tasks.count, 2)
+    }
+
     func testReferencedAssetIDs() throws {
         let id = UUID()
         try store.upsert(makeTask(folderPath: "/a", overlay: .image(assetID: id)))

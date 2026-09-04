@@ -68,8 +68,9 @@ final class ApplyCoordinator {
             // 巻き戻し先は「元のアイコン」ではなく適用直前の状態。再適用のときは前回の
             // FolderArt アイコンに戻す (履歴の行は残っているので消してはいけない)
             let previousIcon = snapshotIcon(of: folder)
+            let fileID = FileIdentity.make(for: folder)
             do {
-                let existing = history.task(forFolderPath: folder.standardizedFileURL.path)
+                let existing = history.task(forFolderPath: folder.standardizedFileURL.path, fileID: fileID)
                 if let existing {
                     // 再適用: 最初の適用時に記録した元アイコン (nil = 元は標準アイコン) をそのまま引き継ぐ。
                     // ここで backupCurrentIcon を呼ぶと、前回 FolderArt が付けた Icon\r を
@@ -93,7 +94,8 @@ final class ApplyCoordinator {
                     bookmarkData: bookmark,
                     backupPath: backupURL?.path,
                     overlay: overlay,
-                    settings: settings
+                    settings: settings,
+                    fileID: fileID
                 )
                 try history.upsert(task)
                 succeeded.append(folder)
@@ -159,8 +161,7 @@ final class ApplyCoordinator {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         try iconManager.resetIcon(for: url, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
-        // バックアップを取ったときの鍵は履歴のパス (ブックマークの解決結果とは限らない)
-        iconManager.removeBackup(for: URL(fileURLWithPath: task.folderPath))
+        iconManager.removeBackup(atBackupPath: task.backupPath)
     }
 
     /// 同一セッション用: URL を直接使ってリセット。
@@ -171,6 +172,6 @@ final class ApplyCoordinator {
         guard let task = history.task(forFolderPath: path) else { return }
         try iconManager.resetIcon(for: folder, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
-        iconManager.removeBackup(for: folder)
+        iconManager.removeBackup(atBackupPath: task.backupPath)
     }
 }

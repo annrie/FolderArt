@@ -40,4 +40,16 @@ final class IconTaskTests: XCTestCase {
     func testIconPositionHasTwoCases() {
         XCTAssertEqual(IconPosition.allCases.count, 2)
     }
+
+    func testFileIDRoundTripsAndDefaultsToNil() throws {
+        let task = IconTask(folderPath: "/x", bookmarkData: Data(), backupPath: nil,
+                            overlay: .text("1"), settings: CompositionSettings(), fileID: "vol:42")
+        let data = try JSONEncoder().encode(task)
+        XCTAssertEqual(try JSONDecoder().decode(IconTask.self, from: data).fileID, "vol:42")
+        let json = """
+        {"version":2,"id":"6E3A0C4E-3F2B-4C4B-9D1B-7B7B4E5D1A11","folderPath":"/x","bookmarkData":"","appliedAt":0,
+         "overlay":{"text":{"_0":"1"}},"settings":{}}
+        """.data(using: .utf8)!
+        XCTAssertNil(try JSONDecoder().decode(IconTask.self, from: json).fileID)
+    }
 }

@@ -95,6 +95,17 @@ class FolderIconManager {
         try? FileManager.default.removeItem(at: dir)
     }
 
+    /// 履歴の行が持つ backupPath (…/backups/<key>/original.png) の親ディレクトリを消す。
+    /// バックアップディレクトリの外を指していたら何もしない。
+    func removeBackup(atBackupPath path: String?) {
+        guard let path else { return }
+        let dir = URL(fileURLWithPath: path).deletingLastPathComponent().standardizedFileURL
+        let root = backupDirectory.standardizedFileURL.pathComponents
+        // 文字列の前方一致だと "backups_evil" も通ってしまうので、パス要素単位で包含を見る
+        guard dir.pathComponents.count > root.count, Array(dir.pathComponents.prefix(root.count)) == root else { return }
+        try? FileManager.default.removeItem(at: dir)
+    }
+
     /// 合成済みアイコンをフォルダーに適用する。失敗は throw。
     func applyIcon(_ icon: NSImage, to folderURL: URL) throws {
         var isDir: ObjCBool = false
