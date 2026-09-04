@@ -345,4 +345,14 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.errorMessage, "書き出せるお気に入りがありません。")
     }
 
+
+    func testApplySuggestionIsIgnoredWhileApplying() {
+        model.overlay.activeTab = .text
+        model.overlay.text = "before"
+        model.isApplying = true
+        model.applySuggestion(Suggestion(kind: .symbol("star.fill"), reason: "test"))
+        XCTAssertEqual(model.overlay.activeTab, .text)
+        XCTAssertEqual(model.overlay.text, "before")
+    }
+
 }

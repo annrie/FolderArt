@@ -12,10 +12,14 @@ struct SuggestionStripView: View {
             if !suggestions.isEmpty {
                 Text("提案:").font(.caption).foregroundColor(.secondary)
                 ForEach(suggestions) { s in
-                    SuggestionChip(suggestion: s, assets: assets)
-                        .onTapGesture { guard !isApplying else { return }; onPick(s) }
-                        .opacity(isApplying ? 0.5 : 1)
-                        .help(Text(s.reason))
+                    // Button にしておくとキーボードと VoiceOver からも押せる
+                    Button { onPick(s) } label: {
+                        SuggestionChip(suggestion: s, assets: assets)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isApplying)
+                    .opacity(isApplying ? 0.5 : 1)
+                    .help(Text(s.reason))
                 }
             }
             Spacer(minLength: 0)

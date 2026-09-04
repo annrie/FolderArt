@@ -18,16 +18,16 @@ enum MaintenanceSweep {
 
     static let corruptFileMaxAge: TimeInterval = 30 * 24 * 60 * 60
 
-    /// バックアップをゴミ箱へ移すか (false なら完全削除)。テストがゴミ箱を汚さないためのスイッチで、アプリでは常に true
-    static var moveToTrash = true
-
-    /// 列挙と片付けをまとめて行う (テストと単純な呼び出し用)
+    /// 列挙と片付けをまとめて行う (テストと単純な呼び出し用)。
+    /// moveToTrash はアプリでは常に true (テストがゴミ箱を汚さないための引数)
     static func run(referencedBackupPaths: Set<String>, historyLoaded: Bool,
-                    backupDirectory: URL, appSupportDirectory: URL, now: Date = Date()) -> Result {
+                    backupDirectory: URL, appSupportDirectory: URL, now: Date = Date(),
+                    moveToTrash: Bool = true) -> Result {
         let trusted = historyLoaded && !hasHistoryQuarantine(in: appSupportDirectory)
         let candidates = backupCandidates(referencedBackupPaths: referencedBackupPaths, historyLoaded: trusted,
                                           backupDirectory: backupDirectory, now: now)
-        let removed = removeBackupDirectories(candidates, stillReferencedBackupPaths: referencedBackupPaths)
+        let removed = removeBackupDirectories(candidates, stillReferencedBackupPaths: referencedBackupPaths,
+                                              moveToTrash: moveToTrash)
         let corrupt = removeOldCorruptFiles(in: appSupportDirectory, now: now)
         return Result(backupsRemoved: removed.count, corruptFilesRemoved: corrupt)
     }
@@ -60,7 +60,8 @@ enum MaintenanceSweep {
     /// 候補のうち、今の履歴からも参照されていないものを片付け (ゴミ箱へ、または削除)、片付けたものの URL を返す
     /// (ゴミ箱に入れた場合は移動先の URL)
     @discardableResult
-    static func removeBackupDirectories(_ candidates: [URL], stillReferencedBackupPaths: Set<String>) -> [URL] {
+    static func removeBackupDirectories(_ candidates: [URL], stillReferencedBackupPaths: Set<String>,
+                                        moveToTrash: Bool = true) -> [URL] {
         let referenced = referencedDirectories(stillReferencedBackupPaths)
         var removed: [URL] = []
         for dir in candidates where !referenced.contains(dir.standardizedFileURL.path) {
@@ -90,13 +91,14 @@ enum MaintenanceSweep {
         return count
     }
 
-    /// `<name>.json.corrupt-yyyyMMdd-HHmmss` の形だけを隔離ファイルとみなす (それ以外の ".corrupt-" は触らない)
+    /// `<name>.json.corrupt-yyyyMMdd-HHmmss` (同一秒に 2 回退避したときは末尾に `-n`) の形だけを
+    /// 隔離ファイルとみなす (それ以外の ".corrupt-" は触らない)。CodableStore.quarantineIfPresent と対
     static func isQuarantineFileName(_ name: String) -> Bool {
         guard let range = name.range(of: ".json.corrupt-"), range.lowerBound > name.startIndex else { return false }
-        let stamp = name[range.upperBound...]                       // yyyyMMdd-HHmmss
-        guard stamp.count == 15, stamp.dropFirst(8).first == "-" else { return false }
-        let digits = String(stamp.prefix(8)) + String(stamp.dropFirst(9))
-        return digits.allSatisfy { $0.isASCII && $0.isNumber }
+        let parts = name[range.upperBound...].split(separator: "-", omittingEmptySubsequences: false)
+        guard (2...3).contains(parts.count), parts[0].count == 8, parts[1].count == 6,
+              parts.count == 2 || !parts[2].isEmpty else { return false }
+        return parts.allSatisfy { $0.allSatisfy { $0.isASCII && $0.isNumber } }
     }
 
     /// backupPath (…/backups/<key>/original.png) の親ディレクトリの集合。列挙側と同じ正規化

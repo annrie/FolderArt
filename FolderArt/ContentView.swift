@@ -37,7 +37,7 @@ struct ContentView: View {
                 )
                 .frame(minWidth: 380)
             }
-            .frame(height: 296)
+            .frame(height: 304)   // 提案の帯 36pt + VStack の間隔 8pt を上乗せ
             .padding(12)
 
             PresetStripView(
@@ -94,6 +94,8 @@ struct ContentView: View {
         // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
         .onAppear { showError = (model.errorMessage != nil) }
         .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
+        // OK 以外 (Esc など) で閉じても errorMessage を戻す。残したままだと同じ文言の次の知らせが onChange で拾えない
+        .onChange(of: showError) { shown in if !shown { model.errorMessage = nil } }
         .alert("お知らせ", isPresented: $showError) {
             Button("OK") { model.errorMessage = nil }
         } message: {

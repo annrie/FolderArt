@@ -10,13 +10,8 @@ final class MaintenanceSweepTests: XCTestCase {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("Sweep_\(UUID().uuidString)")
         backups = root.appendingPathComponent("backups")
         try? FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
-        MaintenanceSweep.moveToTrash = false   // テストではゴミ箱を汚さない (ゴミ箱の経路は専用テストで確認)
     }
-    override func tearDown() {
-        MaintenanceSweep.moveToTrash = true
-        try? FileManager.default.removeItem(at: root)
-        super.tearDown()
-    }
+    override func tearDown() { try? FileManager.default.removeItem(at: root); super.tearDown() }
 
     private func makeBackup(_ key: String) throws -> String {
         let dir = backups.appendingPathComponent(key)
@@ -37,7 +32,7 @@ final class MaintenanceSweepTests: XCTestCase {
         let kept = try makeBackup("keep")
         _ = try makeBackup("orphan")
         let r = MaintenanceSweep.run(referencedBackupPaths: [kept], historyLoaded: true,
-                                     backupDirectory: backups, appSupportDirectory: root)
+                                     backupDirectory: backups, appSupportDirectory: root, now: Date().addingTimeInterval(60), moveToTrash: false)
         XCTAssertEqual(r.backupsRemoved, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: kept))
         XCTAssertFalse(FileManager.default.fileExists(atPath: backups.appendingPathComponent("orphan").path))
@@ -46,7 +41,7 @@ final class MaintenanceSweepTests: XCTestCase {
     func testKeepsBackupsWhenHistoryFailedToLoad() throws {
         _ = try makeBackup("orphan")
         let r = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: false,
-                                     backupDirectory: backups, appSupportDirectory: root)
+                                     backupDirectory: backups, appSupportDirectory: root, now: Date().addingTimeInterval(60), moveToTrash: false)
         XCTAssertEqual(r.backupsRemoved, 0)
         XCTAssertTrue(FileManager.default.fileExists(atPath: backups.appendingPathComponent("orphan").path))
     }
@@ -56,7 +51,7 @@ final class MaintenanceSweepTests: XCTestCase {
         try makeCorrupt("presets.json.corrupt-20260901-000000", ageDays: 29)
         try makeCorrupt("history.json", ageDays: 40)   // 対象外
         let r = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
-                                     backupDirectory: backups, appSupportDirectory: root)
+                                     backupDirectory: backups, appSupportDirectory: root, now: Date().addingTimeInterval(60), moveToTrash: false)
         XCTAssertEqual(r.corruptFilesRemoved, 1)
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("history.json.corrupt-20260801-000000").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("presets.json.corrupt-20260901-000000").path))
@@ -90,7 +85,7 @@ final class MaintenanceSweepTests: XCTestCase {
         let strayFile = backups.appendingPathComponent(".DS_Store")
         try Data([0]).write(to: strayFile)
         _ = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
-                                 backupDirectory: backups, appSupportDirectory: root)
+                                 backupDirectory: backups, appSupportDirectory: root, now: Date().addingTimeInterval(60), moveToTrash: false)
         XCTAssertTrue(FileManager.default.fileExists(atPath: strayFile.path))
     }
 
@@ -98,7 +93,7 @@ final class MaintenanceSweepTests: XCTestCase {
     func testBackupRootDirectoryStillExistsAfterSweepingAllChildren() throws {
         _ = try makeBackup("orphan")
         _ = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
-                                 backupDirectory: backups, appSupportDirectory: root)
+                                 backupDirectory: backups, appSupportDirectory: root, now: Date().addingTimeInterval(60), moveToTrash: false)
         XCTAssertTrue(FileManager.default.fileExists(atPath: backups.path))
     }
 
@@ -136,7 +131,7 @@ final class MaintenanceSweepTests: XCTestCase {
                                                            backupDirectory: backups, now: future)
         XCTAssertEqual(Set(candidates.map(\.lastPathComponent)), ["a", "b"])
         // 列挙後に適用が a を再利用して履歴に載せた → a は消さない
-        let removed = MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: [a])
+        let removed = MaintenanceSweep.removeBackupDirectories(candidates, stillReferencedBackupPaths: [a], moveToTrash: false)
         XCTAssertEqual(removed.count, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: a))
         XCTAssertFalse(FileManager.default.fileExists(atPath: b))
@@ -148,13 +143,17 @@ final class MaintenanceSweepTests: XCTestCase {
         try makeCorrupt("notes.corrupt-1", ageDays: 31)
         try makeCorrupt("history.json.corrupt-2026", ageDays: 31)
         let result = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
-                                          backupDirectory: backups, appSupportDirectory: root)
+                                          backupDirectory: backups, appSupportDirectory: root, now: Date().addingTimeInterval(60), moveToTrash: false)
         XCTAssertEqual(result.corruptFilesRemoved, 2)
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("notes.corrupt-1").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("history.json.corrupt-2026").path))
         XCTAssertTrue(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-20260904-181500"))
         XCTAssertFalse(MaintenanceSweep.isQuarantineFileName(".json.corrupt-20260904-181500"))
         XCTAssertFalse(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-2026090-1815000"))
+        // 同一秒に 2 回退避したときの "-n" 付きも隔離ファイル (CodableStore が生成しうる名前)
+        XCTAssertTrue(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-20260904-181500-2"))
+        XCTAssertFalse(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-20260904-181500-"))
+        XCTAssertFalse(MaintenanceSweep.isQuarantineFileName("history.json.corrupt-20260904-181500-2-3"))
     }
 
 
@@ -166,7 +165,7 @@ final class MaintenanceSweepTests: XCTestCase {
         try makeCorrupt("history.json.corrupt-20260901-000000", ageDays: 1)
         let future = Date().addingTimeInterval(60)
         let r = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
-                                     backupDirectory: backups, appSupportDirectory: root, now: future)
+                                     backupDirectory: backups, appSupportDirectory: root, now: future, moveToTrash: false)
         XCTAssertEqual(r.backupsRemoved, 0)
         XCTAssertTrue(FileManager.default.fileExists(atPath: orphan))
         XCTAssertTrue(MaintenanceSweep.hasHistoryQuarantine(in: root))
@@ -175,7 +174,7 @@ final class MaintenanceSweepTests: XCTestCase {
         try makeCorrupt("presets.json.corrupt-20260901-000000", ageDays: 1)
         XCTAssertFalse(MaintenanceSweep.hasHistoryQuarantine(in: root))
         let r2 = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
-                                      backupDirectory: backups, appSupportDirectory: root, now: future)
+                                      backupDirectory: backups, appSupportDirectory: root, now: future, moveToTrash: false)
         XCTAssertEqual(r2.backupsRemoved, 1)
         XCTAssertFalse(FileManager.default.fileExists(atPath: orphan))
     }
@@ -183,7 +182,6 @@ final class MaintenanceSweepTests: XCTestCase {
     /// アプリではバックアップを完全削除せずゴミ箱へ移す (誤って消しても元アイコンを取り戻せる)
     func testUnreferencedBackupGoesToTrash() throws {
         let orphan = try makeBackup("orphan")
-        MaintenanceSweep.moveToTrash = true
         let future = Date().addingTimeInterval(60)
         let candidates = MaintenanceSweep.backupCandidates(referencedBackupPaths: [], historyLoaded: true,
                                                            backupDirectory: backups, now: future)

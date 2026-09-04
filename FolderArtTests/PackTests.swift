@@ -133,4 +133,13 @@ final class PackTests: XCTestCase {
         }
     }
 
+
+    /// 画像が欠けているお気に入りは、どれが原因か分かるエラーで書き出しを止める
+    func testWriterNamesThePresetWhoseImageIsMissing() throws {
+        let broken = Preset(name: "欠け", overlay: .image(assetID: UUID()), settings: CompositionSettings())
+        XCTAssertThrowsError(try PackWriter.write([broken], assets: assets, appVersion: "1.3.0")) { error in
+            guard case PackError.assetUnavailable("欠け") = error else { return XCTFail("\(error)") }
+        }
+    }
+
 }

@@ -29,7 +29,7 @@ struct SuggestionEngine {
 
         // 2. 辞書: 項目ごとに一致したキーのうち最長のもの (同じ長さなら先に出た方) を採用し、
         //    項目間は「キーの長い順、同じ長さならフォルダ名の先に出た順」に並べる。
-        //    (Swift の sort は 5.0 以降安定だが、位置によるタイブレークで並び順を明示的に決定的にする)
+        //    (sort の安定性には頼らず、位置によるタイブレークで並び順を明示的に決定的にする)
         func position(of key: String) -> Int {
             normalized.range(of: key).map { normalized.distance(from: normalized.startIndex, to: $0.lowerBound) } ?? Int.max
         }
@@ -102,10 +102,8 @@ struct SuggestionEngine {
         for ch in normalized {
             if ch.isLetter || ch.isNumber, ch.isASCII {
                 current.append(ch)
-            } else if ch.isASCII || ch.isWhitespace || ch.isPunctuation || ch.isSymbol {
-                if !current.isEmpty { out.append(current); current = "" }
             } else {
-                // 日本語などはトークンにしない
+                // 空白・記号・日本語などは区切り (日本語はトークンにしない)
                 if !current.isEmpty { out.append(current); current = "" }
             }
         }
