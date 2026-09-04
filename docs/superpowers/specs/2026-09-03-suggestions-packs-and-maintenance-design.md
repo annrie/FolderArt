@@ -178,11 +178,11 @@ UTExportedTypeDeclarations:
 
 ### 5.3 掃除
 
-- `MaintenanceSweep.run(history: HistoryStore, backups: URL, appSupport: URL, now: Date)` を起動時に 1 回、メインの外で実行。
-  1. 履歴のどの行の `backupPath` にも含まれない `backups/<key>/` を削除。履歴の読み込みに失敗している (`loadError != nil`) 起動では行わない。
-  2. `history.json.corrupt-*` と `presets.json.corrupt-*` のうち、更新日時が 30 日より古いものを削除。
-- 失敗は無視 (次回また試す)。
-- テスト: 参照あり/なしのバックアップ、29 日と 31 日前の `.corrupt-*`、`loadError` 時にバックアップを消さない。
+- `MaintenanceSweep` を起動時に 1 回実行。候補の列挙 (`backupCandidates`) と隔離ファイルの削除 (`removeOldCorruptFiles`) はメインの外、バックアップの片付け (`removeBackupDirectories`) は `AppModel` がメインアクターで最新の履歴と照合してから行う (列挙中に適用が既存のバックアップを再利用して履歴に載せることがあるため。適用中なら見送る)。
+  1. 履歴のどの行の `backupPath` にも含まれない `backups/<key>/` (ディレクトリのみ) を **ゴミ箱へ移す** (完全削除はしない。誤って片付けても元アイコンを取り戻せる)。行わない条件: 履歴の読み込みに失敗している (`loadError != nil`)、`history.json.corrupt-*` の隔離ファイルが残っている (壊れた履歴を退避した直後に書かれる 1 行だけの `history.json` を「全部」と信じない)、起動時刻以降に作られた (今のセッションのもの)、作成日時が取れない。
+  2. `<name>.json.corrupt-yyyyMMdd-HHmmss` (CodableStore の隔離ファイルの形だけ。他の ".corrupt-" は触らない) のうち、更新日時が 30 日より古いものを削除。
+- 失敗は無視 (次回また試す)。片付けた件数は os.Logger に残す (0 件なら出さない)。UI には出さない。
+- テスト: 参照あり/なしのバックアップ、29 日と 31 日前の `.corrupt-*`、`loadError` 時にバックアップを消さない、起動後に作られたものを消さない、列挙後に参照が付いた候補を消さない、`history.json` の隔離ファイルがある間は消さない、ゴミ箱へ移る、ディレクトリ以外は触らない、ルートは残る、ディレクトリが無くても 0 件で返る。
 
 ## 6. 画面と状態のまとめ
 
