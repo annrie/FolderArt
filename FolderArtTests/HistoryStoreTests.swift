@@ -122,57 +122,6 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.referencedAssetIDs, [id])
     }
 
-    func testUpsertAllSavesOnceAndReplacesByFolder() throws {
-        try store.upsert(makeTask(folderPath: "/a", overlay: .text("old")))
-        let before = store.saveCount
-        try store.upsertAll([makeTask(folderPath: "/a", overlay: .text("new")), makeTask(folderPath: "/b")])
-        XCTAssertEqual(store.saveCount, before + 1)
-        XCTAssertEqual(store.tasks.map(\.folderPath), ["/a", "/b"])
-        XCTAssertEqual(store.task(forFolderPath: "/a")?.overlay, .text("new"))
-    }
-
-    /// 同一バッチ内に同じ folderPath が複数あれば 1 行にまとめ、後の行が勝つ。
-    /// 実装は「フォルダごとの最後の出現位置」の順序を保つため /b, /a の順になる
-    func testUpsertAllCollapsesDuplicateFoldersWithinBatchLastWins() throws {
-        let before = store.saveCount
-        try store.upsertAll([
-            makeTask(folderPath: "/a", overlay: .text("old")),
-            makeTask(folderPath: "/b"),
-            makeTask(folderPath: "/a", overlay: .text("new")),
-        ])
-        XCTAssertEqual(store.saveCount, before + 1)
-        XCTAssertEqual(store.tasks.map(\.folderPath), ["/b", "/a"])
-        XCTAssertEqual(store.task(forFolderPath: "/a")?.overlay, .text("new"))
-    }
-
-    /// バッチ内で path が異なっても同じ fileID なら 1 行にまとめ、後の path が勝つ。
-    /// 事前の history にあった行の backupPath は、生き残った行に引き継がれる
-    func testUpsertAllCollapsesDuplicateFileIDsWithinBatchLastWins() throws {
-        try store.upsert(IconTask(folderPath: "/old/A", bookmarkData: Data(), backupPath: "/backups/k/original.png",
-                                  overlay: .text("0"), settings: CompositionSettings(), fileID: "vol:1"))
-        try store.upsertAll([
-            IconTask(folderPath: "/mid/A", bookmarkData: Data(), backupPath: nil,
-                     overlay: .text("1"), settings: CompositionSettings(), fileID: "vol:1"),
-            IconTask(folderPath: "/new/A", bookmarkData: Data(), backupPath: nil,
-                     overlay: .text("2"), settings: CompositionSettings(), fileID: "vol:1"),
-        ])
-        XCTAssertEqual(store.tasks.count, 1)
-        XCTAssertEqual(store.tasks.first?.folderPath, "/new/A")
-        XCTAssertEqual(store.tasks.first?.overlay, .text("2"))
-        XCTAssertEqual(store.tasks.first?.backupPath, "/backups/k/original.png")
-    }
-
-    func testUpsertAllLeavesMemoryUnchangedWhenSaveFails() throws {
-        let dir = tempHistoryURL.deletingLastPathComponent().appendingPathComponent("locked_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let s = HistoryStore(storageURL: dir.appendingPathComponent("history.json"))
-        try s.upsert(makeTask(folderPath: "/keep"))
-        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
-        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path) }
-        XCTAssertThrowsError(try s.upsertAll([makeTask(folderPath: "/new")]))
-        XCTAssertEqual(s.tasks.map(\.folderPath), ["/keep"])
-    }
-
     func testResaveFailureKeepsLoadedTasksAndSetsLoadError() throws {
         try store.upsert(makeTask())
         // 保存先を書き込み不可にして再読み込み → 読めた 1 件は残り、loadError が立つ
@@ -210,41 +159,5 @@ final class HistoryStoreTests: XCTestCase {
 
 
 
-    func testPendingJournalReturnsRowsLeftUnrecovered() throws {
-        XCTAssertTrue(store.pendingJournal().isEmpty)
-        try store.journal([makeTask(folderPath: "/p1"), makeTask(folderPath: "/p2")])
-        XCTAssertEqual(store.pendingJournal().map(\.folderPath), ["/p1", "/p2"])
-        store.clearJournal()
-        XCTAssertTrue(store.pendingJournal().isEmpty)
-    }
-
-
-    /// 一括適用の途中で終了しても、控え (ジャーナル) に残った行のうちアイコンが実際に付いているフォルダの分は
-    /// 次の起動で履歴へ取り込まれる。巻き戻し済み (Icon\r が無い) の行は取り込まない
-    func testRecoversPendingJournalOnInit() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("journal_\(UUID().uuidString)")
-        let applied = root.appendingPathComponent("applied"), rolledBack = root.appendingPathComponent("rolledBack")
-        try FileManager.default.createDirectory(at: applied, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: rolledBack, withIntermediateDirectories: true)
-        try Data().write(to: applied.appendingPathComponent("Icon\r"))
-        defer { try? FileManager.default.removeItem(at: root) }
-
-        try store.upsert(makeTask(folderPath: "/kept"))
-        try store.journal([makeTask(folderPath: applied.path), makeTask(folderPath: rolledBack.path, overlay: .text("t"))])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: store.journalURL.path))
-        let reopened = HistoryStore(storageURL: tempHistoryURL)
-        XCTAssertEqual(Set(reopened.tasks.map(\.folderPath)), ["/kept", applied.path])
-        XCTAssertFalse(FileManager.default.fileExists(atPath: reopened.journalURL.path))
-        XCTAssertNil(reopened.loadError)
-
-        // 履歴が読めない起動では取り込まず、控えも残す (数行だけの履歴を書いてしまわない)
-        try store.journal([makeTask(folderPath: applied.path)])
-        try Data("broken".utf8).write(to: tempHistoryURL)
-        let broken = HistoryStore(storageURL: tempHistoryURL)
-        XCTAssertNotNil(broken.loadError)
-        XCTAssertTrue(broken.tasks.isEmpty)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: broken.journalURL.path))
-        try? FileManager.default.removeItem(at: broken.journalURL)
-    }
 
 }

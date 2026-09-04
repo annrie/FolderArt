@@ -261,17 +261,6 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertEqual(ApplyCoordinator.bookmarkToRecord(new: nil, existing: nil), Data())
     }
 
-    /// 3 フォルダ適用で history.json の書き込みは 1 回
-    func testBatchWritesHistoryOnce() async throws {
-        let a = try folder("A"), b = try folder("B"), c = try folder("C")
-        let before = history.saveCount
-        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                              settings: CompositionSettings(), to: [a, b, c])
-        XCTAssertEqual(outcome.succeeded.count, 3)
-        XCTAssertEqual(history.saveCount, before + 1)
-        XCTAssertEqual(history.tasks.count, 3)
-    }
-
     /// 1 フォルダが無くても残りは成功として 1 回で保存される (部分失敗は従来どおり)
     func testPartialFailureStillSavesTheRest() async throws {
         let a = try folder("A")
@@ -283,14 +272,13 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertEqual(history.tasks.count, 1)
     }
 
-    /// 最終保存に失敗したら、その回に成功していた全フォルダを巻き戻し、全件失敗として報告
-    func testFinalSaveFailureRollsBackEveryAppliedFolder() async throws {
+    /// 履歴の保存に失敗したフォルダはアイコンを戻して失敗にする (フォルダごとに保存するので、失敗はそのフォルダに閉じる)
+    func testHistorySaveFailureRollsBackThatFolder() async throws {
         let a = try folder("A"), b = try folder("B")
         let locked = root.appendingPathComponent("locked")
         try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
         let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
-        // 履歴の保存だけ失敗させる (history.json をディレクトリにすると書き込みが失敗する)。
-        // 同じディレクトリの控え (history-pending.json) は書けるので、最終保存の巻き戻し経路に入る
+        // 履歴の保存だけ失敗させる (history.json をディレクトリにすると書き込みが失敗する)
         try FileManager.default.createDirectory(at: locked.appendingPathComponent("history.json"), withIntermediateDirectories: false)
         let freshIconManager = FolderIconManager(backupDirectory: root.appendingPathComponent("backups"))
         let c = ApplyCoordinator(history: lockedHistory, iconManager: freshIconManager)
@@ -375,52 +363,6 @@ final class ApplyCoordinatorTests: XCTestCase {
         NSWorkspace.shared.setIcon(nil, forFile: b.path, options: [])
     }
 
-    /// 一括適用の途中経過は控え (ジャーナル) に書かれ、最後の保存が済めば消える
-    func testJournalIsWrittenDuringTheBatchAndClearedAfterwards() async throws {
-        let a = try folder("A"), b = try folder("B")
-        var journalSeen = false
-        let journal = history.journalURL
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"), settings: CompositionSettings(),
-                                    to: [a, b]) { done, _ in
-            if done == 1 { journalSeen = FileManager.default.fileExists(atPath: journal.path) }
-        }
-        XCTAssertTrue(journalSeen)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: journal.path))
-        XCTAssertEqual(history.tasks.count, 2)
-    }
 
-
-    /// 控え (ジャーナル) に書けないフォルダは進めず、アイコンを戻して失敗にする (終了時に行の無いフォルダを作らない)
-    func testJournalWriteFailureRollsBackThatFolder() async throws {
-        let a = try folder("A")
-        try FileManager.default.createDirectory(at: history.journalURL, withIntermediateDirectories: true)   // ファイルとして書けない
-        defer { try? FileManager.default.removeItem(at: history.journalURL) }
-        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                              settings: CompositionSettings(), to: [a])
-        XCTAssertTrue(outcome.succeeded.isEmpty)
-        XCTAssertEqual(outcome.failed.count, 1)
-        XCTAssertTrue(outcome.failed.first?.reason.contains("控え") == true)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
-        XCTAssertTrue(history.tasks.isEmpty)
-    }
-
-
-    /// 前回回収できなかった控えは、次の一括適用で上書きされず一緒に履歴へ保存される。
-    /// 控えの行のフォルダに再適用しても、今の FolderArt のアイコンを「元のアイコン」としてバックアップしない
-    func testCarriesUnrecoveredJournalIntoTheNextBatch() async throws {
-        let a = try folder("A"), other = try folder("Other")
-        // 前回: A に適用したがその行は控えにしか残っていない (元は標準アイコンなので backupPath は nil)
-        let carriedA = IconTask(folderPath: a.standardizedFileURL.path, bookmarkData: Data(), backupPath: nil,
-                                overlay: .text("old"), settings: CompositionSettings(), fileID: FileIdentity.make(for: a))
-        try iconManager.applyIcon(overlayImage, to: a)
-        try history.journal([carriedA])
-
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                    settings: CompositionSettings(), to: [a, other])
-        XCTAssertEqual(Set(history.tasks.map(\.folderPath)), [a.standardizedFileURL.path, other.standardizedFileURL.path])
-        XCTAssertNil(history.task(forFolderPath: a.standardizedFileURL.path)?.backupPath)   // 控えの行を既存扱いした
-        XCTAssertFalse(iconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: history.journalURL.path))
-    }
 
 }
