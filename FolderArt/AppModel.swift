@@ -285,6 +285,68 @@ final class AppModel: ObservableObject {
         do { try presets.rename(preset, to: name) } catch { errorMessage = error.localizedDescription }
     }
 
+    static let packType = UTType(exportedAs: "com.example.folderart.pack", conformingTo: .json)
+    static let exportPackNotification = Notification.Name("FolderArt.exportPack")
+    static let importPackNotification = Notification.Name("FolderArt.importPack")
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    }
+
+    /// お気に入り全部を 1 ファイルに書き出す (NSSavePanel)
+    func exportPack() {
+        guard !isApplying, !presets.presets.isEmpty else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [Self.packType]
+        let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyyMMdd"
+        panel.nameFieldStringValue = "FolderArt-お気に入り-\(formatter.string(from: Date())).folderartpack"
+        panel.prompt = String(localized: "書き出す")
+        if panel.runModal() == .OK, let url = panel.url { exportPack(to: url) }
+    }
+
+    func exportPack(to url: URL) {
+        guard !isApplying else { return }
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try PackWriter.write(presets.presets, assets: assets, appVersion: appVersion)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            errorMessage = String(localized: "パックを書き出せませんでした: \(error.localizedDescription)")
+        }
+    }
+
+    /// パックを選んで読み込む (NSOpenPanel)
+    func importPackWithPanel() {
+        guard !isApplying else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [Self.packType, .json]
+        panel.prompt = String(localized: "読み込む")
+        if panel.runModal() == .OK, let url = panel.url { importPack(url: url) }
+    }
+
+    /// パックを読み込んでお気に入りに追加し、結果をアラートで伝える
+    func importPack(url: URL) {
+        guard !isApplying else { return }
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            let pack = try PackReader.read(data)
+            let summary = try PresetImporter.importPack(pack, into: presets, assets: assets)
+            errorMessage = summary.skippedIdentical == 0
+                ? String(localized: "\(summary.added) 件のお気に入りを追加しました。")
+                : String(localized: "\(summary.added) 件のお気に入りを追加しました (\(summary.skippedIdentical) 件は同じものがあるため省略)。")
+        } catch let error as PackError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = String(localized: "パックを読み込めません: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - 画像の回収
 
     /// 履歴・お気に入り・現在の選択のどれからも参照されない PNG を消す。

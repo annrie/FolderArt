@@ -48,7 +48,9 @@ struct ContentView: View {
                 onSave: { model.saveCurrentAsPreset() },
                 onApply: { model.applyPreset($0) },
                 onRename: { model.renamePreset($0, to: $1) },
-                onRemove: { model.removePreset($0) }
+                onRemove: { model.removePreset($0) },
+                onExport: { model.exportPack() },
+                onImport: { model.importPackWithPanel() }
             )
             Divider()
 
@@ -86,6 +88,9 @@ struct ContentView: View {
                 isApplying: model.isApplying
             )
         }
+        .onOpenURL { url in model.importPack(url: url) }
+        .onReceive(NotificationCenter.default.publisher(for: AppModel.exportPackNotification)) { _ in model.exportPack() }
+        .onReceive(NotificationCenter.default.publisher(for: AppModel.importPackNotification)) { _ in model.importPackWithPanel() }
         // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
         .onAppear { showError = (model.errorMessage != nil) }
         .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }

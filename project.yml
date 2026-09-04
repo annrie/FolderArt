@@ -37,6 +37,17 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSHumanReadableCopyright: "Copyright © 2026. All rights reserved."
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: FolderArt Preset Pack
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes: [com.example.folderart.pack]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.example.folderart.pack
+            UTTypeDescription: FolderArt Preset Pack
+            UTTypeConformsTo: [public.json]
+            UTTypeTagSpecification:
+              public.filename-extension: [folderartpack]
   FolderArtTests:
     type: bundle.unit-test
     platform: macOS
