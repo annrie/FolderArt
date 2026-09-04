@@ -9,6 +9,8 @@ final class HistoryStore: ObservableObject {
     private let store: CodableStore<[IconTask]>
     /// 壊れたファイルを退避してから保存する必要があるか (最初の保存で 1 回だけ)
     private var needsQuarantine = false
+    /// 保存した回数 (テスト用)
+    private(set) var saveCount = 0
 
     /// ~/Library/Application Support/FolderArt
     static var appSupportDirectory: URL {
@@ -47,6 +49,16 @@ final class HistoryStore: ObservableObject {
         tasks = updated
     }
 
+    /// 複数行を一度に反映して保存は 1 回。保存に失敗したらメモリ上の tasks も変えない。
+    func upsertAll(_ newTasks: [IconTask]) throws {
+        guard !newTasks.isEmpty else { return }
+        let merged = newTasks.map { task in Self.inheritingBackupPath(task, from: tasks.first { Self.sameFolder($0, task) }) }
+        var updated = tasks.filter { existing in !merged.contains { Self.sameFolder(existing, $0) } }
+        updated.insert(contentsOf: merged, at: 0)
+        try save(updated)
+        tasks = updated
+    }
+
     static func inheritingBackupPath(_ task: IconTask, from replaced: IconTask?) -> IconTask {
         guard task.backupPath == nil, let inherited = replaced?.backupPath else { return task }
         return task.withBackupPath(inherited)
@@ -71,6 +83,7 @@ final class HistoryStore: ObservableObject {
             needsQuarantine = false
         }
         try store.save(updated)
+        saveCount += 1
     }
 
     func task(forFolderPath path: String) -> IconTask? {

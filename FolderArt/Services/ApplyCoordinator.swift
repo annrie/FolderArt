@@ -55,18 +55,23 @@ final class ApplyCoordinator {
             return ApplyOutcome(succeeded: [], failed: failures)
         }
 
-        var succeeded: [URL] = []
+        struct Applied {
+            let folder: URL
+            let task: IconTask
+            let previousIcon: NSImage?
+            let createdBackup: Bool
+        }
+        var applied: [Applied] = []
         var failed: [ApplyFailure] = []
         let total = folders.count
 
         for (index, folder) in folders.enumerated() {
             var backupURL: URL?
-            var iconApplied = false
             // 今回の適用で新たにバックアップを作った場合だけ true。既存のバックアップ
             // (再適用時に履歴から引き継いだもの) を失敗時に消してしまわないための区別
             var createdBackup = false
-            // 巻き戻し先は「元のアイコン」ではなく適用直前の状態。再適用のときは前回の
-            // FolderArt アイコンに戻す (履歴の行は残っているので消してはいけない)
+            // 履歴の保存 (最後にまとめて 1 回) が失敗したときの巻き戻し先として使う。
+            // ここで撮る時点ではまだ何も変更していない
             let previousIcon = snapshotIcon(of: folder)
             let fileID = FileIdentity.make(for: folder)
             do {
@@ -82,7 +87,6 @@ final class ApplyCoordinator {
                     createdBackup = !hadBackup && backupURL != nil
                 }
                 try iconManager.applyIcon(icon, to: folder)
-                iconApplied = true
                 // ブックマークは再起動後のリセット用。新規作成に失敗しても、再適用なら以前の
                 // ブックマークを引き継ぐ。どちらも無ければ空 Data で記録し、適用自体は成功扱い
                 let bookmark = Self.bookmarkToRecord(
@@ -97,33 +101,37 @@ final class ApplyCoordinator {
                     settings: settings,
                     fileID: fileID
                 )
-                try history.upsert(task)
-                succeeded.append(folder)
+                applied.append(Applied(folder: folder, task: task, previousIcon: previousIcon, createdBackup: createdBackup))
             } catch {
-                // 履歴に残せなかったフォルダはアイコンを適用直前に戻し、「失敗 = 変更なし」を保つ
-                var reason = error.localizedDescription
-                // 巻き戻しを試みていない (iconApplied == false) 場合はフォルダのアイコンに
-                // 手を付けていないので「成功」扱いにしておく
-                var rollbackSucceeded = true
-                if iconApplied {
-                    rollbackSucceeded = NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: [])
-                    if !rollbackSucceeded {
-                        reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)"
-                    }
-                }
-                // 今回新たに作ったバックアップも巻き戻す。残すと履歴に行が無いのに
-                // バックアップだけが残り、次回の適用時に誤って「元のアイコン」として使われる。
-                // ただし巻き戻し自体が失敗した場合は、このバックアップがユーザーの元アイコンを
-                // 復元できる唯一の手がかりになるため消してはいけない
-                if Self.shouldRemoveFreshBackup(createdBackup: createdBackup, rollbackSucceeded: rollbackSucceeded) {
+                // ここに来る時点ではフォルダのアイコンはまだ変更していない (バックアップ作成か
+                // アイコンの適用自体が失敗しただけ) ので、アイコンを戻す必要はない。
+                // 今回新たに作ったバックアップだけ、使われないまま残さず消す
+                if createdBackup {
                     iconManager.removeBackup(for: folder)
                 }
-                failed.append(ApplyFailure(folder: folder, reason: reason))
+                failed.append(ApplyFailure(folder: folder, reason: error.localizedDescription))
             }
             progress(index + 1, total)
             await Task.yield()   // 進捗表示を描画させる
         }
-        return ApplyOutcome(succeeded: succeeded, failed: failed)
+
+        // 履歴は最後に 1 回だけ保存。失敗したら、この回に成功した全フォルダを直前の状態に戻す
+        do {
+            try history.upsertAll(applied.map(\.task))
+        } catch {
+            let base = String(localized: "履歴の保存に失敗しました: \(error.localizedDescription)")
+            for item in applied {
+                var reason = base
+                let rollbackSucceeded = NSWorkspace.shared.setIcon(item.previousIcon, forFile: item.folder.path, options: [])
+                if !rollbackSucceeded { reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(item.folder).localizedDescription)" }
+                if Self.shouldRemoveFreshBackup(createdBackup: item.createdBackup, rollbackSucceeded: rollbackSucceeded) {
+                    iconManager.removeBackup(for: item.folder)
+                }
+                failed.append(ApplyFailure(folder: item.folder, reason: reason))
+            }
+            return ApplyOutcome(succeeded: [], failed: failed)
+        }
+        return ApplyOutcome(succeeded: applied.map(\.folder), failed: failed)
     }
 
     /// 記録するブックマークを決める純粋関数。新規作成に成功すればそれを使い、失敗したら

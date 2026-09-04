@@ -122,6 +122,26 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.referencedAssetIDs, [id])
     }
 
+    func testUpsertAllSavesOnceAndReplacesByFolder() throws {
+        try store.upsert(makeTask(folderPath: "/a", overlay: .text("old")))
+        let before = store.saveCount
+        try store.upsertAll([makeTask(folderPath: "/a", overlay: .text("new")), makeTask(folderPath: "/b")])
+        XCTAssertEqual(store.saveCount, before + 1)
+        XCTAssertEqual(store.tasks.map(\.folderPath), ["/a", "/b"])
+        XCTAssertEqual(store.task(forFolderPath: "/a")?.overlay, .text("new"))
+    }
+
+    func testUpsertAllLeavesMemoryUnchangedWhenSaveFails() throws {
+        let dir = tempHistoryURL.deletingLastPathComponent().appendingPathComponent("locked_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let s = HistoryStore(storageURL: dir.appendingPathComponent("history.json"))
+        try s.upsert(makeTask(folderPath: "/keep"))
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path) }
+        XCTAssertThrowsError(try s.upsertAll([makeTask(folderPath: "/new")]))
+        XCTAssertEqual(s.tasks.map(\.folderPath), ["/keep"])
+    }
+
     func testResaveFailureKeepsLoadedTasksAndSetsLoadError() throws {
         try store.upsert(makeTask())
         // 保存先を書き込み不可にして再読み込み → 読めた 1 件は残り、loadError が立つ

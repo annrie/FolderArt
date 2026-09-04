@@ -261,6 +261,49 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertEqual(ApplyCoordinator.bookmarkToRecord(new: nil, existing: nil), Data())
     }
 
+    /// 3 フォルダ適用で history.json の書き込みは 1 回
+    func testBatchWritesHistoryOnce() async throws {
+        let a = try folder("A"), b = try folder("B"), c = try folder("C")
+        let before = history.saveCount
+        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                              settings: CompositionSettings(), to: [a, b, c])
+        XCTAssertEqual(outcome.succeeded.count, 3)
+        XCTAssertEqual(history.saveCount, before + 1)
+        XCTAssertEqual(history.tasks.count, 3)
+    }
+
+    /// 1 フォルダが無くても残りは成功として 1 回で保存される (部分失敗は従来どおり)
+    func testPartialFailureStillSavesTheRest() async throws {
+        let a = try folder("A")
+        let missing = root.appendingPathComponent("missing")
+        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                              settings: CompositionSettings(), to: [a, missing])
+        XCTAssertEqual(outcome.succeeded.map(\.lastPathComponent), ["A"])
+        XCTAssertEqual(outcome.failed.map { $0.folder.lastPathComponent }, ["missing"])
+        XCTAssertEqual(history.tasks.count, 1)
+    }
+
+    /// 最終保存に失敗したら、その回に成功していた全フォルダを巻き戻し、全件失敗として報告
+    func testFinalSaveFailureRollsBackEveryAppliedFolder() async throws {
+        let a = try folder("A"), b = try folder("B")
+        let locked = root.appendingPathComponent("locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        let c = ApplyCoordinator(history: lockedHistory, iconManager: FolderIconManager(backupDirectory: root.appendingPathComponent("backups")))
+
+        let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                    settings: CompositionSettings(), to: [a, b])
+        XCTAssertTrue(outcome.succeeded.isEmpty)
+        XCTAssertEqual(outcome.failed.count, 2)
+        XCTAssertTrue(outcome.failed.allSatisfy { $0.reason.contains("履歴の保存に失敗") })
+        for f in [a, b] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: f.appendingPathComponent("Icon\r").path))
+        }
+        XCTAssertTrue(lockedHistory.tasks.isEmpty)
+    }
+
     func testShouldRemoveFreshBackupTruthTable() {
         // 新規バックアップがあり、巻き戻しにも成功 → もう不要なので消してよい
         XCTAssertTrue(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: true, rollbackSucceeded: true))
