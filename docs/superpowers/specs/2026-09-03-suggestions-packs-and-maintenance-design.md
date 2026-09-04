@@ -163,13 +163,15 @@ UTExportedTypeDeclarations:
 ### 5.1 移動したフォルダの履歴の同一性
 
 - `IconTask` に `fileID: String?` を追加。値は `<volumeUUID>:<inode>` の形で、`URLResourceKey.volumeUUIDStringKey` と `FileManager.attributesOfItem(atPath:)[.systemFileNumber]` (inode 番号) から作る (どちらかが取れなければ `nil`)。`fileResourceIdentifierKey` は使わない: inode に加えてマウント時に決まるファイルシステム ID を含み、再起動や外付けボリュームの抜き差しをまたぐと値が変わるため (Apple の文書でも "not persistent across system restarts")。`decodeIfPresent` で読むので既存の v2 行は `nil`。版数 (`currentVersion = 2`) は変えない。
-- 効く範囲: 同一ボリューム内の名前変更・移動。コピーや別ボリュームへの移動、削除して作り直したフォルダは別物として扱う (path 比較に落ちる)。
+- 効く範囲: 同一ボリューム内の名前変更・移動。コピーや別ボリュームへの移動、削除して作り直したフォルダは別物として扱う (path 比較に落ちる)。値には作成日時 (改名・移動で不変) も含め、削除後に inode が再利用されても別物になるようにする。**行と現在のフォルダの両方に `fileID` があるときは `fileID` だけで判定する** (path が同じでも別物: 移動した後に同じ場所へ作った別のフォルダ)。
 - 適用時に `fileID` を取得して記録する。取得できなければ `nil`。
 - `HistoryStore.upsert` は「`folderPath` が同じ」または「`fileID` が同じ (nil 同士は不一致)」の行を置き換える。置き換え時は既存行の `backupPath` を引き継ぐ (第1段階の規則どおり)。
-- バックアップの鍵は引き続き適用時の path (base64) だが、**参照は常に行の `backupPath` を正とする**。リセット後のバックアップ削除 (`removeBackup`) も現在の URL から鍵を導くのではなく `task.backupPath` の親ディレクトリを消す。これで移動後も掃除 (§5.3) と整合する。
+- バックアップの鍵は `fileID` (取れなければ適用時の path) の base64。path だけを鍵にすると、フォルダを移動した後に同じ場所へ作った別のフォルダが古いバックアップを「元のアイコン」として拾ってしまう。**参照は常に行の `backupPath` を正とする** (鍵の形が変わっても既存の行のリセットには影響しない)。リセット後のバックアップ削除 (`removeBackup`) も現在の URL から鍵を導くのではなく `task.backupPath` の親ディレクトリを消す。これで移動後も掃除 (§5.3) と整合する。
 - テスト: 同じ `fileID` で path が違う行を upsert すると 1 行に置き換わる。`fileID` が nil 同士の別 path は 2 行のまま。
 
 ### 5.2 一括適用の履歴書き込みを 1 回に
+
+- 途中経過の控え: 成功した行はフォルダごとに `history-pending.json` (履歴と同じディレクトリ) に書き、最後の保存または巻き戻しの後に消す。保存の前にアプリが終了しても、次の起動 (履歴が読めたときだけ) で履歴へ取り込む。読めない起動では取り込まず控えも残す。
 
 - `HistoryStore.upsertAll(_ tasks: [IconTask]) throws`: 現在の `tasks` から置き換え規則で `updated` を組み、`save(updated)` が成功してから `tasks = updated` を代入する (第1段階の `upsert` と同じ「保存してから反映」)。失敗時はメモリ上の履歴も変わらない。テストは `history.json` だけでなくメモリ上の `tasks` も検査する。
 - `ApplyCoordinator.apply`: フォルダごとに バックアップ → 適用 → ブックマーク を行い、成功した分の `IconTask` と巻き戻し用スナップショットを溜める。**フォルダ単位の失敗 (存在しない、書けない) は従来どおり部分失敗** として集計し、残りは続ける。ループ後に成功分だけを `upsertAll` で 1 回保存する。**この最終保存だけが失敗した場合**、その回に適用が成功した全フォルダを直前のスナップショットに巻き戻し、それらを失敗として報告する (理由に「履歴の保存に失敗」)。第1段階の「失敗 = 変更なし」を保つ。
