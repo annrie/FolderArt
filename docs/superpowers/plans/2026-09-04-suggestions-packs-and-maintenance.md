@@ -4,7 +4,7 @@
 
 **Goal:** フォルダ名から記号・絵文字・文字・お気に入りを提案し、お気に入りを `.folderartpack` で配布でき、履歴の同一性・書き込み回数・掃除の持ち越しを片付けた FolderArt 1.3.0 を作る。
 
-**Architecture:** 提案は純関数 `SuggestionEngine` (同梱辞書 + `SymbolCatalog` の検索語 + 規則) が `[Suggestion]` を返し、`AppModel` がフォルダ選択の変化に合わせて再計算して `SuggestionStripView` に流す。パックは `PackWriter` / `PackReader` / `PresetImporter` の 3 部品で、`PresetStore.addAll` により 1 回の保存で取り込む。履歴は `fileID` (ボリューム UUID + ファイル ID) で同一性を判定し、一括適用は `HistoryStore.upsertAll` で最後に 1 回だけ保存する。
+**Architecture:** 提案は純関数 `SuggestionEngine` (同梱辞書 + `SymbolCatalog` の検索語 + 規則) が `[Suggestion]` を返し、`AppModel` がフォルダ選択の変化に合わせて再計算して `SuggestionStripView` に流す。パックは `PackWriter` / `PackReader` / `PresetImporter` の 3 部品で、`PresetStore.addAll` により 1 回の保存で取り込む。履歴は `fileID` (ボリューム UUID + inode 番号) で同一性を判定し、一括適用は `HistoryStore.upsertAll` で最後に 1 回だけ保存する。
 
 **Tech Stack:** Swift 5.9, SwiftUI + AppKit, macOS 13.0+, XcodeGen (project.yml が正), XCTest。
 
