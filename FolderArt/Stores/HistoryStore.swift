@@ -36,12 +36,27 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    /// 同じ folderPath の行があれば置き換え、先頭に置く
+    /// 同じ folderPath か、同じ fileID (nil 同士は不一致) の行があれば置き換え、先頭に置く。
+    /// 置き換えられる行が backupPath を持ち、新しい行が持たなければ引き継ぐ (元アイコンの記録を失わない)
     func upsert(_ task: IconTask) throws {
-        var updated = tasks.filter { $0.folderPath != task.folderPath }
-        updated.insert(task, at: 0)
+        let replaced = tasks.first { Self.sameFolder($0, task) }
+        let merged = Self.inheritingBackupPath(task, from: replaced)
+        var updated = tasks.filter { !Self.sameFolder($0, merged) }
+        updated.insert(merged, at: 0)
         try save(updated)
         tasks = updated
+    }
+
+    static func inheritingBackupPath(_ task: IconTask, from replaced: IconTask?) -> IconTask {
+        guard task.backupPath == nil, let inherited = replaced?.backupPath else { return task }
+        return task.withBackupPath(inherited)
+    }
+
+    /// 同じフォルダか。両方に fileID があるときはそれだけで判定する (path が同じでも別のフォルダ:
+    /// 元のフォルダを移動した後、同じ場所に別のフォルダを作った場合)。片方でも無ければ path で判定
+    static func sameFolder(_ a: IconTask, _ b: IconTask) -> Bool {
+        if let x = a.fileID, let y = b.fileID { return x == y }
+        return a.folderPath == b.folderPath
     }
 
     func remove(_ task: IconTask) throws {
@@ -61,6 +76,17 @@ final class HistoryStore: ObservableObject {
 
     func task(forFolderPath path: String) -> IconTask? {
         tasks.first { $0.folderPath == path }
+    }
+
+    /// path か fileID で一致する行。行と引数の両方に fileID があるときは fileID だけで判定する (sameFolder と同じ規則)
+    func task(forFolderPath path: String, fileID: String?) -> IconTask? {
+        tasks.first { Self.matches($0, folderPath: path, fileID: fileID) }
+    }
+
+    /// 行が (path, fileID) のフォルダを指すか。両方に fileID があれば fileID だけで判定
+    static func matches(_ row: IconTask, folderPath path: String, fileID: String?) -> Bool {
+        if let mine = row.fileID, let theirs = fileID { return mine == theirs }
+        return row.folderPath == path
     }
 
     var referencedAssetIDs: Set<UUID> {

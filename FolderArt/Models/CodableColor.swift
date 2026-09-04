@@ -23,6 +23,11 @@ struct CodableColor: Codable, Equatable, Sendable {
     var nsColor: NSColor {
         NSColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
     }
+
+    /// 各成分が有限で 0...1 に収まっていること (NaN は contains が false を返す)
+    var isValid: Bool {
+        [red, green, blue, alpha].allSatisfy { (0.0...1.0).contains($0) }
+    }
 }
 
 /// 文字系オーバーレイの太さ。第1段階では UI に出さず初期値 (.bold) のみ使う。

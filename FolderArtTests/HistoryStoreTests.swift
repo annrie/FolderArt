@@ -91,6 +91,30 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.tasks.count, 1)
     }
 
+    func testUpsertReplacesRowWithSameFileIDEvenIfPathChanged() throws {
+        try store.upsert(IconTask(folderPath: "/old/A", bookmarkData: Data(), backupPath: nil,
+                                  overlay: .text("1"), settings: CompositionSettings(), fileID: "vol:1"))
+        try store.upsert(IconTask(folderPath: "/new/A", bookmarkData: Data(), backupPath: nil,
+                                  overlay: .text("2"), settings: CompositionSettings(), fileID: "vol:1"))
+        XCTAssertEqual(store.tasks.count, 1)
+        XCTAssertEqual(store.tasks.first?.folderPath, "/new/A")
+        XCTAssertEqual(store.task(forFolderPath: "/gone", fileID: "vol:1")?.overlay, .text("2"))
+    }
+
+    func testUpsertInheritsBackupPathFromReplacedRow() throws {
+        try store.upsert(IconTask(folderPath: "/a", bookmarkData: Data(), backupPath: "/backups/k/original.png",
+                                  overlay: .text("1"), settings: CompositionSettings()))
+        try store.upsert(makeTask(folderPath: "/a", overlay: .text("2")))   // backupPath nil
+        XCTAssertEqual(store.tasks.first?.backupPath, "/backups/k/original.png")
+        XCTAssertEqual(store.tasks.first?.overlay, .text("2"))
+    }
+
+    func testNilFileIDsNeverMatchEachOther() throws {
+        try store.upsert(makeTask(folderPath: "/a"))
+        try store.upsert(makeTask(folderPath: "/b"))
+        XCTAssertEqual(store.tasks.count, 2)
+    }
+
     func testReferencedAssetIDs() throws {
         let id = UUID()
         try store.upsert(makeTask(folderPath: "/a", overlay: .image(assetID: id)))
@@ -115,4 +139,25 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(s.tasks.count, 1)
         XCTAssertNotNil(s.loadError)
     }
+
+    /// 元のフォルダを移動した後、同じ場所に別のフォルダを作った場合: path が同じでも fileID が違えば別物
+    func testSamePathWithDifferentFileIDsIsNotTheSameFolder() throws {
+        let old = IconTask(folderPath: "/a", bookmarkData: Data(), backupPath: "/backups/old/original.png",
+                           overlay: .symbol(name: "star.fill"), settings: CompositionSettings(), fileID: "vol:1")
+        let new = IconTask(folderPath: "/a", bookmarkData: Data(), backupPath: nil,
+                           overlay: .text("new"), settings: CompositionSettings(), fileID: "vol:2")
+        try store.upsert(old)
+        try store.upsert(new)
+        XCTAssertEqual(store.tasks.count, 2)
+        XCTAssertEqual(store.task(forFolderPath: "/a", fileID: "vol:2")?.overlay, .text("new"))
+        XCTAssertNil(store.task(forFolderPath: "/a", fileID: "vol:2")?.backupPath)   // 移動した方のバックアップを継がない
+        XCTAssertEqual(store.task(forFolderPath: "/a", fileID: "vol:1")?.overlay, .symbol(name: "star.fill"))
+        // 片方に fileID が無ければ従来どおり path で一致する
+        XCTAssertNotNil(store.task(forFolderPath: "/a", fileID: nil))
+        XCTAssertNil(store.task(forFolderPath: "/b", fileID: "vol:9"))
+    }
+
+
+
+
 }

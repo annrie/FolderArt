@@ -4,6 +4,13 @@ import Foundation
 struct SymbolCatalog {
     let names: [String]
     let searchTerms: [String: [String]]   // テストから memberwise init で注入できるよう internal
+    let nameSet: Set<String>              // names の高速検索用。別ファイルの extension からは private が見えないため internal
+
+    init(names: [String], searchTerms: [String: [String]]) {
+        self.names = names
+        self.searchTerms = searchTerms
+        self.nameSet = Set(names)
+    }
 
     /// 画面で使う共有インスタンス。読み込みは数千件の plist を舐めるので 1 回だけにする
     static let shared = SymbolCatalog.load()
@@ -36,8 +43,7 @@ struct SymbolCatalog {
     func search(_ query: String, limit: Int = 240) -> [String] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         if q.isEmpty {
-            let set = Set(names)
-            let popular = Self.popularNames.filter { set.contains($0) }
+            let popular = Self.popularNames.filter { nameSet.contains($0) }
             return Array((popular + names.filter { !popular.contains($0) }).prefix(limit))
         }
         var exact: [String] = []
@@ -56,6 +62,19 @@ struct SymbolCatalog {
             }
         }
         return Array((exact + prefixMatches + substringMatches + termMatches).prefix(limit))
+    }
+
+    /// カタログに存在する記号名か。
+    func contains(_ name: String) -> Bool { nameSet.contains(name) }
+
+    /// 検索語 (symbol_search.plist) が term に一致する記号名。アルファベット順。
+    func names(forTerm term: String) -> [String] {
+        let t = term.lowercased()
+        return searchTerms
+            .filter { $0.value.contains { $0.lowercased() == t } }
+            .map(\.key)
+            .filter { nameSet.contains($0) }
+            .sorted()
     }
 
     // MARK: - Loading

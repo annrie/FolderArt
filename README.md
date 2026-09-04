@@ -31,6 +31,8 @@ macOS のフォルダーアイコンにカスタム画像を合成してアイ�
 - 記号と文字の色を指定 — Tint color for symbols and text
 - お気に入り: 見た目 (オーバーレイ + 設定) を保存し 1 クリックで復元 — Presets: save a look and restore it in one click
 - 複数フォルダへの一括適用、行を選べば一部だけに再適用 — Batch apply to many folders; select rows to re-apply to a subset
+- フォルダ名からの自動提案: 記号・絵文字・文字・お気に入りの候補をタブの上に最大 3 つ表示 — Suggestions from the folder name: up to three symbol / emoji / text / preset candidates above the tabs
+- お気に入りパック (`.folderartpack`): お気に入りを 1 ファイルで書き出し・読み込み、ダブルクリックで取り込み — Preset packs (`.folderartpack`): export and import all presets as one file; double-click to import
 - プレビューに hover で拡大表示と 16/32/64/128px の実寸 — Hover the preview to enlarge it and see 16/32/64/128px renderings
 - ドラッグ&ドロップ (複数フォルダ、ウィンドウ任意位置への画像) — Drag & drop (multiple folders, images anywhere in the window)
 - 位置・サイズ・不透明度・上下位置・フォルダ形切り抜き — Position, size, opacity, vertical offset, clip to folder shape
@@ -41,7 +43,7 @@ macOS のフォルダーアイコンにカスタム画像を合成してアイ�
 
 ## スクリーンショット
 
-<img width="712" height="819" alt="Image" src="https://github.com/user-attachments/assets/9b2ec7b7-9839-46d6-8b8c-5e8a6306b166" />
+<img width="760" alt="FolderArt 1.3.0" src="docs/images/main.png" />
 
 ## 動作環境
 

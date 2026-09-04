@@ -120,7 +120,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         try manual.applyIcon(red, to: a)
         _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
                                     settings: CompositionSettings(), to: [a])
-        let backupDir = iconManager.backupFolder(for: a)
+        let backupDir = iconManager.backupFolder(for: a, fileID: FileIdentity.make(for: a))   // 鍵は同一性 (fileID)
         XCTAssertTrue(FileManager.default.fileExists(atPath: backupDir.path))
 
         try coordinator.reset(folder: a)
@@ -147,7 +147,7 @@ final class ApplyCoordinatorTests: XCTestCase {
 
         let task = try XCTUnwrap(history.task(forFolderPath: a.standardizedFileURL.path))
         XCTAssertNil(task.backupPath)
-        XCTAssertFalse(iconManager.backupExists(for: a))
+        XCTAssertFalse(iconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
 
         try coordinator.reset(folder: a)
         XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
@@ -190,7 +190,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
                                     settings: CompositionSettings(), to: [a])
         XCTAssertEqual(outcome.failed.count, 1)
-        XCTAssertFalse(iconManager.backupExists(for: a))
+        XCTAssertFalse(iconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
     }
 
     func testHistoryWriteFailureRollsBackIcon() async throws {
@@ -261,6 +261,43 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertEqual(ApplyCoordinator.bookmarkToRecord(new: nil, existing: nil), Data())
     }
 
+    /// 1 フォルダが無くても残りは成功として 1 回で保存される (部分失敗は従来どおり)
+    func testPartialFailureStillSavesTheRest() async throws {
+        let a = try folder("A")
+        let missing = root.appendingPathComponent("missing")
+        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                              settings: CompositionSettings(), to: [a, missing])
+        XCTAssertEqual(outcome.succeeded.map(\.lastPathComponent), ["A"])
+        XCTAssertEqual(outcome.failed.map { $0.folder.lastPathComponent }, ["missing"])
+        XCTAssertEqual(history.tasks.count, 1)
+    }
+
+    /// 履歴の保存に失敗したフォルダはアイコンを戻して失敗にする (フォルダごとに保存するので、失敗はそのフォルダに閉じる)
+    func testHistorySaveFailureRollsBackThatFolder() async throws {
+        let a = try folder("A"), b = try folder("B")
+        let locked = root.appendingPathComponent("locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
+        // 履歴の保存だけ失敗させる (history.json をディレクトリにすると書き込みが失敗する)
+        try FileManager.default.createDirectory(at: locked.appendingPathComponent("history.json"), withIntermediateDirectories: false)
+        let freshIconManager = FolderIconManager(backupDirectory: root.appendingPathComponent("backups"))
+        let c = ApplyCoordinator(history: lockedHistory, iconManager: freshIconManager)
+
+        let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                    settings: CompositionSettings(), to: [a, b])
+        XCTAssertTrue(outcome.succeeded.isEmpty)
+        XCTAssertEqual(outcome.failed.count, 2)
+        XCTAssertTrue(outcome.failed.allSatisfy { $0.reason.contains("履歴の保存に失敗") })
+        for f in [a, b] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: f.appendingPathComponent("Icon\r").path))
+        }
+        // どちらも新規フォルダ (元のバックアップ無し) だったので、巻き戻し成功後は
+        // 今回新たに作ったバックアップが消えているはず (使われないまま残ってはいけない)
+        XCTAssertFalse(freshIconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
+        XCTAssertFalse(freshIconManager.backupExists(for: b, fileID: FileIdentity.make(for: b)))
+        XCTAssertTrue(lockedHistory.tasks.isEmpty)
+    }
+
     func testShouldRemoveFreshBackupTruthTable() {
         // 新規バックアップがあり、巻き戻しにも成功 → もう不要なので消してよい
         XCTAssertTrue(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: true, rollbackSucceeded: true))
@@ -270,4 +307,62 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertFalse(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: false, rollbackSucceeded: true))
         XCTAssertFalse(ApplyCoordinator.shouldRemoveFreshBackup(createdBackup: false, rollbackSucceeded: false))
     }
+
+    /// 改名・移動したフォルダも fileID で見つけてリセットできる (履歴の行は古い path のまま)
+    func testResetByFolderFindsRenamedFolderViaFileID() async throws {
+        let a = try folder("A")
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                    settings: CompositionSettings(), to: [a])
+        XCTAssertEqual(history.tasks.count, 1)
+        let moved = root.appendingPathComponent("A-moved")
+        try FileManager.default.moveItem(at: a, to: moved)
+        try coordinator.reset(folder: moved)
+        XCTAssertTrue(history.tasks.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: moved.appendingPathComponent("Icon\r").path))
+    }
+
+
+    /// 同じ実体のフォルダを実パスとシンボリックリンクの両方で渡しても適用は 1 回、履歴も 1 行
+    /// (2 回目に進むと 1 回目が付けたアイコンを「元のアイコン」としてバックアップしてしまう)
+    func testSameFolderViaSymlinkIsAppliedOnce() async throws {
+        let a = try folder("A")
+        let link = root.appendingPathComponent("A-link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: a)
+        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                              settings: CompositionSettings(), to: [a, link])
+        XCTAssertEqual(outcome.succeeded.count, 1)
+        XCTAssertTrue(outcome.failed.isEmpty)
+        XCTAssertEqual(history.tasks.count, 1)
+        XCTAssertNil(history.tasks.first?.backupPath)   // 元は標準アイコンなのでバックアップは無いまま
+    }
+
+
+    /// 適用済みのフォルダを移動した後、同じ場所に別のフォルダ (自前のカスタムアイコン付き) を作って適用しても、
+    /// 移動したフォルダのバックアップを拾わず、自分のバックアップを新しく取る
+    func testNewFolderAtVacatedPathGetsItsOwnBackup() async throws {
+        let a = try folder("A")
+        let red = TestSupport.makeSolidImage(size: CGSize(width: 32, height: 32), color: .red)
+        XCTAssertTrue(NSWorkspace.shared.setIcon(red, forFile: a.path, options: []))
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"), settings: CompositionSettings(), to: [a])
+        let movedRow = try XCTUnwrap(history.tasks.first)
+        let movedBackup = try XCTUnwrap(movedRow.backupPath)
+
+        let b = root.appendingPathComponent("B")
+        try FileManager.default.moveItem(at: a, to: b)
+        let newA = try folder("A")
+        let blue = TestSupport.makeSolidImage(size: CGSize(width: 32, height: 32), color: .blue)
+        XCTAssertTrue(NSWorkspace.shared.setIcon(blue, forFile: newA.path, options: []))
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"), settings: CompositionSettings(), to: [newA])
+
+        XCTAssertEqual(history.tasks.count, 2)
+        let newRow = try XCTUnwrap(history.tasks.first { $0.fileID != movedRow.fileID })
+        let newBackup = try XCTUnwrap(newRow.backupPath)
+        XCTAssertNotEqual(newBackup, movedBackup)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: movedBackup))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: newBackup))
+        NSWorkspace.shared.setIcon(nil, forFile: b.path, options: [])
+    }
+
+
+
 }

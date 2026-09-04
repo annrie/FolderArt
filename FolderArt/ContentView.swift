@@ -30,11 +30,14 @@ struct ContentView: View {
                     state: model.overlay,
                     catalog: SymbolCatalog.shared,
                     onPickImage: { model.selectImageWithPanel() },
-                    onDrop: { model.handleDroppedURLs($0) }
+                    onDrop: { model.handleDroppedURLs($0) },
+                    suggestions: model.suggestions,
+                    isApplying: model.isApplying,
+                    onPickSuggestion: { model.applySuggestion($0) }
                 )
                 .frame(minWidth: 380)
             }
-            .frame(height: 260)
+            .frame(height: 304)   // 提案の帯 36pt + VStack の間隔 8pt を上乗せ
             .padding(12)
 
             PresetStripView(
@@ -45,7 +48,9 @@ struct ContentView: View {
                 onSave: { model.saveCurrentAsPreset() },
                 onApply: { model.applyPreset($0) },
                 onRename: { model.renamePreset($0, to: $1) },
-                onRemove: { model.removePreset($0) }
+                onRemove: { model.removePreset($0) },
+                onExport: { model.exportPack() },
+                onImport: { model.importPackWithPanel() }
             )
             Divider()
 
@@ -83,9 +88,14 @@ struct ContentView: View {
                 isApplying: model.isApplying
             )
         }
+        .onOpenURL { url in Task { await model.importPack(url: url) } }
+        .onReceive(NotificationCenter.default.publisher(for: AppModel.exportPackNotification)) { _ in model.exportPack() }
+        .onReceive(NotificationCenter.default.publisher(for: AppModel.importPackNotification)) { _ in model.importPackWithPanel() }
         // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
         .onAppear { showError = (model.errorMessage != nil) }
         .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
+        // OK 以外 (Esc など) で閉じても errorMessage を戻す。残したままだと同じ文言の次の知らせが onChange で拾えない
+        .onChange(of: showError) { shown in if !shown { model.errorMessage = nil } }
         .alert("お知らせ", isPresented: $showError) {
             Button("OK") { model.errorMessage = nil }
         } message: {

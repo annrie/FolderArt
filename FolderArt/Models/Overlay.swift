@@ -33,6 +33,15 @@ enum Overlay: Codable, Equatable, Hashable, Sendable {
         }
     }
 
+    /// 文字・絵文字は空白だけだと描けない (OverlayRenderer が trim して nil を返す)。パックの検証で使う
+    var hasRenderablePayload: Bool {
+        switch self {
+        case .text(let s), .emoji(let s): return !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .symbol(let name):           return !name.isEmpty
+        case .image, .legacyImage:        return true
+        }
+    }
+
     var canReapply: Bool {
         if case .legacyImage = self { return false }
         return true

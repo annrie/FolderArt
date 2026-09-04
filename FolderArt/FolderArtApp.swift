@@ -12,5 +12,15 @@ struct FolderArtApp: App {
         .windowStyle(.titleBar)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 760, height: 720)
+        .commands {
+            CommandGroup(after: .importExport) {
+                Button("お気に入りのパックを書き出す…") {
+                    NotificationCenter.default.post(name: AppModel.exportPackNotification, object: nil)
+                }
+                Button("お気に入りのパックを読み込む…") {
+                    NotificationCenter.default.post(name: AppModel.importPackNotification, object: nil)
+                }
+            }
+        }
     }
 }

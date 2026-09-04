@@ -21,11 +21,13 @@ struct ApplyOutcome {
 enum ApplyError: LocalizedError {
     case composeFailed
     case bookmarkUnavailable
+    case historySaveFailed(Error)
 
     var errorDescription: String? {
         switch self {
         case .composeFailed:       return String(localized: "アイコンの合成に失敗しました")
         case .bookmarkUnavailable: return String(localized: "フォルダーへのアクセスが無効になっています。")
+        case .historySaveFailed(let e): return String(localized: "履歴の保存に失敗しました: \(e.localizedDescription)")
         }
     }
 }
@@ -57,27 +59,36 @@ final class ApplyCoordinator {
 
         var succeeded: [URL] = []
         var failed: [ApplyFailure] = []
+        var seenFileIDs = Set<String>()
         let total = folders.count
 
         for (index, folder) in folders.enumerated() {
+            // 同じ実体のフォルダが別の path (実パスとシンボリックリンクなど) で 2 回来たら 2 回目は飛ばす。
+            // 進むと 1 回目が付けたアイコンを「元のアイコン」としてバックアップしてしまう
+            if let id = FileIdentity.make(for: folder), !seenFileIDs.insert(id).inserted {
+                progress(index + 1, total)
+                continue
+            }
             var backupURL: URL?
-            var iconApplied = false
             // 今回の適用で新たにバックアップを作った場合だけ true。既存のバックアップ
             // (再適用時に履歴から引き継いだもの) を失敗時に消してしまわないための区別
             var createdBackup = false
-            // 巻き戻し先は「元のアイコン」ではなく適用直前の状態。再適用のときは前回の
-            // FolderArt アイコンに戻す (履歴の行は残っているので消してはいけない)
+            // アイコンを書き換えた後で失敗 (履歴の保存) したら、ここに戻す
+            var iconApplied = false
+            var rollbackFailed = false
             let previousIcon = snapshotIcon(of: folder)
+            let fileID = FileIdentity.make(for: folder)
             do {
-                let existing = history.task(forFolderPath: folder.standardizedFileURL.path)
+                let existing = history.task(forFolderPath: folder.standardizedFileURL.path, fileID: fileID)
                 if let existing {
                     // 再適用: 最初の適用時に記録した元アイコン (nil = 元は標準アイコン) をそのまま引き継ぐ。
                     // ここで backupCurrentIcon を呼ぶと、前回 FolderArt が付けた Icon\r を
                     // 「元のアイコン」として誤って記録してしまう
                     backupURL = existing.backupPath.map { URL(fileURLWithPath: $0) }
                 } else {
-                    let hadBackup = iconManager.backupExists(for: folder)
-                    backupURL = try iconManager.backupCurrentIcon(for: folder)
+                    // バックアップの鍵は同一性 (fileID)。移動後に同じ場所へ作った別のフォルダが古いバックアップを拾わない
+                    let hadBackup = iconManager.backupExists(for: folder, fileID: fileID)
+                    backupURL = try iconManager.backupCurrentIcon(for: folder, fileID: fileID)
                     createdBackup = !hadBackup && backupURL != nil
                 }
                 try iconManager.applyIcon(icon, to: folder)
@@ -93,29 +104,28 @@ final class ApplyCoordinator {
                     bookmarkData: bookmark,
                     backupPath: backupURL?.path,
                     overlay: overlay,
-                    settings: settings
+                    settings: settings,
+                    fileID: fileID
                 )
-                try history.upsert(task)
+                // 履歴はフォルダごとに保存する (アイコンを変えた行が、保存前のまま残ることがない)。
+                // 保存できなければアイコンを戻して、このフォルダだけ失敗にする
+                do {
+                    try history.upsert(task)
+                } catch {
+                    throw ApplyError.historySaveFailed(error)
+                }
                 succeeded.append(folder)
             } catch {
-                // 履歴に残せなかったフォルダはアイコンを適用直前に戻し、「失敗 = 変更なし」を保つ
-                var reason = error.localizedDescription
-                // 巻き戻しを試みていない (iconApplied == false) 場合はフォルダのアイコンに
-                // 手を付けていないので「成功」扱いにしておく
-                var rollbackSucceeded = true
                 if iconApplied {
-                    rollbackSucceeded = NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: [])
-                    if !rollbackSucceeded {
-                        reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)"
-                    }
+                    rollbackFailed = !NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: [])
                 }
-                // 今回新たに作ったバックアップも巻き戻す。残すと履歴に行が無いのに
-                // バックアップだけが残り、次回の適用時に誤って「元のアイコン」として使われる。
-                // ただし巻き戻し自体が失敗した場合は、このバックアップがユーザーの元アイコンを
-                // 復元できる唯一の手がかりになるため消してはいけない
-                if Self.shouldRemoveFreshBackup(createdBackup: createdBackup, rollbackSucceeded: rollbackSucceeded) {
-                    iconManager.removeBackup(for: folder)
+                // 今回新たに作ったバックアップだけ、使われないまま残さず消す
+                // (戻せなかったときは FolderArt のアイコンが残るので、元アイコンの唯一の控えとして残す)
+                if Self.shouldRemoveFreshBackup(createdBackup: createdBackup, rollbackSucceeded: !rollbackFailed) {
+                    iconManager.removeBackup(for: folder, fileID: fileID)
                 }
+                var reason = error.localizedDescription
+                if rollbackFailed { reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)" }
                 failed.append(ApplyFailure(folder: folder, reason: reason))
             }
             progress(index + 1, total)
@@ -159,8 +169,7 @@ final class ApplyCoordinator {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         try iconManager.resetIcon(for: url, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
-        // バックアップを取ったときの鍵は履歴のパス (ブックマークの解決結果とは限らない)
-        iconManager.removeBackup(for: URL(fileURLWithPath: task.folderPath))
+        iconManager.removeBackup(atBackupPath: task.backupPath)
     }
 
     /// 同一セッション用: URL を直接使ってリセット。
@@ -168,9 +177,10 @@ final class ApplyCoordinator {
     /// (手で設定したカスタムアイコンを消してしまわないため)。
     func reset(folder: URL) throws {
         let path = folder.standardizedFileURL.path
-        guard let task = history.task(forFolderPath: path) else { return }
+        // 移動・改名したフォルダも fileID で見つける (履歴の行は古い path のまま)
+        guard let task = history.task(forFolderPath: path, fileID: FileIdentity.make(for: folder)) else { return }
         try iconManager.resetIcon(for: folder, backupURL: task.backupPath.map { URL(fileURLWithPath: $0) })
         try history.remove(task)
-        iconManager.removeBackup(for: folder)
+        iconManager.removeBackup(atBackupPath: task.backupPath)
     }
 }

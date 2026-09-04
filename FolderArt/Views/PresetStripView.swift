@@ -10,6 +10,8 @@ struct PresetStripView: View {
     let onApply: (Preset) -> Void
     let onRename: (Preset, String) -> Void
     let onRemove: (Preset) -> Void
+    let onExport: () -> Void
+    let onImport: () -> Void
 
     @State private var renaming: Preset?
     @State private var newName = ""
@@ -41,6 +43,18 @@ struct PresetStripView: View {
                 .buttonStyle(.borderless)
                 .disabled(!canSave || isApplying)
                 .help(Text("今の見た目をお気に入りに保存"))
+
+            Menu {
+                Button("パックを書き出す…") { onExport() }
+                    .disabled(store.presets.isEmpty || isApplying)
+                Button("パックを読み込む…") { onImport() }
+                    .disabled(isApplying)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .frame(width: 28)
+            .help(Text("お気に入りのパックを書き出す / 読み込む"))
         }
         .frame(height: 56)
         .padding(.horizontal, 12)

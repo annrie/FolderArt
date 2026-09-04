@@ -13,7 +13,8 @@ final class AppModelTests: XCTestCase {
         model = AppModel(
             history: HistoryStore(storageURL: root.appendingPathComponent("history.json")),
             presets: PresetStore(storageURL: root.appendingPathComponent("presets.json")),
-            assets: AssetStore(directory: root.appendingPathComponent("assets")))
+            assets: AssetStore(directory: root.appendingPathComponent("assets")),
+            runsMaintenance: false)
     }
     override func tearDown() async throws {
         for t in model.history.tasks { NSWorkspace.shared.setIcon(nil, forFile: t.folderPath, options: []) }
@@ -78,7 +79,8 @@ final class AppModelTests: XCTestCase {
         try "x".data(using: .utf8)!.write(to: broken)
         let m = AppModel(history: HistoryStore(storageURL: broken),
                          presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
-                         assets: model.assets)
+                         assets: model.assets,
+                         runsMaintenance: false)
         let orphan = try m.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .blue))
         m.reapAssets()
         XCTAssertTrue(m.assets.allIDs().contains(orphan))
@@ -243,4 +245,114 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.assets.allIDs(), [used])
         XCTAssertFalse(model.assets.allIDs().contains(orphan))
     }
+
+    /// 提案は「選択中の行 (リスト順で最後)、無ければ最後に追加した行」の名前から作る
+    func testSuggestionsFollowSelectedOrLastFolder() throws {
+        let photos = root.appendingPathComponent("Photos")
+        let invoices = root.appendingPathComponent("請求書")
+        for d in [photos, invoices] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+
+        model.addFolders([photos])
+        XCTAssertEqual(model.suggestionSourceFolder, photos.standardizedFileURL)
+        XCTAssertTrue(model.suggestions.contains { $0.kind == .emoji("📷") })
+
+        model.addFolders([invoices])
+        XCTAssertEqual(model.suggestionSourceFolder, invoices.standardizedFileURL)
+        XCTAssertTrue(model.suggestions.contains { $0.kind == .emoji("🧾") })
+
+        model.folders.selectedIDs = [photos.standardizedFileURL]
+        XCTAssertEqual(model.suggestionSourceFolder, photos.standardizedFileURL)
+        XCTAssertTrue(model.suggestions.contains { $0.kind == .emoji("📷") })
+
+        model.folders.removeAll()
+        XCTAssertNil(model.suggestionSourceFolder)
+        XCTAssertTrue(model.suggestions.isEmpty)
+    }
+
+    /// 候補を押すとそのタブに切り替わって入力が入る。設定は変えない
+    func testApplySuggestionSwitchesTabAndInput() throws {
+        let before = model.overlay.settings
+        model.applySuggestion(Suggestion(kind: .symbol("star.fill"), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .symbol)
+        XCTAssertEqual(model.overlay.symbolName, "star.fill")
+        model.applySuggestion(Suggestion(kind: .emoji("🎵"), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .emoji)
+        XCTAssertEqual(model.overlay.emoji, "🎵")
+        model.applySuggestion(Suggestion(kind: .text("2026"), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .text)
+        XCTAssertEqual(model.overlay.text, "2026")
+        XCTAssertEqual(model.overlay.settings, before)
+
+        var settings = CompositionSettings(); settings.position = .badge
+        let preset = Preset(name: "p", overlay: .symbol(name: "heart.fill"), settings: settings)
+        model.applySuggestion(Suggestion(kind: .preset(preset), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .symbol)
+        XCTAssertEqual(model.overlay.settings.position, .badge)   // お気に入りだけは設定まで復元
+    }
+
+    /// お気に入りの名前がフォルダ名に含まれると、その お気に入りが提案される
+    func testPresetNameInFolderNameIsSuggested() throws {
+        let d = root.appendingPathComponent("旅行 2025")
+        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        try model.presets.add(name: "旅行", overlay: .emoji("✈️"), settings: CompositionSettings())
+        model.addFolders([d])
+        guard case .preset(let p)? = model.suggestions.first?.kind else { return XCTFail("preset first") }
+        XCTAssertEqual(p.name, "旅行")
+    }
+
+    func testExportAndImportPackRoundTrip() async throws {
+        try model.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        let file = root.appendingPathComponent("test.folderartpack")
+        model.exportPack(to: file)
+        XCTAssertNil(model.errorMessage)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+
+        try model.presets.remove(model.presets.presets[0])
+        await model.importPack(url: file)
+        XCTAssertEqual(model.presets.presets.map(\.name), ["星"])
+        XCTAssertEqual(model.errorMessage, String(localized: "1 件のお気に入りを追加しました。"))
+    }
+
+    func testImportPackReportsCorruptFile() async throws {
+        let file = root.appendingPathComponent("bad.folderartpack")
+        try "nope".data(using: .utf8)!.write(to: file)
+        await model.importPack(url: file)
+        XCTAssertTrue(model.presets.presets.isEmpty)
+        XCTAssertEqual(model.errorMessage, PackError.corrupted.errorDescription)
+    }
+
+    func testExportIsIgnoredWhileApplying() throws {
+        try model.presets.add(name: "a", overlay: .text("a"), settings: CompositionSettings())
+        let file = root.appendingPathComponent("x.folderartpack")
+        model.isApplying = true
+        model.exportPack(to: file)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    func testImportIsIgnoredWhileApplying() async throws {
+        let file = root.appendingPathComponent("test.folderartpack")
+        try PackWriter.write([Preset(name: "a", overlay: .text("a"), settings: CompositionSettings())],
+                             assets: model.assets, appVersion: "1.3.0").write(to: file)
+        model.isApplying = true
+        await model.importPack(url: file)
+        XCTAssertTrue(model.presets.presets.isEmpty)
+    }
+
+    /// ファイルメニューからの書き出しは常に選べるので、お気に入りが無いときは理由を伝える (黙って戻らない)
+    func testExportWithNoPresetsExplains() {
+        XCTAssertTrue(model.presets.presets.isEmpty)
+        model.exportPack()
+        XCTAssertEqual(model.errorMessage, "書き出せるお気に入りがありません。")
+    }
+
+
+    func testApplySuggestionIsIgnoredWhileApplying() {
+        model.overlay.activeTab = .text
+        model.overlay.text = "before"
+        model.isApplying = true
+        model.applySuggestion(Suggestion(kind: .symbol("star.fill"), reason: "test"))
+        XCTAssertEqual(model.overlay.activeTab, .text)
+        XCTAssertEqual(model.overlay.text, "before")
+    }
+
 }
