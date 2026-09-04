@@ -52,7 +52,14 @@ final class HistoryStore: ObservableObject {
     /// 複数行を一度に反映して保存は 1 回。保存に失敗したらメモリ上の tasks も変えない。
     func upsertAll(_ newTasks: [IconTask]) throws {
         guard !newTasks.isEmpty else { return }
-        let merged = newTasks.map { task in Self.inheritingBackupPath(task, from: tasks.first { Self.sameFolder($0, task) }) }
+        // 同一バッチ内に同じフォルダ (sameFolder) が複数あれば 1 行にまとめ、後の行が勝つ。
+        // upsert と同じパターン (先に消してから足す) で、フォルダごとの最後の出現位置の順序が残る
+        var collapsed: [IconTask] = []
+        for task in newTasks {
+            collapsed.removeAll { Self.sameFolder($0, task) }
+            collapsed.append(task)
+        }
+        let merged = collapsed.map { task in Self.inheritingBackupPath(task, from: tasks.first { Self.sameFolder($0, task) }) }
         var updated = tasks.filter { existing in !merged.contains { Self.sameFolder(existing, $0) } }
         updated.insert(contentsOf: merged, at: 0)
         try save(updated)

@@ -291,7 +291,8 @@ final class ApplyCoordinatorTests: XCTestCase {
         let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
-        let c = ApplyCoordinator(history: lockedHistory, iconManager: FolderIconManager(backupDirectory: root.appendingPathComponent("backups")))
+        let freshIconManager = FolderIconManager(backupDirectory: root.appendingPathComponent("backups"))
+        let c = ApplyCoordinator(history: lockedHistory, iconManager: freshIconManager)
 
         let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
                                     settings: CompositionSettings(), to: [a, b])
@@ -301,6 +302,10 @@ final class ApplyCoordinatorTests: XCTestCase {
         for f in [a, b] {
             XCTAssertFalse(FileManager.default.fileExists(atPath: f.appendingPathComponent("Icon\r").path))
         }
+        // どちらも新規フォルダ (元のバックアップ無し) だったので、巻き戻し成功後は
+        // 今回新たに作ったバックアップが消えているはず (使われないまま残ってはいけない)
+        XCTAssertFalse(freshIconManager.backupExists(for: a))
+        XCTAssertFalse(freshIconManager.backupExists(for: b))
         XCTAssertTrue(lockedHistory.tasks.isEmpty)
     }
 

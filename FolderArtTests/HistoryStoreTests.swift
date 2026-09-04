@@ -131,6 +131,37 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.task(forFolderPath: "/a")?.overlay, .text("new"))
     }
 
+    /// 同一バッチ内に同じ folderPath が複数あれば 1 行にまとめ、後の行が勝つ。
+    /// 実装は「フォルダごとの最後の出現位置」の順序を保つため /b, /a の順になる
+    func testUpsertAllCollapsesDuplicateFoldersWithinBatchLastWins() throws {
+        let before = store.saveCount
+        try store.upsertAll([
+            makeTask(folderPath: "/a", overlay: .text("old")),
+            makeTask(folderPath: "/b"),
+            makeTask(folderPath: "/a", overlay: .text("new")),
+        ])
+        XCTAssertEqual(store.saveCount, before + 1)
+        XCTAssertEqual(store.tasks.map(\.folderPath), ["/b", "/a"])
+        XCTAssertEqual(store.task(forFolderPath: "/a")?.overlay, .text("new"))
+    }
+
+    /// バッチ内で path が異なっても同じ fileID なら 1 行にまとめ、後の path が勝つ。
+    /// 事前の history にあった行の backupPath は、生き残った行に引き継がれる
+    func testUpsertAllCollapsesDuplicateFileIDsWithinBatchLastWins() throws {
+        try store.upsert(IconTask(folderPath: "/old/A", bookmarkData: Data(), backupPath: "/backups/k/original.png",
+                                  overlay: .text("0"), settings: CompositionSettings(), fileID: "vol:1"))
+        try store.upsertAll([
+            IconTask(folderPath: "/mid/A", bookmarkData: Data(), backupPath: nil,
+                     overlay: .text("1"), settings: CompositionSettings(), fileID: "vol:1"),
+            IconTask(folderPath: "/new/A", bookmarkData: Data(), backupPath: nil,
+                     overlay: .text("2"), settings: CompositionSettings(), fileID: "vol:1"),
+        ])
+        XCTAssertEqual(store.tasks.count, 1)
+        XCTAssertEqual(store.tasks.first?.folderPath, "/new/A")
+        XCTAssertEqual(store.tasks.first?.overlay, .text("2"))
+        XCTAssertEqual(store.tasks.first?.backupPath, "/backups/k/original.png")
+    }
+
     func testUpsertAllLeavesMemoryUnchangedWhenSaveFails() throws {
         let dir = tempHistoryURL.deletingLastPathComponent().appendingPathComponent("locked_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
