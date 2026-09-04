@@ -374,11 +374,12 @@ final class AppModel: ObservableObject {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         do {
-            // 読む前にサイズで弾く (巨大なファイルを丸ごとメモリに載せない)
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-            guard size <= PackReader.maxFileBytes else { throw PackError.fileTooLarge }
-            let data = try Data(contentsOf: url)
-            let pack = try PackReader.read(data)
+            // 上限までしか読まない (巨大なファイルや、サイズの分からないファイルを丸ごとメモリに載せない)
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+            let data = try handle.read(upToCount: PackReader.maxFileBytes + 1) ?? Data()
+            guard data.count <= PackReader.maxFileBytes else { throw PackError.fileTooLarge }
+            let pack = try PackReader.read(data, symbolCatalog: SymbolCatalog.shared)
             let summary = try PresetImporter.importPack(pack, into: presets, assets: assets)
             errorMessage = summary.skippedIdentical == 0
                 ? String(localized: "\(summary.added) 件のお気に入りを追加しました。")

@@ -190,4 +190,22 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(s.tasks.count, 1)
         XCTAssertNotNil(s.loadError)
     }
+
+    /// 元のフォルダを移動した後、同じ場所に別のフォルダを作った場合: path が同じでも fileID が違えば別物
+    func testSamePathWithDifferentFileIDsIsNotTheSameFolder() throws {
+        let old = IconTask(folderPath: "/a", bookmarkData: Data(), backupPath: "/backups/old/original.png",
+                           overlay: .symbol(name: "star.fill"), settings: CompositionSettings(), fileID: "vol:1")
+        let new = IconTask(folderPath: "/a", bookmarkData: Data(), backupPath: nil,
+                           overlay: .text("new"), settings: CompositionSettings(), fileID: "vol:2")
+        try store.upsert(old)
+        try store.upsert(new)
+        XCTAssertEqual(store.tasks.count, 2)
+        XCTAssertEqual(store.task(forFolderPath: "/a", fileID: "vol:2")?.overlay, .text("new"))
+        XCTAssertNil(store.task(forFolderPath: "/a", fileID: "vol:2")?.backupPath)   // 移動した方のバックアップを継がない
+        XCTAssertEqual(store.task(forFolderPath: "/a", fileID: "vol:1")?.overlay, .symbol(name: "star.fill"))
+        // 片方に fileID が無ければ従来どおり path で一致する
+        XCTAssertNotNil(store.task(forFolderPath: "/a", fileID: nil))
+        XCTAssertNil(store.task(forFolderPath: "/b", fileID: "vol:9"))
+    }
+
 }

@@ -87,4 +87,21 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertEqual(a.map(\.id), b.map(\.id))
         XCTAssertEqual(a.first?.id, "symbol:photo.fill")
     }
+
+    func testCamelCaseAcronymBoundary() {
+        XCTAssertEqual(SuggestionEngine.normalize("myPDFDocs"), "my pdf docs")
+        XCTAssertEqual(SuggestionEngine.normalize("PDF"), "pdf")
+        XCTAssertEqual(SuggestionEngine.normalize("MyPhoto2024"), "my photo2024")
+        XCTAssertEqual(SuggestionEngine.latinTokens(SuggestionEngine.normalize("myPDFDocs")), ["my", "pdf", "docs"])
+    }
+
+    /// お気に入りの既定名は絵文字そのものなので、1 文字でも絵文字なら提案する (1 文字の英数字は誤爆しやすいので除く)
+    func testOneGraphemeEmojiFavoriteIsSuggested() {
+        let plane = Preset(name: "✈️", overlay: .emoji("✈️"), settings: CompositionSettings())
+        let s = engine.suggest(for: "旅行 ✈️", presets: [plane])
+        XCTAssertEqual(s.first?.kind, .preset(plane))
+        let a = Preset(name: "a", overlay: .text("a"), settings: CompositionSettings())
+        XCTAssertFalse(engine.suggest(for: "Photos", presets: [a]).contains { $0.kind == .preset(a) })
+    }
+
 }

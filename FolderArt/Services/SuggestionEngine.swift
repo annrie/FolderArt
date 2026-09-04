@@ -22,7 +22,9 @@ struct SuggestionEngine {
         // 1. お気に入り (名前がフォルダ名に含まれる) は記号枠で最優先
         for preset in presets {
             let key = Self.normalize(preset.name)
-            guard key.count >= 2, normalized.contains(key) else { continue }
+            // 1 文字の英数字名は誤爆しやすいので除くが、絵文字などの 1 文字は通す (お気に入りの既定名は絵文字そのもの)
+            let isShortASCII = key.count < 2 && key.unicodeScalars.allSatisfy(\.isASCII)
+            guard !key.isEmpty, !isShortASCII, normalized.contains(key) else { continue }
             symbol = Suggestion(kind: .preset(preset), reason: String(localized: "お気に入り「\(preset.name)」"))
             break
         }
@@ -83,14 +85,18 @@ struct SuggestionEngine {
     // MARK: - 正規化と分割
 
     /// NFKC (全角英数字 → 半角、半角カナ → 全角カナ) + 小文字。
-    /// camelCase の境界 (小文字/数字 → 大文字) には小文字化の前に空白を挿入する。
+    /// camelCase の境界には小文字化の前に空白を挿入する:
+    /// 小文字/数字 → 大文字 (myPhoto → my Photo) と、頭字語の末尾 (大文字 → 大文字 + 小文字: PDFDocs → PDF Docs)
     static func normalize(_ s: String) -> String {
+        let chars = Array(s)
         var spaced = ""
-        var previous: Character?
-        for ch in s {
-            if let p = previous, ch.isUppercase, (p.isLowercase || p.isNumber) { spaced.append(" ") }
+        for (i, ch) in chars.enumerated() {
+            if i > 0, ch.isUppercase {
+                let previous = chars[i - 1]
+                let nextIsLower = i + 1 < chars.count && chars[i + 1].isLowercase
+                if previous.isLowercase || previous.isNumber || (previous.isUppercase && nextIsLower) { spaced.append(" ") }
+            }
             spaced.append(ch)
-            previous = ch
         }
         return spaced.precomposedStringWithCompatibilityMapping.lowercased()
     }

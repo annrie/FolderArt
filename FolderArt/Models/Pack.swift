@@ -28,6 +28,7 @@ enum PackError: LocalizedError, Equatable {
     case fileTooLarge
     case imageTooLarge(String)
     case assetUnavailable(String)
+    case symbolUnavailable(String, String)
 
     var errorDescription: String? {
         switch self {
@@ -49,6 +50,8 @@ enum PackError: LocalizedError, Equatable {
             return String(localized: "「\(name)」の画像が大きすぎます (上限 \(PackReader.maxImageBytes / 1024 / 1024) MB)。")
         case .assetUnavailable(let name):
             return String(localized: "「\(name)」の画像が見つからないため書き出せません。")
+        case .symbolUnavailable(let name, let symbol):
+            return String(localized: "「\(name)」の記号「\(symbol)」はこの macOS にありません。")
         }
     }
 }

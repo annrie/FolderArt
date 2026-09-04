@@ -142,4 +142,17 @@ final class PackTests: XCTestCase {
         }
     }
 
+
+    /// 新しい macOS で作ったパックの記号がこの環境に無いときは、保存する前に理由を示して拒否する
+    func testRejectsSymbolMissingFromTheLocalCatalog() throws {
+        let catalog = SymbolCatalog(names: ["star.fill"], searchTerms: [:])
+        let data = try encode(pack([PackEntry(name: "新", overlay: .symbol(name: "newer.symbol"), settings: CompositionSettings(), image: nil)]))
+        XCTAssertThrowsError(try PackReader.read(data, symbolCatalog: catalog)) { error in
+            guard case PackError.symbolUnavailable("新", "newer.symbol") = error else { return XCTFail("\(error)") }
+        }
+        let ok = try encode(pack([PackEntry(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings(), image: nil)]))
+        XCTAssertNoThrow(try PackReader.read(ok, symbolCatalog: catalog))
+        XCTAssertNoThrow(try PackReader.read(data))   // カタログを渡さなければ記号は検証しない
+    }
+
 }

@@ -8,7 +8,9 @@ enum PackReader {
 
     /// JSON を読み、形式・件数・設定の範囲・画像を検証する。1 件でも不正ならパック全体を拒否。
     /// 検証は PNG を 1 枚も保存する前に全項目に対して行う (PresetImporter は検証済みの Pack を受け取る)。
-    static func read(_ data: Data) throws -> Pack {
+    /// symbolCatalog を渡すと、記号がこの macOS に (制限付きでなく) 存在することも確かめる
+    /// (新しい macOS で作ったパックの記号は古い環境では描けないため)
+    static func read(_ data: Data, symbolCatalog: SymbolCatalog? = nil) throws -> Pack {
         guard data.count <= maxFileBytes else { throw PackError.fileTooLarge }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -22,6 +24,9 @@ enum PackReader {
             // 手で書き換えたパックの範囲外の値 (scale 1e308、色 2.0、NaN など) をそのまま保存すると、
             // サムネイル描画で毎回失敗して起動のたびに問題になるので、ここで弾く
             guard entry.settings.isValid, entry.overlay.canReapply else { throw PackError.invalidSettings(entry.name) }
+            if let catalog = symbolCatalog, case .symbol(let name) = entry.overlay, !catalog.contains(name) {
+                throw PackError.symbolUnavailable(entry.name, name)
+            }
             guard entry.overlay.assetID != nil else { continue }
             guard let image = entry.image else { throw PackError.missingImage(entry.name) }
             guard image.count <= maxImageBytes else { throw PackError.imageTooLarge(entry.name) }

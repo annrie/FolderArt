@@ -71,10 +71,11 @@ final class HistoryStore: ObservableObject {
         return task.withBackupPath(inherited)
     }
 
+    /// 同じフォルダか。両方に fileID があるときはそれだけで判定する (path が同じでも別のフォルダ:
+    /// 元のフォルダを移動した後、同じ場所に別のフォルダを作った場合)。片方でも無ければ path で判定
     static func sameFolder(_ a: IconTask, _ b: IconTask) -> Bool {
-        if a.folderPath == b.folderPath { return true }
-        if let x = a.fileID, let y = b.fileID, x == y { return true }
-        return false
+        if let x = a.fileID, let y = b.fileID { return x == y }
+        return a.folderPath == b.folderPath
     }
 
     func remove(_ task: IconTask) throws {
@@ -97,9 +98,12 @@ final class HistoryStore: ObservableObject {
         tasks.first { $0.folderPath == path }
     }
 
-    /// path か fileID のどちらかで一致する行
+    /// path か fileID で一致する行。行と引数の両方に fileID があるときは fileID だけで判定する (sameFolder と同じ規則)
     func task(forFolderPath path: String, fileID: String?) -> IconTask? {
-        tasks.first { $0.folderPath == path || (fileID != nil && $0.fileID == fileID) }
+        tasks.first { row in
+            if let mine = row.fileID, let theirs = fileID { return mine == theirs }
+            return row.folderPath == path
+        }
     }
 
     var referencedAssetIDs: Set<UUID> {
