@@ -21,4 +21,17 @@ final class FileIdentityTests: XCTestCase {
         XCTAssertNotEqual(FileIdentity.make(for: c), id1)
         XCTAssertNil(FileIdentity.make(for: root.appendingPathComponent("missing")))
     }
+
+    /// シンボリックリンク経由でも同じフォルダは同じ ID (attributesOfItem はリンク自身を見るので解決してから取る)
+    func testSymlinkResolvesToTheSameIdentity() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("FileIdentity_\(UUID().uuidString)")
+        let a = root.appendingPathComponent("A")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let link = root.appendingPathComponent("A-link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: a)
+        XCTAssertNotNil(FileIdentity.make(for: a))
+        XCTAssertEqual(FileIdentity.make(for: link), FileIdentity.make(for: a))
+    }
+
 }

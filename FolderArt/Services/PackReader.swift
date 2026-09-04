@@ -5,6 +5,17 @@ enum PackReader {
     static let maxFileBytes = 100 * 1024 * 1024
     /// 項目ごとの PNG の上限。512px 以下の PNG は AssetStore にそのまま保存するので、ここで抑える
     static let maxImageBytes = 8 * 1024 * 1024
+    /// 復号後の画素数の上限 (4096×4096)。圧縮率の高い PNG で巨大な寸法を宣言されても、復号する前に弾く
+    static let maxImagePixels = 4096 * 4096
+
+    /// PNG の IHDR (先頭チャンク) から宣言された (幅, 高さ) を読む。PNG でなければ nil
+    static func pngDimensions(_ data: Data) -> (width: Int, height: Int)? {
+        guard isPNG(data), data.count >= 24 else { return nil }
+        let base = data.startIndex
+        func be32(_ offset: Int) -> Int { data[base + offset ..< base + offset + 4].reduce(0) { ($0 << 8) | Int($1) } }
+        guard Array(data[base + 12 ..< base + 16]) == Array("IHDR".utf8) else { return nil }
+        return (be32(16), be32(20))
+    }
 
     /// JSON を読み、形式・件数・設定の範囲・画像を検証する。1 件でも不正ならパック全体を拒否。
     /// 検証は PNG を 1 枚も保存する前に全項目に対して行う (PresetImporter は検証済みの Pack を受け取る)。
@@ -23,14 +34,21 @@ enum PackReader {
         for entry in pack.presets {
             // 手で書き換えたパックの範囲外の値 (scale 1e308、色 2.0、NaN など) をそのまま保存すると、
             // サムネイル描画で毎回失敗して起動のたびに問題になるので、ここで弾く
-            guard entry.settings.isValid, entry.overlay.canReapply else { throw PackError.invalidSettings(entry.name) }
+            guard entry.settings.isValid, entry.overlay.canReapply, entry.overlay.hasRenderablePayload else {
+                throw PackError.invalidSettings(entry.name)
+            }
             if let catalog = symbolCatalog, case .symbol(let name) = entry.overlay, !catalog.contains(name) {
                 throw PackError.symbolUnavailable(entry.name, name)
             }
             guard entry.overlay.assetID != nil else { continue }
             guard let image = entry.image else { throw PackError.missingImage(entry.name) }
             guard image.count <= maxImageBytes else { throw PackError.imageTooLarge(entry.name) }
-            guard isPNG(image), NSImage(data: image) != nil else { throw PackError.invalidImage(entry.name) }
+            guard let size = pngDimensions(image) else { throw PackError.invalidImage(entry.name) }
+            // 宣言された寸法で先に弾く (NSImage に渡すと復号後のビットマップを丸ごと確保するため)
+            guard size.width > 0, size.height > 0, size.width * size.height <= maxImagePixels else {
+                throw PackError.imageTooLarge(entry.name)
+            }
+            guard NSImage(data: image) != nil else { throw PackError.invalidImage(entry.name) }
         }
         return pack
     }

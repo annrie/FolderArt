@@ -332,4 +332,19 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: moved.appendingPathComponent("Icon\r").path))
     }
 
+
+    /// 同じ実体のフォルダを実パスとシンボリックリンクの両方で渡しても適用は 1 回、履歴も 1 行
+    /// (2 回目に進むと 1 回目が付けたアイコンを「元のアイコン」としてバックアップしてしまう)
+    func testSameFolderViaSymlinkIsAppliedOnce() async throws {
+        let a = try folder("A")
+        let link = root.appendingPathComponent("A-link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: a)
+        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                              settings: CompositionSettings(), to: [a, link])
+        XCTAssertEqual(outcome.succeeded.count, 1)
+        XCTAssertTrue(outcome.failed.isEmpty)
+        XCTAssertEqual(history.tasks.count, 1)
+        XCTAssertNil(history.tasks.first?.backupPath)   // 元は標準アイコンなのでバックアップは無いまま
+    }
+
 }

@@ -155,4 +155,30 @@ final class PackTests: XCTestCase {
         XCTAssertNoThrow(try PackReader.read(data))   // カタログを渡さなければ記号は検証しない
     }
 
+
+    /// 空白だけの文字・空の絵文字は描けない (renderString が trim して nil を返す) のでパックの時点で拒否する
+    func testRejectsBlankTextAndEmojiEntries() throws {
+        for (label, overlay) in [("blank", Overlay.text("   ")), ("empty", Overlay.emoji(""))] {
+            let data = try encode(pack([PackEntry(name: label, overlay: overlay, settings: CompositionSettings(), image: nil)]))
+            XCTAssertThrowsError(try PackReader.read(data), label) { error in
+                guard case PackError.invalidSettings(label) = error else { return XCTFail("\(label): \(error)") }
+            }
+        }
+    }
+
+    /// 圧縮率の高い PNG が巨大な寸法を宣言していても、復号する前に IHDR の寸法で弾く
+    func testRejectsPNGWithHugeDeclaredDimensions() throws {
+        var bytes: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13] + Array("IHDR".utf8)
+        for v in [100_000, 100_000] { bytes += [UInt8((v >> 24) & 0xFF), UInt8((v >> 16) & 0xFF), UInt8((v >> 8) & 0xFF), UInt8(v & 0xFF)] }
+        bytes += [8, 6, 0, 0, 0]
+        XCTAssertEqual(PackReader.pngDimensions(Data(bytes))?.width, 100_000)
+        let data = try encode(pack([PackEntry(name: "huge", overlay: .image(assetID: UUID()), settings: CompositionSettings(), image: Data(bytes))]))
+        XCTAssertThrowsError(try PackReader.read(data)) { error in
+            guard case PackError.imageTooLarge("huge") = error else { return XCTFail("\(error)") }
+        }
+        // 本物の小さな PNG は寸法が読めて通る
+        let real = TestSupport.pngData(TestSupport.makeSolidImage(size: CGSize(width: 40, height: 20), color: .red))
+        XCTAssertEqual(PackReader.pngDimensions(real)?.width, 40)
+    }
+
 }

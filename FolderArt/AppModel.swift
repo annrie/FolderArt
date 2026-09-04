@@ -377,7 +377,11 @@ final class AppModel: ObservableObject {
             // 上限までしか読まない (巨大なファイルや、サイズの分からないファイルを丸ごとメモリに載せない)
             let handle = try FileHandle(forReadingFrom: url)
             defer { try? handle.close() }
-            let data = try handle.read(upToCount: PackReader.maxFileBytes + 1) ?? Data()
+            var data = Data()
+            // 短い read が返る経路 (ファイルプロバイダなど) もあるので、EOF か上限を超えるまで読み続ける
+            while data.count <= PackReader.maxFileBytes, let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+                data.append(chunk)
+            }
             guard data.count <= PackReader.maxFileBytes else { throw PackError.fileTooLarge }
             let pack = try PackReader.read(data, symbolCatalog: SymbolCatalog.shared)
             let summary = try PresetImporter.importPack(pack, into: presets, assets: assets)

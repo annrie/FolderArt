@@ -63,9 +63,16 @@ final class ApplyCoordinator {
         }
         var applied: [Applied] = []
         var failed: [ApplyFailure] = []
+        var seenFileIDs = Set<String>()
         let total = folders.count
 
         for (index, folder) in folders.enumerated() {
+            // 同じ実体のフォルダが別の path (実パスとシンボリックリンクなど) で 2 回来たら 2 回目は飛ばす。
+            // 進むと 1 回目が付けたアイコンを「元のアイコン」としてバックアップしてしまう
+            if let id = FileIdentity.make(for: folder), !seenFileIDs.insert(id).inserted {
+                progress(index + 1, total)
+                continue
+            }
             var backupURL: URL?
             // 今回の適用で新たにバックアップを作った場合だけ true。既存のバックアップ
             // (再適用時に履歴から引き継いだもの) を失敗時に消してしまわないための区別

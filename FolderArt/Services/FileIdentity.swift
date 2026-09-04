@@ -9,8 +9,10 @@ import Foundation
 /// APFS / HFS+ で安定している inode 番号 (`systemFileNumber`) を使う。
 enum FileIdentity {
     static func make(for url: URL) -> String? {
-        guard let volume = try? url.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString,
-              let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+        // シンボリックリンク経由でも同じフォルダは同じ ID にする (attributesOfItem はリンク自身の inode を返す)
+        let resolved = url.resolvingSymlinksInPath()
+        guard let volume = try? resolved.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: resolved.path),
               let inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value else { return nil }
         return "\(volume):\(inode)"
     }
