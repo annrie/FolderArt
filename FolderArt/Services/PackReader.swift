@@ -7,6 +7,18 @@ enum PackReader {
     static let maxImageBytes = 8 * 1024 * 1024
     /// 復号後の画素数の上限 (4096×4096)。圧縮率の高い PNG で巨大な寸法を宣言されても、復号する前に弾く
     static let maxImagePixels = 4096 * 4096
+    /// 文字・絵文字の長さ (書記素数) の上限。1 行のラベルなので十分。巨大な文字列を保存してレイアウトで固まらないようにする
+    static let maxTextLength = 100
+    static let maxEmojiLength = 8
+
+    /// 文字・絵文字の長さが上限内か (他の種類は常に true)
+    static func payloadWithinLimits(_ overlay: Overlay) -> Bool {
+        switch overlay {
+        case .text(let s):  return s.count <= maxTextLength
+        case .emoji(let s): return s.count <= maxEmojiLength
+        default:            return true
+        }
+    }
 
     /// PNG の IHDR (先頭チャンク) から宣言された (幅, 高さ) を読む。PNG でなければ nil
     static func pngDimensions(_ data: Data) -> (width: Int, height: Int)? {
@@ -34,7 +46,8 @@ enum PackReader {
         for entry in pack.presets {
             // 手で書き換えたパックの範囲外の値 (scale 1e308、色 2.0、NaN など) をそのまま保存すると、
             // サムネイル描画で毎回失敗して起動のたびに問題になるので、ここで弾く
-            guard entry.settings.isValid, entry.overlay.canReapply, entry.overlay.hasRenderablePayload else {
+            guard entry.settings.isValid, entry.overlay.canReapply, entry.overlay.hasRenderablePayload,
+                  payloadWithinLimits(entry.overlay) else {
                 throw PackError.invalidSettings(entry.name)
             }
             if let catalog = symbolCatalog, case .symbol(let name) = entry.overlay, !catalog.contains(name) {

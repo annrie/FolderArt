@@ -300,7 +300,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(p.name, "旅行")
     }
 
-    func testExportAndImportPackRoundTrip() throws {
+    func testExportAndImportPackRoundTrip() async throws {
         try model.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
         let file = root.appendingPathComponent("test.folderartpack")
         model.exportPack(to: file)
@@ -308,15 +308,15 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
 
         try model.presets.remove(model.presets.presets[0])
-        model.importPack(url: file)
+        await model.importPack(url: file)
         XCTAssertEqual(model.presets.presets.map(\.name), ["星"])
         XCTAssertEqual(model.errorMessage, String(localized: "1 件のお気に入りを追加しました。"))
     }
 
-    func testImportPackReportsCorruptFile() throws {
+    func testImportPackReportsCorruptFile() async throws {
         let file = root.appendingPathComponent("bad.folderartpack")
         try "nope".data(using: .utf8)!.write(to: file)
-        model.importPack(url: file)
+        await model.importPack(url: file)
         XCTAssertTrue(model.presets.presets.isEmpty)
         XCTAssertEqual(model.errorMessage, PackError.corrupted.errorDescription)
     }
@@ -329,12 +329,12 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
     }
 
-    func testImportIsIgnoredWhileApplying() throws {
+    func testImportIsIgnoredWhileApplying() async throws {
         let file = root.appendingPathComponent("test.folderartpack")
         try PackWriter.write([Preset(name: "a", overlay: .text("a"), settings: CompositionSettings())],
                              assets: model.assets, appVersion: "1.3.0").write(to: file)
         model.isApplying = true
-        model.importPack(url: file)
+        await model.importPack(url: file)
         XCTAssertTrue(model.presets.presets.isEmpty)
     }
 

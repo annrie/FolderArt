@@ -53,6 +53,9 @@ final class HistoryStore: ObservableObject {
 
     func clearJournal() { try? FileManager.default.removeItem(at: journalStore.fileURL) }
 
+    /// 回収できていない控え (履歴が読めなかった起動で残したもの)。無ければ空
+    func pendingJournal() -> [IconTask] { (try? journalStore.load()) ?? [] }
+
     /// 履歴が読めた起動でだけ取り込む (読めていない起動で取り込むと、控えの数行だけの履歴を書いてしまう)。
     /// 取り込めなければ控えは残し、次回また試す
     private func recoverJournal() {

@@ -21,11 +21,13 @@ struct ApplyOutcome {
 enum ApplyError: LocalizedError {
     case composeFailed
     case bookmarkUnavailable
+    case journalFailed(Error)
 
     var errorDescription: String? {
         switch self {
         case .composeFailed:       return String(localized: "アイコンの合成に失敗しました")
         case .bookmarkUnavailable: return String(localized: "フォルダーへのアクセスが無効になっています。")
+        case .journalFailed(let e): return String(localized: "適用の控えを書けませんでした: \(e.localizedDescription)")
         }
     }
 }
@@ -64,6 +66,8 @@ final class ApplyCoordinator {
         var applied: [Applied] = []
         var failed: [ApplyFailure] = []
         var seenFileIDs = Set<String>()
+        // 前回、履歴の保存前に終了して回収できなかった控えがあれば引き継ぐ (上書きして失わない)
+        let carried = history.pendingJournal()
         let total = folders.count
 
         for (index, folder) in folders.enumerated() {
@@ -109,14 +113,19 @@ final class ApplyCoordinator {
                     settings: settings,
                     fileID: fileID
                 )
+                // 履歴の保存は最後に 1 回なので、その前に終了してもアイコンだけ変わって行が残らないよう、
+                // 成功した行を控えに書く (次回起動時に履歴へ取り込む)。控えに書けなければ (ディスク満杯など)
+                // 進まずにアイコンを戻し、このフォルダは失敗にする
+                do {
+                    try history.journal(carried + applied.map(\.task) + [task])
+                } catch {
+                    _ = NSWorkspace.shared.setIcon(previousIcon, forFile: folder.path, options: [])
+                    throw ApplyError.journalFailed(error)
+                }
                 applied.append(Applied(folder: folder, task: task, previousIcon: previousIcon, createdBackup: createdBackup))
-                // 履歴の保存は最後に 1 回なので、その前に終了してもアイコンだけ変わって行が残らないことがないよう、
-                // 成功した行を控えに書いておく (次回起動時に履歴へ取り込む)。控えの失敗は適用の失敗にしない
-                try? history.journal(applied.map(\.task))
             } catch {
-                // ここに来る時点ではフォルダのアイコンはまだ変更していない (バックアップ作成か
-                // アイコンの適用自体が失敗しただけ) ので、アイコンを戻す必要はない。
-                // 今回新たに作ったバックアップだけ、使われないまま残さず消す
+                // ここに来る時点ではフォルダのアイコンは変更前の状態 (バックアップ作成かアイコンの適用自体が
+                // 失敗したか、控えに書けずに戻した)。今回新たに作ったバックアップだけ、使われないまま残さず消す
                 if createdBackup {
                     iconManager.removeBackup(for: folder, fileID: fileID)
                 }
@@ -126,12 +135,13 @@ final class ApplyCoordinator {
             await Task.yield()   // 進捗表示を描画させる
         }
 
-        // 履歴は最後に 1 回だけ保存。失敗したら、この回に成功した全フォルダを直前の状態に戻す。
-        // 保存できても巻き戻しても、途中経過の控えはもう要らない
-        defer { history.clearJournal() }
+        // 履歴は最後に 1 回だけ保存 (引き継いだ控えの行も一緒に)。失敗したら、この回に成功した全フォルダを直前の状態に戻す
         do {
-            try history.upsertAll(applied.map(\.task))
+            try history.upsertAll(carried + applied.map(\.task))
+            history.clearJournal()
         } catch {
+            // 今回の分は巻き戻すので控えから外す。引き継いだ前回の分は失わずに残す
+            if carried.isEmpty { history.clearJournal() } else { try? history.journal(carried) }
             let base = String(localized: "履歴の保存に失敗しました: \(error.localizedDescription)")
             for item in applied {
                 var reason = base

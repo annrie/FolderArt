@@ -229,4 +229,13 @@ final class HistoryStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: broken.journalURL)
     }
 
+
+    func testPendingJournalReturnsRowsLeftUnrecovered() throws {
+        XCTAssertTrue(store.pendingJournal().isEmpty)
+        try store.journal([makeTask(folderPath: "/p1"), makeTask(folderPath: "/p2")])
+        XCTAssertEqual(store.pendingJournal().map(\.folderPath), ["/p1", "/p2"])
+        store.clearJournal()
+        XCTAssertTrue(store.pendingJournal().isEmpty)
+    }
+
 }

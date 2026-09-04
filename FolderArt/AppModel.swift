@@ -365,25 +365,19 @@ final class AppModel: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [Self.packType, .json]
         panel.prompt = String(localized: "読み込む")
-        if panel.runModal() == .OK, let url = panel.url { importPack(url: url) }
+        if panel.runModal() == .OK, let url = panel.url { Task { await importPack(url: url) } }
     }
 
-    /// パックを読み込んでお気に入りに追加し、結果をアラートで伝える
-    func importPack(url: URL) {
+    /// パックを読み込んでお気に入りに追加し、結果をアラートで伝える。
+    /// ファイルの読み込みと検証 (JSON の復号・画像の検査) は 100 MB 級でも UI を止めないようメインの外で行い、
+    /// お気に入りへの追加 (ストアの更新) だけメインで行う
+    func importPack(url: URL) async {
         guard !isApplying else { return }
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let read = await Task.detached(priority: .userInitiated) { Self.readPack(at: url) }.value
         do {
-            // 上限までしか読まない (巨大なファイルや、サイズの分からないファイルを丸ごとメモリに載せない)
-            let handle = try FileHandle(forReadingFrom: url)
-            defer { try? handle.close() }
-            var data = Data()
-            // 短い read が返る経路 (ファイルプロバイダなど) もあるので、EOF か上限を超えるまで読み続ける
-            while data.count <= PackReader.maxFileBytes, let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
-                data.append(chunk)
-            }
-            guard data.count <= PackReader.maxFileBytes else { throw PackError.fileTooLarge }
-            let pack = try PackReader.read(data, symbolCatalog: SymbolCatalog.shared)
+            let pack = try read.get()
             let summary = try PresetImporter.importPack(pack, into: presets, assets: assets)
             errorMessage = summary.skippedIdentical == 0
                 ? String(localized: "\(summary.added) 件のお気に入りを追加しました。")
@@ -392,6 +386,23 @@ final class AppModel: ObservableObject {
             errorMessage = error.errorDescription
         } catch {
             errorMessage = String(localized: "パックを読み込めません: \(error.localizedDescription)")
+        }
+    }
+
+    /// 上限までしか読まない (巨大なファイルや、サイズの分からないファイルを丸ごとメモリに載せない)。
+    /// 短い read が返る経路 (ファイルプロバイダなど) もあるので、EOF か上限を超えるまで読み続ける
+    nonisolated private static func readPack(at url: URL) -> Result<Pack, Error> {
+        do {
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+            var data = Data()
+            while data.count <= PackReader.maxFileBytes, let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+                data.append(chunk)
+            }
+            guard data.count <= PackReader.maxFileBytes else { throw PackError.fileTooLarge }
+            return .success(try PackReader.read(data, symbolCatalog: SymbolCatalog.shared))
+        } catch {
+            return .failure(error)
         }
     }
 

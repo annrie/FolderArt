@@ -201,4 +201,19 @@ final class PackTests: XCTestCase {
         XCTAssertNoThrow(try PackWriter.write(presets, assets: assets, appVersion: "1.3.0"))
     }
 
+
+    /// 文字・絵文字の長さには上限がある (巨大な文字列を保存してレイアウトで固まらないように)
+    func testRejectsOverlongTextAndEmojiPayloads() throws {
+        let long = String(repeating: "a", count: PackReader.maxTextLength + 1)
+        let data = try encode(pack([PackEntry(name: "long", overlay: .text(long), settings: CompositionSettings(), image: nil)]))
+        XCTAssertThrowsError(try PackReader.read(data)) { error in
+            guard case PackError.invalidSettings("long") = error else { return XCTFail("\(error)") }
+        }
+        let manyEmoji = String(repeating: "📷", count: PackReader.maxEmojiLength + 1)
+        let data2 = try encode(pack([PackEntry(name: "emoji", overlay: .emoji(manyEmoji), settings: CompositionSettings(), image: nil)]))
+        XCTAssertThrowsError(try PackReader.read(data2))
+        let ok = String(repeating: "a", count: PackReader.maxTextLength)
+        XCTAssertNoThrow(try PackReader.read(try encode(pack([PackEntry(name: "ok", overlay: .text(ok), settings: CompositionSettings(), image: nil)]))))
+    }
+
 }

@@ -289,8 +289,9 @@ final class ApplyCoordinatorTests: XCTestCase {
         let locked = root.appendingPathComponent("locked")
         try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
         let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
-        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
-        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        // 履歴の保存だけ失敗させる (history.json をディレクトリにすると書き込みが失敗する)。
+        // 同じディレクトリの控え (history-pending.json) は書けるので、最終保存の巻き戻し経路に入る
+        try FileManager.default.createDirectory(at: locked.appendingPathComponent("history.json"), withIntermediateDirectories: false)
         let freshIconManager = FolderIconManager(backupDirectory: root.appendingPathComponent("backups"))
         let c = ApplyCoordinator(history: lockedHistory, iconManager: freshIconManager)
 
@@ -386,6 +387,33 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertTrue(journalSeen)
         XCTAssertFalse(FileManager.default.fileExists(atPath: journal.path))
         XCTAssertEqual(history.tasks.count, 2)
+    }
+
+
+    /// 控え (ジャーナル) に書けないフォルダは進めず、アイコンを戻して失敗にする (終了時に行の無いフォルダを作らない)
+    func testJournalWriteFailureRollsBackThatFolder() async throws {
+        let a = try folder("A")
+        try FileManager.default.createDirectory(at: history.journalURL, withIntermediateDirectories: true)   // ファイルとして書けない
+        defer { try? FileManager.default.removeItem(at: history.journalURL) }
+        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                              settings: CompositionSettings(), to: [a])
+        XCTAssertTrue(outcome.succeeded.isEmpty)
+        XCTAssertEqual(outcome.failed.count, 1)
+        XCTAssertTrue(outcome.failed.first?.reason.contains("控え") == true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
+        XCTAssertTrue(history.tasks.isEmpty)
+    }
+
+    /// 前回回収できなかった控えは、次の一括適用で上書きされず、一緒に履歴へ保存される
+    func testCarriesUnrecoveredJournalIntoTheNextBatch() async throws {
+        let a = try folder("A")
+        let carried = IconTask(folderPath: "/carried", bookmarkData: Data(), backupPath: nil,
+                               overlay: .text("old"), settings: CompositionSettings())
+        try history.journal([carried])
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
+                                    settings: CompositionSettings(), to: [a])
+        XCTAssertEqual(Set(history.tasks.map(\.folderPath)), ["/carried", a.standardizedFileURL.path])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: history.journalURL.path))
     }
 
 }
