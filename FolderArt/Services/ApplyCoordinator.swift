@@ -89,8 +89,9 @@ final class ApplyCoordinator {
                     // 「元のアイコン」として誤って記録してしまう
                     backupURL = existing.backupPath.map { URL(fileURLWithPath: $0) }
                 } else {
-                    let hadBackup = iconManager.backupExists(for: folder)
-                    backupURL = try iconManager.backupCurrentIcon(for: folder)
+                    // バックアップの鍵は同一性 (fileID)。移動後に同じ場所へ作った別のフォルダが古いバックアップを拾わない
+                    let hadBackup = iconManager.backupExists(for: folder, fileID: fileID)
+                    backupURL = try iconManager.backupCurrentIcon(for: folder, fileID: fileID)
                     createdBackup = !hadBackup && backupURL != nil
                 }
                 try iconManager.applyIcon(icon, to: folder)
@@ -109,12 +110,15 @@ final class ApplyCoordinator {
                     fileID: fileID
                 )
                 applied.append(Applied(folder: folder, task: task, previousIcon: previousIcon, createdBackup: createdBackup))
+                // 履歴の保存は最後に 1 回なので、その前に終了してもアイコンだけ変わって行が残らないことがないよう、
+                // 成功した行を控えに書いておく (次回起動時に履歴へ取り込む)。控えの失敗は適用の失敗にしない
+                try? history.journal(applied.map(\.task))
             } catch {
                 // ここに来る時点ではフォルダのアイコンはまだ変更していない (バックアップ作成か
                 // アイコンの適用自体が失敗しただけ) ので、アイコンを戻す必要はない。
                 // 今回新たに作ったバックアップだけ、使われないまま残さず消す
                 if createdBackup {
-                    iconManager.removeBackup(for: folder)
+                    iconManager.removeBackup(for: folder, fileID: fileID)
                 }
                 failed.append(ApplyFailure(folder: folder, reason: error.localizedDescription))
             }
@@ -122,7 +126,9 @@ final class ApplyCoordinator {
             await Task.yield()   // 進捗表示を描画させる
         }
 
-        // 履歴は最後に 1 回だけ保存。失敗したら、この回に成功した全フォルダを直前の状態に戻す
+        // 履歴は最後に 1 回だけ保存。失敗したら、この回に成功した全フォルダを直前の状態に戻す。
+        // 保存できても巻き戻しても、途中経過の控えはもう要らない
+        defer { history.clearJournal() }
         do {
             try history.upsertAll(applied.map(\.task))
         } catch {
@@ -132,7 +138,7 @@ final class ApplyCoordinator {
                 let rollbackSucceeded = NSWorkspace.shared.setIcon(item.previousIcon, forFile: item.folder.path, options: [])
                 if !rollbackSucceeded { reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(item.folder).localizedDescription)" }
                 if Self.shouldRemoveFreshBackup(createdBackup: item.createdBackup, rollbackSucceeded: rollbackSucceeded) {
-                    iconManager.removeBackup(for: item.folder)
+                    iconManager.removeBackup(for: item.folder, fileID: item.task.fileID)
                 }
                 failed.append(ApplyFailure(folder: item.folder, reason: reason))
             }

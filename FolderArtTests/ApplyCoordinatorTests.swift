@@ -120,7 +120,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         try manual.applyIcon(red, to: a)
         _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
                                     settings: CompositionSettings(), to: [a])
-        let backupDir = iconManager.backupFolder(for: a)
+        let backupDir = iconManager.backupFolder(for: a, fileID: FileIdentity.make(for: a))   // 鍵は同一性 (fileID)
         XCTAssertTrue(FileManager.default.fileExists(atPath: backupDir.path))
 
         try coordinator.reset(folder: a)
@@ -147,7 +147,7 @@ final class ApplyCoordinatorTests: XCTestCase {
 
         let task = try XCTUnwrap(history.task(forFolderPath: a.standardizedFileURL.path))
         XCTAssertNil(task.backupPath)
-        XCTAssertFalse(iconManager.backupExists(for: a))
+        XCTAssertFalse(iconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
 
         try coordinator.reset(folder: a)
         XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
@@ -190,7 +190,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
                                     settings: CompositionSettings(), to: [a])
         XCTAssertEqual(outcome.failed.count, 1)
-        XCTAssertFalse(iconManager.backupExists(for: a))
+        XCTAssertFalse(iconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
     }
 
     func testHistoryWriteFailureRollsBackIcon() async throws {
@@ -304,8 +304,8 @@ final class ApplyCoordinatorTests: XCTestCase {
         }
         // どちらも新規フォルダ (元のバックアップ無し) だったので、巻き戻し成功後は
         // 今回新たに作ったバックアップが消えているはず (使われないまま残ってはいけない)
-        XCTAssertFalse(freshIconManager.backupExists(for: a))
-        XCTAssertFalse(freshIconManager.backupExists(for: b))
+        XCTAssertFalse(freshIconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
+        XCTAssertFalse(freshIconManager.backupExists(for: b, fileID: FileIdentity.make(for: b)))
         XCTAssertTrue(lockedHistory.tasks.isEmpty)
     }
 
@@ -345,6 +345,47 @@ final class ApplyCoordinatorTests: XCTestCase {
         XCTAssertTrue(outcome.failed.isEmpty)
         XCTAssertEqual(history.tasks.count, 1)
         XCTAssertNil(history.tasks.first?.backupPath)   // 元は標準アイコンなのでバックアップは無いまま
+    }
+
+
+    /// 適用済みのフォルダを移動した後、同じ場所に別のフォルダ (自前のカスタムアイコン付き) を作って適用しても、
+    /// 移動したフォルダのバックアップを拾わず、自分のバックアップを新しく取る
+    func testNewFolderAtVacatedPathGetsItsOwnBackup() async throws {
+        let a = try folder("A")
+        let red = TestSupport.makeSolidImage(size: CGSize(width: 32, height: 32), color: .red)
+        XCTAssertTrue(NSWorkspace.shared.setIcon(red, forFile: a.path, options: []))
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"), settings: CompositionSettings(), to: [a])
+        let movedRow = try XCTUnwrap(history.tasks.first)
+        let movedBackup = try XCTUnwrap(movedRow.backupPath)
+
+        let b = root.appendingPathComponent("B")
+        try FileManager.default.moveItem(at: a, to: b)
+        let newA = try folder("A")
+        let blue = TestSupport.makeSolidImage(size: CGSize(width: 32, height: 32), color: .blue)
+        XCTAssertTrue(NSWorkspace.shared.setIcon(blue, forFile: newA.path, options: []))
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"), settings: CompositionSettings(), to: [newA])
+
+        XCTAssertEqual(history.tasks.count, 2)
+        let newRow = try XCTUnwrap(history.tasks.first { $0.fileID != movedRow.fileID })
+        let newBackup = try XCTUnwrap(newRow.backupPath)
+        XCTAssertNotEqual(newBackup, movedBackup)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: movedBackup))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: newBackup))
+        NSWorkspace.shared.setIcon(nil, forFile: b.path, options: [])
+    }
+
+    /// 一括適用の途中経過は控え (ジャーナル) に書かれ、最後の保存が済めば消える
+    func testJournalIsWrittenDuringTheBatchAndClearedAfterwards() async throws {
+        let a = try folder("A"), b = try folder("B")
+        var journalSeen = false
+        let journal = history.journalURL
+        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"), settings: CompositionSettings(),
+                                    to: [a, b]) { done, _ in
+            if done == 1 { journalSeen = FileManager.default.fileExists(atPath: journal.path) }
+        }
+        XCTAssertTrue(journalSeen)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: journal.path))
+        XCTAssertEqual(history.tasks.count, 2)
     }
 
 }

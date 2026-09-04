@@ -3,7 +3,9 @@ import Foundation
 enum PackWriter {
     static let maxPresets = 200
 
-    static func write(_ presets: [Preset], assets: AssetStore, appVersion: String) throws -> Data {
+    /// maxBytes は読み込み側の上限 (PackReader.maxFileBytes)。超えるパックを書き出しても読み戻せないので、ここで失敗にする
+    static func write(_ presets: [Preset], assets: AssetStore, appVersion: String,
+                      maxBytes: Int = PackReader.maxFileBytes) throws -> Data {
         // 読み込み側と同じ上限。超えたまま書き出すと、自分で作ったパックを読み戻せなくなる
         guard presets.count <= maxPresets else { throw PackError.tooManyPresets(presets.count) }
         let entries: [PackEntry] = try presets.map { preset in
@@ -20,6 +22,8 @@ enum PackWriter {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(pack)
+        let data = try encoder.encode(pack)
+        guard data.count <= maxBytes else { throw PackError.fileTooLarge }
+        return data
     }
 }

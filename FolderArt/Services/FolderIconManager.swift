@@ -39,7 +39,7 @@ class FolderIconManager {
     /// 現在のフォルダーアイコンをバックアップして保存先 URL を返す。設定されていない場合は nil を返す。
     /// 既にバックアップがあれば **上書きしない**。2 回目の適用で FolderArt 自身の合成結果を
     /// 「元のアイコン」として記録してしまうと、リセットでユーザーの元アイコンに戻せなくなる。
-    func backupCurrentIcon(for folderURL: URL) throws -> URL? {
+    func backupCurrentIcon(for folderURL: URL, fileID: String? = nil) throws -> URL? {
         // Only backup if the folder *actually* has a custom icon set ("Icon\r" file exists)
         // Otherwise returning a generic blue folder image leads to a fake custom icon being restored
         let iconFile = folderURL.appendingPathComponent("Icon\r")
@@ -47,7 +47,7 @@ class FolderIconManager {
             return nil
         }
 
-        let backupDir = backupFolder(for: folderURL)
+        let backupDir = backupFolder(for: folderURL, fileID: fileID)
         let backupURL = backupDir.appendingPathComponent("original.png")
 
         // 初回のバックアップだけが「ユーザーの元アイコン」。以後は再利用する
@@ -68,9 +68,12 @@ class FolderIconManager {
         return backupURL
     }
 
-    /// フォルダーごとのバックアップ置き場。パスをそのまま鍵にする (base64 でファイル名に使える形へ)
-    func backupFolder(for folderURL: URL) -> URL {
-        let folderID = folderURL.path
+    /// フォルダーごとのバックアップ置き場。フォルダの同一性 (fileID) があればそれを、無ければパスを鍵にする
+    /// (base64 でファイル名に使える形へ)。path だけを鍵にすると、フォルダを移動した後に同じ場所へ作った
+    /// 別のフォルダが古いバックアップを「元のアイコン」として拾ってしまう。
+    /// 履歴の行は backupPath を持つので、鍵の形が変わっても既存の行のリセットには影響しない
+    func backupFolder(for folderURL: URL, fileID: String? = nil) -> URL {
+        let folderID = (fileID ?? folderURL.path)
             .data(using: .utf8)?
             .base64EncodedString()
             .replacingOccurrences(of: "/", with: "_")
@@ -81,16 +84,16 @@ class FolderIconManager {
     /// このフォルダーのバックアップファイルが既に存在するかどうか。
     /// 適用が失敗して巻き戻すとき、今回の適用で新たにバックアップを作ったのか
     /// 既存のものを再利用しただけなのかを判定するために使う。
-    func backupExists(for folderURL: URL) -> Bool {
-        let backupURL = backupFolder(for: folderURL).appendingPathComponent("original.png")
+    func backupExists(for folderURL: URL, fileID: String? = nil) -> Bool {
+        let backupURL = backupFolder(for: folderURL, fileID: fileID).appendingPathComponent("original.png")
         return FileManager.default.fileExists(atPath: backupURL.path)
     }
 
     /// バックアップを破棄する。リセット完了後に呼ぶ。
     /// 残したままだと、ユーザーが後から別のカスタムアイコンを付けて再適用したときに
     /// 古い方が「元のアイコン」として再利用され、リセットで違うアイコンに戻ってしまう。
-    func removeBackup(for folderURL: URL) {
-        let dir = backupFolder(for: folderURL)
+    func removeBackup(for folderURL: URL, fileID: String? = nil) {
+        let dir = backupFolder(for: folderURL, fileID: fileID)
         guard FileManager.default.fileExists(atPath: dir.path) else { return }
         try? FileManager.default.removeItem(at: dir)
     }

@@ -14,6 +14,8 @@ enum FileIdentity {
         guard let volume = try? resolved.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString,
               let attributes = try? FileManager.default.attributesOfItem(atPath: resolved.path),
               let inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value else { return nil }
-        return "\(volume):\(inode)"
+        // inode は削除後に別のフォルダへ再利用されうるので、作成日時 (改名・移動では変わらない) も鍵に含める
+        let created = (attributes[.creationDate] as? Date).map { Int($0.timeIntervalSince1970) } ?? 0
+        return "\(volume):\(inode):\(created)"
     }
 }

@@ -181,4 +181,24 @@ final class PackTests: XCTestCase {
         XCTAssertEqual(PackReader.pngDimensions(real)?.width, 40)
     }
 
+
+    /// 幅・高さが UInt32 の最大値同士でも乗算でオーバーフローせず、imageTooLarge で拒否する
+    func testHugeDeclaredDimensionsDoNotOverflow() throws {
+        var bytes: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13] + Array("IHDR".utf8)
+        bytes += [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 8, 6, 0, 0, 0]
+        let data = try encode(pack([PackEntry(name: "max", overlay: .image(assetID: UUID()), settings: CompositionSettings(), image: Data(bytes))]))
+        XCTAssertThrowsError(try PackReader.read(data)) { error in
+            guard case PackError.imageTooLarge("max") = error else { return XCTFail("\(error)") }
+        }
+    }
+
+    /// 読み戻せない大きさのパックは書き出しの時点で失敗にする
+    func testWriterRejectsPacksLargerThanTheReaderLimit() throws {
+        let presets = try makePresets()
+        XCTAssertThrowsError(try PackWriter.write(presets, assets: assets, appVersion: "1.3.0", maxBytes: 64)) { error in
+            guard case PackError.fileTooLarge = error else { return XCTFail("\(error)") }
+        }
+        XCTAssertNoThrow(try PackWriter.write(presets, assets: assets, appVersion: "1.3.0"))
+    }
+
 }

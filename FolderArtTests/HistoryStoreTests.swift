@@ -208,4 +208,25 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertNil(store.task(forFolderPath: "/b", fileID: "vol:9"))
     }
 
+
+    /// 一括適用の途中で終了しても、控え (ジャーナル) に残った行は次の起動で履歴へ取り込まれる
+    func testRecoversPendingJournalOnInit() throws {
+        try store.upsert(makeTask(folderPath: "/kept"))
+        let pending = [makeTask(folderPath: "/p1"), makeTask(folderPath: "/p2", overlay: .text("t"))]
+        try store.journal(pending)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.journalURL.path))
+        let reopened = HistoryStore(storageURL: tempHistoryURL)
+        XCTAssertEqual(Set(reopened.tasks.map(\.folderPath)), ["/kept", "/p1", "/p2"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: reopened.journalURL.path))
+        XCTAssertNil(reopened.loadError)
+        // 履歴が読めない起動では取り込まず、控えも残す (数行だけの履歴を書いてしまわない)
+        try store.journal(pending)
+        try Data("broken".utf8).write(to: tempHistoryURL)
+        let broken = HistoryStore(storageURL: tempHistoryURL)
+        XCTAssertNotNil(broken.loadError)
+        XCTAssertTrue(broken.tasks.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: broken.journalURL.path))
+        try? FileManager.default.removeItem(at: broken.journalURL)
+    }
+
 }

@@ -36,6 +36,33 @@ final class HistoryStore: ObservableObject {
         if !tasks.isEmpty {
             do { try store.save(tasks) } catch { loadError = error }
         }
+        // 一括適用の途中で終了した (アイコンは変わったが履歴の保存前だった) 行の控えがあれば取り込む
+        recoverJournal()
+    }
+
+    // MARK: - 一括適用の途中経過の控え (ジャーナル)
+
+    /// 一括適用は履歴を最後に 1 回だけ保存するので、その前にアプリが終了するとアイコンだけ変わって行が残らない。
+    /// 成功した行をここに控えておき、次回起動時に履歴へ取り込む
+    private var journalStore: CodableStore<[IconTask]> {
+        CodableStore(fileURL: store.fileURL.deletingLastPathComponent().appendingPathComponent("history-pending.json"))
+    }
+    var journalURL: URL { journalStore.fileURL }
+
+    func journal(_ pending: [IconTask]) throws { try journalStore.save(pending) }
+
+    func clearJournal() { try? FileManager.default.removeItem(at: journalStore.fileURL) }
+
+    /// 履歴が読めた起動でだけ取り込む (読めていない起動で取り込むと、控えの数行だけの履歴を書いてしまう)。
+    /// 取り込めなければ控えは残し、次回また試す
+    private func recoverJournal() {
+        guard loadError == nil, let pending = try? journalStore.load(), !pending.isEmpty else { return }
+        do {
+            try upsertAll(pending)
+            clearJournal()
+        } catch {
+            loadError = error
+        }
     }
 
     /// 同じ folderPath か、同じ fileID (nil 同士は不一致) の行があれば置き換え、先頭に置く。

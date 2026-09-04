@@ -45,7 +45,8 @@ enum PackReader {
             guard image.count <= maxImageBytes else { throw PackError.imageTooLarge(entry.name) }
             guard let size = pngDimensions(image) else { throw PackError.invalidImage(entry.name) }
             // 宣言された寸法で先に弾く (NSImage に渡すと復号後のビットマップを丸ごと確保するため)
-            guard size.width > 0, size.height > 0, size.width * size.height <= maxImagePixels else {
+            // 乗算は UInt32 の最大値同士でオーバーフローするので、割り算で比較する
+            guard size.width > 0, size.height > 0, size.width <= maxImagePixels / size.height else {
                 throw PackError.imageTooLarge(entry.name)
             }
             guard NSImage(data: image) != nil else { throw PackError.invalidImage(entry.name) }
