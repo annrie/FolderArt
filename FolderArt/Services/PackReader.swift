@@ -13,11 +13,17 @@ enum PackReader {
     /// お気に入りの名前の長さ (書記素数) の上限。保存と表示のたびに巨大な文字列を扱わないようにする
     static let maxNameLength = 100
 
+    /// 書記素数だけでなく UTF-8 のバイト数も見る (1 文字に結合文字を大量に付けると書記素数は 1 のまま巨大になる)。
+    /// 1 書記素あたり最大 16 バイトまで許す (絵文字の連結や異体字セレクタを含めても十分)
+    static func withinLimit(_ s: String, graphemes: Int) -> Bool {
+        s.count <= graphemes && s.utf8.count <= graphemes * 16
+    }
+
     /// 文字・絵文字の長さが上限内か (他の種類は常に true)
     static func payloadWithinLimits(_ overlay: Overlay) -> Bool {
         switch overlay {
-        case .text(let s):  return s.count <= maxTextLength
-        case .emoji(let s): return s.count <= maxEmojiLength
+        case .text(let s):  return withinLimit(s, graphemes: maxTextLength)
+        case .emoji(let s): return withinLimit(s, graphemes: maxEmojiLength)
         default:            return true
         }
     }
@@ -25,9 +31,9 @@ enum PackReader {
     /// 名前・文字・絵文字・フォント名の長さが全て上限内か。読み込みと書き出しの両方で同じ規則を使う
     /// (書き出せるのに読み戻せないパックを作らない)
     static func fieldsWithinLimits(name: String, overlay: Overlay, settings: CompositionSettings) -> Bool {
-        name.count <= maxNameLength
+        withinLimit(name, graphemes: maxNameLength)
             && payloadWithinLimits(overlay)
-            && (settings.fontName?.count ?? 0) <= maxNameLength
+            && withinLimit(settings.fontName ?? "", graphemes: maxNameLength)
     }
 
     /// PNG の IHDR (先頭チャンク) から宣言された (幅, 高さ) を読む。PNG でなければ nil

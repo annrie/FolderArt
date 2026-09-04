@@ -245,4 +245,15 @@ final class PackTests: XCTestCase {
         }
     }
 
+
+    /// 結合文字を大量に付けた「1 文字」(書記素数 1、バイト数は巨大) も上限で弾く
+    func testFieldLimitsAlsoBoundBytes() throws {
+        let combining = "a" + String(repeating: "\u{0301}", count: 5_000)   // 書記素数 1、UTF-8 で約 10 KB
+        XCTAssertEqual(combining.count, 1)
+        XCTAssertFalse(PackReader.withinLimit(combining, graphemes: PackReader.maxNameLength))
+        let data = try encode(pack([PackEntry(name: combining, overlay: .text("x"), settings: CompositionSettings(), image: nil)]))
+        XCTAssertThrowsError(try PackReader.read(data))
+        XCTAssertTrue(PackReader.withinLimit("👨‍👩‍👧‍👦 家族", graphemes: 8))   // 通常の絵文字連結は通る
+    }
+
 }
