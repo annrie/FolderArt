@@ -57,4 +57,52 @@ final class MaintenanceSweepTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("presets.json.corrupt-20260901-000000").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("history.json").path))
     }
+
+    /// このセッション (起動時刻 now) 以降に作られたバックアップは、まだ履歴の保存が終わっていないだけかもしれない。
+    /// 参照されていなくても消してはいけない (Finding 1: 作成とスイープの競合)
+    func testKeepsUnreferencedBackupCreatedDuringThisSession() throws {
+        let orphan = try makeBackup("orphan")
+        let r = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                     backupDirectory: backups, appSupportDirectory: root,
+                                     now: Date().addingTimeInterval(-60))
+        XCTAssertEqual(r.backupsRemoved, 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: orphan))
+    }
+
+    /// 起動時刻より前に作られた孤児バックアップは、前回までのセッションのものなので消してよい
+    func testRemovesUnreferencedBackupCreatedBeforeLaunch() throws {
+        let orphan = try makeBackup("orphan")
+        let r = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                     backupDirectory: backups, appSupportDirectory: root,
+                                     now: Date().addingTimeInterval(60))
+        XCTAssertEqual(r.backupsRemoved, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: orphan))
+    }
+
+    /// backupDirectory 直下は本来サブディレクトリしか無いはずだが、.DS_Store のような迷子ファイルは
+    /// 対象外 (Finding 3: ディレクトリだけを掃除する)
+    func testStrayFileUnderBackupDirectorySurvives() throws {
+        let strayFile = backups.appendingPathComponent(".DS_Store")
+        try Data([0]).write(to: strayFile)
+        _ = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                 backupDirectory: backups, appSupportDirectory: root)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: strayFile.path))
+    }
+
+    /// 子を全部消しても backups ディレクトリ自体は残る (Finding 4a)
+    func testBackupRootDirectoryStillExistsAfterSweepingAllChildren() throws {
+        _ = try makeBackup("orphan")
+        _ = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                 backupDirectory: backups, appSupportDirectory: root)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backups.path))
+    }
+
+    /// backupDirectory/appSupportDirectory が存在しなくても例外にならず 0 件で返る (Finding 4b)
+    func testRunOnMissingDirectoriesReturnsZeroResult() {
+        let missingBackups = root.appendingPathComponent("does-not-exist-backups")
+        let missingAppSupport = root.appendingPathComponent("does-not-exist-appsupport")
+        let r = MaintenanceSweep.run(referencedBackupPaths: [], historyLoaded: true,
+                                     backupDirectory: missingBackups, appSupportDirectory: missingAppSupport)
+        XCTAssertEqual(r, MaintenanceSweep.Result(backupsRemoved: 0, corruptFilesRemoved: 0))
+    }
 }

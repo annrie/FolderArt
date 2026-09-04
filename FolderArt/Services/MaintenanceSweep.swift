@@ -14,11 +14,17 @@ enum MaintenanceSweep {
         var result = Result(backupsRemoved: 0, corruptFilesRemoved: 0)
         let fm = FileManager.default
 
-        // 1. どの履歴行からも参照されないバックアップ (履歴が読めていないときは触らない)
+        // 1. どの履歴行からも参照されないバックアップ (履歴が読めていないときは触らない)。
+        // 起動時刻 (now) 以降に作られたものは今のセッションのものなので触らない
+        // (履歴への保存がまだ済んでいないだけで、参照が付く直前かもしれない)
         if historyLoaded {
             let referencedDirs = Set(referencedBackupPaths.map { URL(fileURLWithPath: $0).deletingLastPathComponent().standardizedFileURL.path })
-            let children = (try? fm.contentsOfDirectory(at: backupDirectory, includingPropertiesForKeys: nil)) ?? []
+            let children = (try? fm.contentsOfDirectory(at: backupDirectory, includingPropertiesForKeys: [.isDirectoryKey, .creationDateKey])) ?? []
             for dir in children where !referencedDirs.contains(dir.standardizedFileURL.path) {
+                let values = try? dir.resourceValues(forKeys: [.isDirectoryKey, .creationDateKey])
+                guard values?.isDirectory == true else { continue }   // ディレクトリ以外 (.DS_Store など) は対象外
+                // 作成日時が取れない、または now 以降に作られたものは今のセッションのものとみなして消さない
+                guard let created = values?.creationDate, created < now else { continue }
                 if (try? fm.removeItem(at: dir)) != nil { result.backupsRemoved += 1 }
             }
         }

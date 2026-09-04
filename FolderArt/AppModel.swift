@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import UniformTypeIdentifiers
+import os
 
 /// 画面全体の状態を束ねる。個別の責務は FolderSelection / OverlayState / ApplyCoordinator が持つ。
 @MainActor
@@ -68,15 +69,21 @@ final class AppModel: ObservableObject {
 
         reapAssets()
 
-        // 起動時の掃除はメインの外で。履歴が読めていない起動ではバックアップを消さない
+        // 起動時の掃除はメインの外で。履歴が読めていない起動ではバックアップを消さない。
+        // now には起動時刻を渡し、これ以降 (=今のセッションで) 作られたバックアップは消さない
         if runsMaintenance {
             let referenced = Set(history.tasks.compactMap(\.backupPath))
             let historyLoaded = history.loadError == nil
             let backups = FolderIconManager.defaultBackupDirectory
             let appSupport = HistoryStore.appSupportDirectory
+            let launched = Date()
             Task.detached(priority: .background) {
-                _ = MaintenanceSweep.run(referencedBackupPaths: referenced, historyLoaded: historyLoaded,
-                                         backupDirectory: backups, appSupportDirectory: appSupport)
+                let result = MaintenanceSweep.run(referencedBackupPaths: referenced, historyLoaded: historyLoaded,
+                                                   backupDirectory: backups, appSupportDirectory: appSupport, now: launched)
+                if result.backupsRemoved > 0 || result.corruptFilesRemoved > 0 {
+                    Logger(subsystem: Bundle.main.bundleIdentifier ?? "FolderArt", category: "maintenance")
+                        .info("sweep: removed \(result.backupsRemoved) backup(s), \(result.corruptFilesRemoved) corrupt file(s)")
+                }
             }
         }
     }
