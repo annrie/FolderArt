@@ -162,7 +162,7 @@ UTExportedTypeDeclarations:
 
 ### 5.1 移動したフォルダの履歴の同一性
 
-- `IconTask` に `fileID: String?` を追加。値は `<volumeUUID>:<fileIdentifier>` の形で、`URLResourceKey.volumeUUIDStringKey` と `fileResourceIdentifierKey` から作る (識別子が `Data` なら Base64、`NSNumber` なら 10 進文字列、それ以外や取得失敗なら `nil`。ボリューム UUID が取れない場合も `nil`)。`decodeIfPresent` で読むので既存の v2 行は `nil`。版数 (`currentVersion = 2`) は変えない。
+- `IconTask` に `fileID: String?` を追加。値は `<volumeUUID>:<inode>` の形で、`URLResourceKey.volumeUUIDStringKey` と `FileManager.attributesOfItem(atPath:)[.systemFileNumber]` (inode 番号) から作る (どちらかが取れなければ `nil`)。`fileResourceIdentifierKey` は使わない: inode に加えてマウント時に決まるファイルシステム ID を含み、再起動や外付けボリュームの抜き差しをまたぐと値が変わるため (Apple の文書でも "not persistent across system restarts")。`decodeIfPresent` で読むので既存の v2 行は `nil`。版数 (`currentVersion = 2`) は変えない。
 - 効く範囲: 同一ボリューム内の名前変更・移動。コピーや別ボリュームへの移動、削除して作り直したフォルダは別物として扱う (path 比較に落ちる)。
 - 適用時に `fileID` を取得して記録する。取得できなければ `nil`。
 - `HistoryStore.upsert` は「`folderPath` が同じ」または「`fileID` が同じ (nil 同士は不一致)」の行を置き換える。置き換え時は既存行の `backupPath` を引き継ぐ (第1段階の規則どおり)。

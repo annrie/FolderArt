@@ -1539,7 +1539,7 @@ git commit -m "feat: ✨ お気に入りパックの書き出し・読み込み 
 
 **Interfaces:**
 - Produces:
-  - `enum FileIdentity { static func make(for url: URL) -> String? }` — `"<volumeUUID>:<fileID>"`、取れなければ nil
+  - `enum FileIdentity { static func make(for url: URL) -> String? }` — `"<volumeUUID>:<inode>"`、取れなければ nil
   - `IconTask.fileID: String?` (init 引数 `fileID: String? = nil`、`decodeIfPresent`)
   - `HistoryStore.task(forFolderPath:fileID:) -> IconTask?`、`upsert` は path または fileID の一致で置き換え
   - `FolderIconManager.removeBackup(atBackupPath path: String?)` — バックアップ PNG の親ディレクトリ (バックアップディレクトリ配下のときだけ) を削除
@@ -1634,19 +1634,14 @@ import Foundation
 /// フォルダの同一性: ボリューム UUID とファイル ID の組。同一ボリューム内の改名・移動で不変。
 /// コピーや別ボリュームへの移動、作り直しは別物になる (呼び出し側は path 比較に落ちる)。
 enum FileIdentity {
+    /// fileResourceIdentifierKey は inode に加えてマウント時に決まるファイルシステム ID を含み、
+    /// 再起動をまたぐと変わる (Apple の文書でも "not persistent across system restarts")。
+    /// 履歴は起動をまたいで残るので、ボリューム UUID と inode 番号 (systemFileNumber) で作る。
     static func make(for url: URL) -> String? {
-        guard let values = try? url.resourceValues(forKeys: [.volumeUUIDStringKey, .fileResourceIdentifierKey]),
-              let volume = values.volumeUUIDString,
-              let identifier = values.fileResourceIdentifier else { return nil }
-        let fileID: String
-        if let data = identifier as? Data {
-            fileID = data.base64EncodedString()
-        } else if let number = identifier as? NSNumber {
-            fileID = number.stringValue
-        } else {
-            return nil
-        }
-        return "\(volume):\(fileID)"
+        guard let volume = try? url.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value else { return nil }
+        return "\(volume):\(inode)"
     }
 }
 ```
