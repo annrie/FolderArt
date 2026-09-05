@@ -63,7 +63,7 @@ enum FontCatalog {
 - `fontName` には **ファミリ名** を入れる。モデル (`CompositionSettings.fontName: String?`) の型と意味は変えない。
 - `font(family:weight:size:)` の解決順:
   1. `family == nil` → 現行どおりシステムフォント + `.rounded` (太さは `weight`)。
-  2. `families` に含まれる → `NSFontDescriptor(fontAttributes: [.family: family, .traits: [.weight: weight.nsWeight.rawValue]])` から `NSFont(descriptor:size:)`。無い太さは一番近い顔になる。返った `NSFont.familyName` が `family` と違えば (置き換えが起きた) 3 へ。
+  2. `families` に含まれる → `NSFontDescriptor(fontAttributes: [.family: family, .traits: [.weight: weight.nsWeight.rawValue]])` から `NSFont(descriptor:size:)`。無い太さは一番近い顔になる。返った `NSFont.familyName` が `family` と違えば (置き換えが起きた) 3 へ。この解決は 8 家族すべてについて確認済み: Hiragino Sans は W3/W4/W5/W6/W7/W8 が 6 段階に 1 対 1、Hiragino Mincho ProN は W3/W6、Hiragino Maru Gothic ProN は W4 のみ、Tsukushi A Round Gothic は Regular/Bold、Klee は Medium/Demibold、Avenir Next は Regular/Medium/DemiBold/Bold/Heavy、Menlo は Regular/Bold。`choices` には正規の家族名だけを持ち、表示名や PostScript 名で引かないので、名前の種類のずれは起きない。
   3. `NSFont(name: family, size:)` (1.3.0 までのパックに PostScript 名が入っていた場合の互換)。
   4. どれも無ければ 1 の既定に落ちる (別の Mac で作られたパックの家族が無くても描ける)。
 - 記号の太さは現行の `NSImage.SymbolConfiguration(weight:)` のまま。絵文字と画像には太さもフォントも効かない。
@@ -83,10 +83,11 @@ enum FontCatalog {
 
 - お気に入り・履歴・パックは `settings` をそのまま持つので変更なし。`PackReader` の `fontName` 上限 (100 書記素) と `isValid` (空文字でない) もそのまま。
 - 1.3.0 で作った保存データは `fontName == nil` なので見た目が変わらない。
+- 逆方向 (1.4.0 が書いたパックを 1.3.0 で読む): 1.3.0 の `makeFont` は `NSFont(name:)` だけなので、家族名は解決できることもある (CoreText は PostScript 名 → フルネーム → 家族名の順で当てる) が、太さは既定の顔になる。解決できなければ丸ゴシック。**1.3.0 での見た目の差は許容する** (第2段階の方針どおり、パックの `format` は 1 のまま。項目の形は変わっていない)。
 
 ### 3.4 テスト
 
-- `FontCatalogTests`: `nil` → 丸ゴシック (`fontDescriptor.object(forKey: .design)` または `fontName` に `Rounded` を含む)、既知の家族 → `familyName` 一致、`Hiragino Sans` で regular と bold の `fontName` が違う、`families` に無い家族 → 落ちずに既定へ、PostScript 名 (`HiraginoSans-W6`) は 3 の経路で解決、`available()` は先頭が `nil` で `families` に無いものを含まない。
+- `FontCatalogTests`: `nil` → 丸ゴシック (`fontDescriptor.object(forKey: .design)` または `fontName` に `Rounded` を含む)、既知の家族 → `familyName` 一致、`Hiragino Sans` の regular / bold / black がそれぞれ `HiraginoSans-W3` / `HiraginoSans-W6` / `HiraginoSans-W8`、`Hiragino Maru Gothic ProN` はどの太さでも `HiraMaruProN-W4` (無い太さは一番近い顔)、`families` に無い家族 → 落ちずに既定へ、PostScript 名 (`HiraginoSans-W6`) は 3 の経路で解決、`available()` は先頭が `nil` で `families` に無いものを含まない。
 - `OverlayRendererTests`: `fontName = "Hiragino Mincho ProN"` の文字が描けて不透明画素がある。
 
 ## 4. 多言語化 (L)
@@ -94,9 +95,12 @@ enum FontCatalog {
 ### 4.1 言語とカタログ
 
 - 言語コード: `ja`, `en`, `de`, `es`, `fr`, `ko`, `pt-BR`, `zh-Hant`。
-- `Resources/Localizable.xcstrings` を 1 つ。**キーは現行の日本語リテラルのまま** (コード側の `Text("…")` / `String(localized:)` は触らない)。`sourceLanguage` は `en` とし、`en` の値も明示的に持つ (キーが日本語なので、明示しないと英語環境で日本語が出る)。8 言語すべてを `translated` にする。
+- `Resources/Localizable.xcstrings` を 1 つ。**キーは現行の日本語リテラルのまま** (コード側の `Text("…")` / `String(localized:)` は触らない)。`sourceLanguage` は `en` とし、`en` の値も明示的に持つ (キーが日本語なので、明示しないと英語環境で日本語が出る)。全項目 `extractionState: manual` にして Xcode の同期に既存の値を触らせない (新しいキーは実装時に手で足す)。8 言語すべてを `translated` にする。
+- この組み合わせ (開発言語 en + 日本語キー + en の値を明示) は `xcrun xcstringstool compile` で確認済み: `en.lproj/Localizable.strings` に英語の値、`ja.lproj` にキーと同じ値、単複の variation は `en.lproj/Localizable.stringsdict` に出る。訳の無いキーはその言語の `.lproj` に出ないので、実行時に開発言語 (en) へ落ちる。
+  - 退けた案: 開発言語を ja にする (未対応の言語で日本語が出て、TuneR / YTDown の en フォールバックと合わない)。キーを英語に書き換える (全ファイルの文言を触る大きな差分になり、§2 の「コードの文言は触らない」に反する)。
 - `project.yml` に `options.developmentLanguage: en` を明記し、`LOCALIZATION_PREFERS_STRING_CATALOGS: YES` と `SWIFT_EMIT_LOC_STRINGS: YES` を `FolderArt` の settings に足す (Xcode がビルド時にカタログへ新しいキーを同期できるようにする)。XcodeGen 2.46 は `.xcstrings` をリソースとして扱う。
-- 数を含む文言 (「%lld フォルダに適用」「選択した %lld フォルダに適用」「%lld 件のお気に入りを追加しました。」「(%lld 件は同じものがあるため省略)。」「中身の多くが%@ (%lld 件)」) は en / de / es / fr / pt-BR に単数・複数の variation を入れる。ja / ko / zh-Hant は単複の区別が無いので 1 形。
+- カタログのキーは Swift の補間から抽出される形に合わせる: `Int` は `%lld`、`String` は `%@` (例: `String(localized: "\(n) フォルダに適用")` → キー `%lld フォルダに適用`)。
+- 単数・複数の variation は **数が 1 つだけ** の文言に入れる: 「%lld フォルダに適用」「選択した %lld フォルダに適用」「%lld 件のお気に入りを追加しました。」を en / de / es / fr / pt-BR で。ja / ko / zh-Hant は単複の区別が無いので 1 形。数を 2 つ含む「%lld 件のお気に入りを追加しました (%lld 件は同じものがあるため省略)。」と `%@` を含む「中身の多くが%@ (%lld 件)」は variation を使わず、単複で形が変わらない言い回しにする (例: en `Added %lld preset(s) (%lld skipped as identical).`)。
 - `Resources/InfoPlist.xcstrings`: `FolderArt Preset Pack` (CFBundleTypeName / UTTypeDescription) を 8 言語で。
 - `suggestions.json` の語と SF Symbols の検索語は日英のまま (他 6 言語のキーは第4段階)。
 
@@ -110,7 +114,7 @@ enum FontCatalog {
 | `Views/ControlsView.swift` `Text(showsTint ? "…" : "…")` | 三項演算子で `String` になり訳が効かない | `showsTint ? Text("…") : Text("…")` |
 | `AppModel.exportPack()` の既定ファイル名 `FolderArt-お気に入り-<日付>` | 同上 | `String(localized: "FolderArt-お気に入り-\(date)")` |
 
-実装計画の最初のタスクで `grep` による棚卸し (`Text(` / `Button(` / `Label(` / `.help(` / `String(localized` / `errorDescription`) を行い、表に無いものが見つかれば同じ流儀で直す。
+判定の基準: `Text("…")` / `Button("…")` / `Label("…")` / `Toggle("…")` / `TextField("…")` / `Menu("…")` / `.alert("…")` の文字列リテラルは `LocalizedStringKey` として訳される (日本語リテラルであること自体は問題ではない)。訳されないのは **`String` 型を経由する** 経路だけ: 三項演算子、`String` 型のプロパティや引数、`errorDescription`、`String(format:)`、`nameFieldStringValue` など。実装計画の最初のタスクで `grep` による棚卸し (`Text(` / `Button(` / `Label(` / `.help(` / `String(localized` / `errorDescription` / 文言を持つ `: String` のプロパティ) を行い、対象の全行と判定を PR の説明に載せる。表に無いものが見つかれば同じ流儀で直す。
 
 ### 4.3 言語メニュー
 
@@ -134,13 +138,15 @@ final class LanguageSetting: ObservableObject {
 - 保存: `selection != .system` なら自前キー `FolderArtLanguage` に rawValue、`AppleLanguages` に `[rawValue]` を書く。`.system` なら **両方を `removeObject`** する。起動時は **自前キーだけ** 読む (`AppleLanguages` は上書きしていなくてもシステムの値が読めてしまい、「システムに従う」と区別できないため)。
 - `FolderArtApp` が `@StateObject var language = LanguageSetting()` を持ち、`.environmentObject` で `ContentView` に渡す。
 - 反映: `needsRelaunch` で `ContentView` がアラート「言語の変更は次回起動時に反映されます。今すぐ再起動しますか？ (フォルダーのリストと今の入力は消えます)」を出す。ボタンは [再起動] [あとで]。**適用中 (`isApplying`) は [再起動] を出さない** (アラートの内容は `ViewBuilder` なので条件で省ける)。
+- 状態遷移: `selection` が **変わったときだけ** `needsRelaunch = true` (同じ値の再選択では立てない)。アラートの `isPresented` は `needsRelaunch` に束ね、[あとで] でも [再起動] の失敗でも、閉じれば `false` に戻る。再提示はしない (設定は保存済みなので次回起動で反映される。適用中で [再起動] を出せなかったときも同じ)。
+- 保存の反映: `UserDefaults` は cfprefsd を介するので、`set` した値は plist への書き出しを待たずに新しいプロセスから読める。`synchronize()` は呼ばない (非推奨で、効果も無い)。
 - 再起動: `NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration:)` で `createsNewApplicationInstance = true` にして自分をもう 1 つ起動し、完了ハンドラで `NSApp.terminate(nil)`。起動に失敗したら終了せず `errorMessage` に理由を出す。
 - 新しいインスタンスは通常起動と同じ (`reapAssets` など)。古いインスタンスは終了するだけなので保存データの競合は無い。
 
 ### 4.4 テスト
 
 - `LanguageSettingTests` (`UserDefaults(suiteName:)` を注入): 言語を選ぶと両キーが書かれる、`.system` で両方消える、起動時に自前キーから復元する、`AppleLanguages` だけがある (システム由来) なら `.system`、選択が変わったときだけ `needsRelaunch` が立つ。
-- `LocalizationTests`: `Localizable.xcstrings` を JSON として読み、全キーが 8 言語とも `translated` であること、`ja` の値がキーと一致すること (書き間違いの検出)。`en.lproj` を `Bundle(path:)` で開き、「履歴」など数個のキーが英語になっていること (どの言語のプロセスで走っても通る)。`InfoPlist.xcstrings` も同じ完全性チェック。
+- `LocalizationTests`: `Localizable.xcstrings` を JSON として読み、全キーが 8 言語とも `translated` であること、`ja` の値がキーと一致すること (書き間違いの検出)。`en.lproj` を `Bundle(path:)` で開き、「履歴」など数個のキーが英語になっていること (どの言語のプロセスで走っても通る)。`InfoPlist.xcstrings` も同じ完全性チェック。`en.lproj/Localizable.stringsdict` に「%lld フォルダに適用」の `one` / `other` があること。`String(localized:bundle:locale:)` を `en.lproj` の `Bundle` と `Locale(identifier: "en")` で評価し、1 なら `folder`、2 なら `folders` になること。
 - 既存テストは `String(localized:)` で比較しているので言語に依存しない。`ApplyCoordinatorTests` の `contains("履歴の保存に失敗")` だけ `String(localized:)` に直す。
 
 ## 5. フォルダの中身からの生成 (B)
@@ -156,7 +162,8 @@ enum ContentKind: CaseIterable, Sendable {
 
 struct RepresentativeImage: Equatable, Sendable {
     let url: URL
-    let thumbnailPNG: Data                           // 長辺 256px 以下の PNG (チップ用)
+    let modificationDate: Date                       // 同じ path の画像が更新されたことを見分ける (Suggestion の id に使う)
+    let thumbnailPNG: Data                           // 長辺 256px 以下の PNG (チップ用)。等価判定には使わない
 }
 
 struct ContentSummary: Equatable, Sendable {
@@ -174,7 +181,7 @@ enum ContentScanner {
 }
 ```
 
-- 走査は `FileManager.contentsOfDirectory(at:includingPropertiesForKeys:options:)` で **直下のみ**、`.skipsHiddenFiles`。`Icon\r` は隠し属性が付いていないことがあるので **名前でも除外**。`limit` 件を超えた分は見ない (順序は `contentsOfDirectory` の返す順)。
+- 走査は `FileManager.enumerator(at:includingPropertiesForKeys:options: [.skipsSubdirectoryDescendants, .skipsHiddenFiles])` で **直下のみ** を逐次読む (`contentsOfDirectory` は全件を配列にしてから返すので、巨大なフォルダやネットワークボリュームで上限が効かない)。`Icon\r` は隠し属性が付いていないことがあるので **名前でも除外**。ループの中で `limit` 件に達したら止め、毎回 `Task.isCancelled` を見て打ち切る (打ち切ったら nil)。順序は列挙の返す順 (ファイルシステム依存) なので、上限で止めた結果は「直下の一部」であり、テストもその前提で書く (件数の合計が `limit` になることだけを見る)。
 - 分類は `contentTypeKey` の `UTType` を次の順で判定し、最初に当たった種類に数える。当たらないものは数えない。
   1. ディレクトリでパッケージでない → `folder`
   2. `.application` → `app`
@@ -188,14 +195,15 @@ enum ContentScanner {
   10. `.text` / `.compositeContent` → `document`
   11. `.archive` / `.diskImage` → `archive`
 - `dominant == .folder` は数えるだけで **チップは出さない** (フォルダの上にフォルダ記号を重ねても意味が無い。サブフォルダが多数派なら中身からの候補は無し)。
-- 代表画像: `dominant == .image` のとき、`representableTypes` のいずれかに準拠し `fileSizeKey` が `maxImageBytes` 以下の画像のうち、`contentModificationDateKey` が最新 (同時刻は `lastPathComponent` の昇順で先) の 1 枚。`thumbnailPNG` は `CGImageSource` の `kCGImageSourceCreateThumbnailFromImageAlways` + `kCGImageSourceThumbnailMaxPixelSize` で作る (画像全体を復号しない)。サムネイルが作れなければ代表画像は無し。
+- 代表画像: `dominant == .image` のとき、`representableTypes` のいずれかに準拠し `fileSizeKey` が `maxImageBytes` 以下の画像のうち、`contentModificationDateKey` が最新 (同時刻は `lastPathComponent` の昇順で先) の 1 枚。`thumbnailPNG` は `CGImageSourceCreateWithURL` (`kCGImageSourceShouldCache: false`) → `CGImageSourceCreateThumbnailAtIndex` に `kCGImageSourceCreateThumbnailFromImageAlways: true`、`kCGImageSourceThumbnailMaxPixelSize: 256`、`kCGImageSourceCreateThumbnailWithTransform: true` (EXIF の向きを反映) を渡して作り、PNG に書き出す (画像全体を復号せず、キャッシュも残さない)。サムネイルが作れなければ代表画像は無し。
 - 記号・絵文字は **辞書 `suggestions.json` の代表キー** から引く (`SuggestionDictionary.entry(forKey:)` を足す)。辞書に単一の出典を置き、既存テスト「全 symbol がカタログにある」で担保する。辞書に無い `presentation` / `spreadsheet` の項目を足す (記号は `SymbolCatalog` にあるものをテストで確認して選ぶ。候補: `play.rectangle.fill` / `tablecells.fill`)。
 
 ### 5.2 候補の合流
 
 ```swift
-enum Suggestion.Kind { case symbol(String), emoji(String), text(String), preset(Preset), image(url: URL, thumbnailPNG: Data) }
-// image の等価判定と id は url だけ ("image:<path>")
+enum Suggestion.Kind { case symbol(String), emoji(String), text(String), preset(Preset), image(RepresentativeImage) }
+// image の等価判定と id は url + modificationDate ("image:<path>:<mtime>")。thumbnailPNG は比較しない。
+// 同じ path の画像が更新されて再走査されたとき、チップの .task(id:) が新しいサムネイルを描き直せるようにする
 
 struct SuggestionEngine {
     func suggest(for folderName: String, presets: [Preset], content: ContentSummary?) -> [Suggestion]   // 最大 4
@@ -212,18 +220,18 @@ struct SuggestionEngine {
 - `.image` チップのサムネイル: `thumbnailPNG` から `NSImage` を作り、`OverlayRenderer.render(image:side:)` (画像の経路を `static` に公開) → `IconComposer.compose` で他のチップと同じ「フォルダに合成した見た目」にする。
 - `AppModel`:
   - 名前からの候補は今までどおり同期で即時 (`CombineLatest3`)。
-  - 中身は **`suggestionSourceFolder` が変わったときだけ** `Task.detached(priority: .utility)` で `scan` → `thumbnailPNG` を実行し、戻った時点で `suggestionSourceFolder` がまだ同じ URL なら結果を `contentSummary` に入れて候補を作り直す。違えば捨てる。走査中に対象が変わったら前の `Task` を `cancel()` する (走査側は `Task.isCancelled` を見て `limit` の途中でも打ち切る)。
+  - 中身は **`suggestionSourceFolder` が変わったときだけ** 走査する。走査ごとに単調増加の `scanGeneration` を振り、`Task.detached(priority: .utility)` で `scan` → `thumbnailPNG` を実行し、戻った時点で **generation が最新で、かつ `suggestionSourceFolder` が同じ URL** のときだけ結果を `contentSummary` に入れて候補を作り直す。どちらかが違えば捨てる (同じ URL を外して入れ直した場合も、新しい generation の結果だけを採る)。走査中に対象が変わったら前の `Task` を `cancel()` する。cancel は best effort (列挙のループでは効くが、`CGImageSource` の 1 枚分は途中で止まらない)。古い結果を採らないことは generation で保証する。
   - お気に入りの変化では再走査しない (`contentSummary` を使い回す)。対象が nil になったら `contentSummary` を消す。
   - 走査関数はテストのために注入できる (`scanner: @Sendable (URL) -> ContentSummary?`)。
 - 採用: `.image` → 既存の `selectImage(url)` (ドロップと同じ経路。`AssetStore` に 512px PNG で複製し画像タブへ)。記号・絵文字・文字・お気に入りは現行どおり。
-- サンドボックス: リストのフォルダはパネル・ドロップ・ブックマーク (履歴から) のいずれかでアクセス権を持っており、直下のファイルも読める。新しい権限は要らない。
+- サンドボックス: `NSOpenPanel` とドロップで受け取った URL の権限はプロセスの寿命の間有効で、スレッドや URL 値には紐づかない (現行の一括適用も、受け取った後に別スレッドで書き込んでいる)。履歴から戻したフォルダは `folderURL(for:)` がリストにある間スコープを開いたままにしている。したがって走査と `.image` の採用 (`selectImage`) に新しい権限や `startAccessingSecurityScopedResource` は要らない。走査中にリストから外されてスコープが閉じた場合は読めずに nil になるが、その結果は対象が変わっているので捨てられる。
 
 ### 5.4 テスト
 
-- `ContentScannerTests` (一時ディレクトリに拡張子だけのダミーと小さな実 PNG を置く): 多数派の判定、同数のときの列挙順、隠しファイルと `Icon\r` の除外、サブフォルダは `folder` に数える、`dominant == .folder` で代表画像なし、代表画像は更新日時が最新、`heic` 以外の非対応形式 (`psd` など) と `maxImageBytes` 超は代表にしない、`limit` で打ち切る、存在しないパスは nil、サムネイル PNG の長辺が 256 以下。
+- `ContentScannerTests` (一時ディレクトリに拡張子だけのダミーと小さな実 PNG を置く): 多数派の判定、同数のときの列挙順、隠しファイルと `Icon\r` の除外、サブフォルダは `folder` に数える、`dominant == .folder` で代表画像なし、代表画像は更新日時が最新、`heic` 以外の非対応形式 (`psd` など) と `maxImageBytes` 超は代表にしない、`limit` で打ち切る (件数の合計が `limit`)、存在しないパスは nil、サムネイル PNG の長辺が 256 以下、EXIF で 90 度回転した 2:1 の JPEG (`CGImageDestination` で orientation 6 を付けて作る) のサムネイルは縦長になる。
 - `SuggestionEngineTests` (追加分): 名前が当たれば中身は空枠だけ埋める、名前が空でも中身だけで記号・絵文字が出る、`folder` が多数派なら出ない、代表画像があれば 4 つ目に `.image`、`content: nil` は従来と同じ。
 - `SuggestionDictionaryTests`: `entry(forKey:)` が代表キーを引ける (全 `ContentKind` について。`folder` は除く)。
-- `AppModelTests`: 注入した scanner で、走査が戻る前に対象フォルダを変えたら古い結果を捨てる、同じフォルダのままなら候補に `.image` が足される、お気に入りを足しても再走査しない (呼び出し回数)。
+- `AppModelTests`: 注入した scanner (結果を返すタイミングを制御できるもの) で、走査が戻る前に対象フォルダを変えたら古い generation の結果を捨てる、同じフォルダのままなら候補に `.image` が足される、同じフォルダを外して入れ直したら新しい generation で走査し直す、cancel された走査の結果は採らない、お気に入りを足しても再走査しない (呼び出し回数)。代表画像が消えた後にチップを押すと `selectImage` の既存アラートになる (§7)。
 
 ## 6. 画面と状態のまとめ
 
