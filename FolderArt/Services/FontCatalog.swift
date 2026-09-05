@@ -25,6 +25,7 @@ enum FontCatalog {
     ]
 
     /// この Mac にある家族名。起動後 1 回だけ取得 (描画のたびに NSFontManager を引かない。起動後に入れたフォントは次回起動から)
+    /// static let の初回アクセス時に NSFontManager に触れる。今のところ呼び出し元はすべてメインスレッド
     static let installedFamilies: Set<String> = Set(NSFontManager.shared.availableFontFamilies)
 
     /// この Mac にあるものだけ。先頭 (nil = 丸ゴシック) は常に含む
@@ -35,7 +36,7 @@ enum FontCatalog {
     /// Picker 用: 今の値が一覧に無ければ「その他 (名前)」を末尾に足す (SwiftUI の Picker は選択値が一覧に無いと空表示になる)。
     /// 設定の値は書き換えない。選び直せばこの項目は消える
     static func choices(including current: String?, available: [FontChoice]) -> [FontChoice] {
-        guard let current, !available.contains(where: { $0.family == current }) else { return available }
+        guard let current, !current.isEmpty, !available.contains(where: { $0.family == current }) else { return available }
         return available + [FontChoice(family: current, title: "その他 (\(current))")]
     }
 

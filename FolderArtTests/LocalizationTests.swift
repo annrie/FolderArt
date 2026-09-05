@@ -54,11 +54,35 @@ final class LocalizationTests: XCTestCase {
         XCTAssertNotNil(entry["NSStringLocalizedFormatKey"], "plural entry should live in Localizable.stringsdict")
     }
 
+    /// 全言語で同一であることを許す、固有名詞や記号だけの文言 (訳しようが無いもの)
+    private static let identicalEverywhere: Set<String> = [
+        "FolderArt", "Avenir Next", "%lld", "%lld / %lld", "%@ · %@", "日本語", "繁體中文",
+    ]
+    /// その言語でだけ ja と同一であることを許すキー (簡体字と違って漢字をそのまま使う繁体字など)
+    private static let identicalPerLanguage: [String: Set<String>] = [
+        "zh-Hant": ["文字", "標準"],
+    ]
+
+    /// ja 以外の全言語・全キーについて、値がキー (= 日本語の原文) と違うこと (= 未訳のまま残っていないこと) を見る。
+    /// 複数形の variation を持つ辞書エントリは、NSStringLocalizedFormatKey があれば訳済み扱いにして照合をスキップする
     func testOtherLanguagesDifferFromJapanese() throws {
+        let ja = table("Localizable", language: "ja")
+        var offenders: [(language: String, key: String)] = []
         for language in Self.languages where language != "ja" {
-            let b = try bundle(for: language)
-            XCTAssertNotEqual(b.localizedString(forKey: "履歴", value: nil, table: nil), "履歴", language)
+            let other = table("Localizable", language: language)
+            let allowed = Self.identicalEverywhere.union(Self.identicalPerLanguage[language] ?? [])
+            for key in ja.keys {
+                guard !allowed.contains(key), let otherValue = other[key] else { continue }
+                if let dict = otherValue as? [String: Any] {
+                    if dict["NSStringLocalizedFormatKey"] != nil { continue }   // 複数形は訳済み扱い
+                    offenders.append((language, key))
+                    continue
+                }
+                guard let otherString = otherValue as? String, otherString == key else { continue }
+                offenders.append((language, key))
+            }
         }
+        XCTAssertTrue(offenders.isEmpty, offenders.map { "\($0.language): \($0.key)" }.joined(separator: ", "))
     }
 
     func testInfoPlistIsLocalized() {

@@ -102,14 +102,15 @@ enum ContentScanner {
         .isDirectoryKey, .isPackageKey, .contentTypeKey, .contentModificationDateKey, .fileSizeKey,
     ]
 
-    /// 読めなければ nil (存在しない、権限が無い、cancel された)
+    /// 読めなければ nil (フォルダごと存在しない、権限が無い、1 件も読めなかった、cancel された)。
+    /// 直下の一部の項目だけが読めない (壊れたエントリなど) 場合は、その項目を飛ばして残りは数え続ける
     static func scan(_ folder: URL, limit: Int = entryLimit, maxImageBytes: Int = maxImageBytes) -> ContentSummary? {
         var failed = false
         guard let enumerator = FileManager.default.enumerator(
             at: folder,
             includingPropertiesForKeys: Array(resourceKeys),
             options: [.skipsSubdirectoryDescendants, .skipsHiddenFiles],
-            errorHandler: { _, _ in failed = true; return false }
+            errorHandler: { _, _ in failed = true; return true }
         ) else { return nil }
 
         var counts: [ContentKind: Int] = [:]
@@ -140,7 +141,7 @@ enum ContentScanner {
                 best = (url, date)
             }
         }
-        if failed { return nil }
+        if failed && seen == 0 { return nil }
 
         let dominant = ContentSummary.dominant(of: counts)
         var representative: RepresentativeImage?

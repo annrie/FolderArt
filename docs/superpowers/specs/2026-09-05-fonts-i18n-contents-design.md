@@ -100,7 +100,8 @@ enum FontCatalog {
   - 退けた案: 開発言語を ja にする (未対応の言語で日本語が出て、TuneR / YTDown の en フォールバックと合わない)。キーを英語に書き換える (全ファイルの文言を触る大きな差分になり、§2 の「コードの文言は触らない」に反する)。
 - `project.yml` に `options.developmentLanguage: en` を明記し、`LOCALIZATION_PREFERS_STRING_CATALOGS: YES` を `FolderArt` の settings に足す。`SWIFT_EMIT_LOC_STRINGS` は付けない (Xcode がビルド時にカタログへキーを書き足して生成物と食い違うため。ソースとの同期は `scripts/localization/build-xcstrings.py --check` で行う)。XcodeGen 2.46 は `.xcstrings` をリソースとして扱う。
 - カタログのキーは Swift の補間から抽出される形に合わせる: `Int` は `%lld`、`String` は `%@` (例: `String(localized: "\(n) フォルダに適用")` → キー `%lld フォルダに適用`)。
-- 単数・複数の variation は **数が 1 つだけ** の文言に入れる: 「%lld フォルダに適用」「選択した %lld フォルダに適用」「%lld 件のお気に入りを追加しました。」を en / de / es / fr / pt-BR で。ja / ko / zh-Hant は単複の区別が無いので 1 形。数を 2 つ含む「%lld 件のお気に入りを追加しました (%lld 件は同じものがあるため省略)。」と `%@` を含む「中身の多くが%@ (%lld 件)」は variation を使わず、単複で形が変わらない言い回しにする (例: en `Added %lld preset(s) (%lld skipped as identical).`)。
+- 単数・複数の variation は **数が 1 つだけ** の文言に入れる: 「%lld フォルダに適用」「選択した %lld フォルダに適用」「%lld 件のお気に入りを追加しました。」を en / de / es / fr / pt-BR で。ja / ko / zh-Hant は単複の区別が無いので 1 形。数を 2 つ含む「%lld 件のお気に入りを追加しました (%lld 件は同じものがあるため省略)。」は variation を使わず、単複で形が変わらない言い回しにする (例: en `Added %lld preset(s) (%lld skipped as identical).`)。
+- 中身からの理由は `%@` で種類名を埋め込む 1 つの文言ではなく、種類ごとに数だけを持つ 10 個のキー (「中身の多くが画像 (%lld 件)」「中身の多くが動画 (%lld 件)」… 「中身の多くがアプリ (%lld 件)」) にし、それぞれに単数・複数の variation を持たせる。
 - `Resources/InfoPlist.xcstrings`: `FolderArt Preset Pack` (CFBundleTypeName / UTTypeDescription) を 8 言語で。
 - `suggestions.json` の語と SF Symbols の検索語は日英のまま (他 6 言語のキーは第4段階)。
 
@@ -157,7 +158,7 @@ final class LanguageSetting: ObservableObject {
 enum ContentKind: CaseIterable, Sendable {
     case image, video, audio, pdf, presentation, spreadsheet, code, document, archive, app, folder
     var dictionaryKey: String        // 辞書の代表キー: photo / video / music / pdf / presentation / spreadsheet / code / document / zip / app / (folder は無し)
-    var displayName: String          // 理由の文言用 (画像 / 動画 / 音楽 / PDF / プレゼン / 表計算 / コード / 書類 / 圧縮ファイル / アプリ / フォルダ)
+    func reason(count: Int) -> String?   // 理由の文言「中身の多くが画像 (%lld 件)」など種類ごとのキー (単数・複数の variation 持ち)。folder は nil
 }
 
 struct RepresentativeImage: Equatable, Sendable {
@@ -210,7 +211,7 @@ struct SuggestionEngine {
 }
 ```
 
-- 名前からの候補 (第2段階の 4 層) を先に作る。`content?.dominant` が `folder` 以外なら、**記号の枠と絵文字の枠のうち空いている方だけ** 辞書の代表キーの記号・絵文字で埋める (記号は `catalog.contains` で存在確認)。理由は「中身の多くが%@ (%lld 件)」。
+- 名前からの候補 (第2段階の 4 層) を先に作る。`content?.dominant` が `folder` 以外なら、**記号の枠と絵文字の枠のうち空いている方だけ** 辞書の代表キーの記号・絵文字で埋める (記号は `catalog.contains` で存在確認)。理由は種類ごとの文言 (例: 「中身の多くが画像 (%lld 件)」)。
 - `content?.representative` があれば `.image` チップを **末尾** に足す。理由は「中身の画像「%@」」(ファイル名)。
 - 上限 4 (記号・絵文字・文字・画像)。既存の `suggest(for:presets:)` は `content: nil` で同じ結果を返す (既存テストはそのまま通る)。
 

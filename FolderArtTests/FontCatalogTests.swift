@@ -53,9 +53,10 @@ final class FontCatalogTests: XCTestCase {
         XCTAssertEqual(FontCatalog.choices(including: "Menlo", available: base).map(\.family), [nil, "Menlo"])
         XCTAssertEqual(FontCatalog.choices(including: "Zapfino", available: base).map(\.family), [nil, "Menlo", "Zapfino"])
         XCTAssertEqual(FontCatalog.choices(including: "Zapfino", available: base).last?.id, "Zapfino")
+        XCTAssertEqual(FontCatalog.choices(including: "", available: base).map(\.family), [nil, "Menlo"])
     }
 
-    func testWeightDisplayNamesAreDistinct() {
+    func testWeightsMapToDistinctSystemWeights() {
         // LocalizedStringKey は比較しにくいので、描画に使う NSFont.Weight が 6 種で異なることだけ見る
         XCTAssertEqual(Set(FontWeightValue.allCases.map(\.nsWeight.rawValue)).count, 6)
     }

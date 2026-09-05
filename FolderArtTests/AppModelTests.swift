@@ -342,7 +342,7 @@ final class AppModelTests: XCTestCase {
     func testExportWithNoPresetsExplains() {
         XCTAssertTrue(model.presets.presets.isEmpty)
         model.exportPack()
-        XCTAssertEqual(model.errorMessage, "書き出せるお気に入りがありません。")
+        XCTAssertEqual(model.errorMessage, String(localized: "書き出せるお気に入りがありません。"))
     }
 
 
@@ -357,22 +357,53 @@ final class AppModelTests: XCTestCase {
 
     // MARK: - 中身の走査
 
-    /// 走査の呼び出しを記録し、フォルダ名ごとに遅延と結果を差し替えられる scanner (メインの外から呼ばれる)
+    /// 走査の呼び出しを記録し、フォルダ名ごとにゲート (足止め) と結果を差し替えられる scanner (メインの外から呼ばれる)。
+    /// 可変状態はすべて lock 越しにアクセスする。`configure` はモデルを作る前 (まだ並行アクセスが無いうち) に 1 回だけ呼ぶ
     private final class ScanRecorder: @unchecked Sendable {
         private let lock = NSLock()
         private var calls: [String] = []
-        var delays: [String: TimeInterval] = [:]
-        var results: [String: ContentSummary] = [:]
+        private var returned: [String: Int] = [:]
+        private var results: [String: ContentSummary] = [:]
+        private var gates: [String: DispatchSemaphore] = [:]
 
+        /// フォルダ名ごとの結果と、任意でゲート (record がそこで足止めされ、signal() されるまで戻らない) を設定する
+        func configure(results: [String: ContentSummary] = [:], gates: [String: DispatchSemaphore] = [:]) {
+            lock.lock()
+            self.results = results
+            self.gates = gates
+            lock.unlock()
+        }
+
+        /// 呼び出し順は calls に積んだ時点 (足止めの前) で確定する。ゲートがあれば signal() されるまでここで待つ
         func record(_ url: URL) -> ContentSummary? {
-            lock.lock(); calls.append(url.lastPathComponent); lock.unlock()
-            if let delay = delays[url.lastPathComponent] { Thread.sleep(forTimeInterval: delay) }
-            return results[url.lastPathComponent] ?? ContentSummary(counts: [:], dominant: nil, representative: nil)
+            let name = url.lastPathComponent
+            lock.lock()
+            calls.append(name)
+            let gate = gates[name]
+            let result = results[name]
+            lock.unlock()
+            gate?.wait()
+            lock.lock(); returned[name, default: 0] += 1; lock.unlock()
+            return result ?? ContentSummary(counts: [:], dominant: nil, representative: nil)
         }
 
         func count(of name: String) -> Int {
             lock.lock(); defer { lock.unlock() }
             return calls.filter { $0 == name }.count
+        }
+
+        /// record がゲートを抜けて実際に戻った回数 (呼ばれた回数の count(of:) とは別で見る)
+        func returnedCount(of name: String) -> Int {
+            lock.lock(); defer { lock.unlock() }
+            return returned[name] ?? 0
+        }
+    }
+
+    /// 固定の sleep に頼らず、期限まで観測可能な状態をポーリングする (走査は非同期で完了までの時間を保証できないため)
+    private func waitUntil(_ timeout: TimeInterval = 5, _ condition: @escaping () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
         }
     }
 
@@ -406,11 +437,11 @@ final class AppModelTests: XCTestCase {
     func testContentScanAddsImageChipWhenFolderStaysSelected() async throws {
         let (a, image) = try makeFolderWithImage("A")
         let scanner = ScanRecorder()
-        scanner.results["A"] = imageSummary(image)
+        scanner.configure(results: ["A": imageSummary(image)])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
         XCTAssertFalse(hasImageChip(m))   // 走査は非同期。同期の時点では名前の候補だけ
-        try await Task.sleep(nanoseconds: 300_000_000)
+        try await waitUntil { self.hasImageChip(m) }
         XCTAssertTrue(hasImageChip(m))
         XCTAssertTrue(m.suggestions.contains { $0.kind == .emoji("📷") })   // 中身の多数派 (画像) の絵文字も入る
         XCTAssertEqual(scanner.count(of: "A"), 1)
@@ -421,28 +452,30 @@ final class AppModelTests: XCTestCase {
         let b = root.appendingPathComponent("B")
         try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
         let scanner = ScanRecorder()
-        scanner.delays["A"] = 0.4
-        scanner.results["A"] = imageSummary(image)
+        let gateA = DispatchSemaphore(value: 0)
+        scanner.configure(results: ["A": imageSummary(image)], gates: ["A": gateA])
         let m = makeModel(scanner: scanner)
-        m.addFolders([a])   // A の走査が始まる (0.4 秒かかる)
-        m.addFolders([b])   // 対象が B に変わる → A の結果は捨てられる
-        try await Task.sleep(nanoseconds: 700_000_000)
+        m.addFolders([a])   // A の走査が始まる (gateA で足止めされる)
+        try await waitUntil { scanner.count(of: "A") == 1 }   // A の走査が確実に始まってから対象を変える
+        m.addFolders([b])   // 対象が B に変わる → A はまだ足止め中なので、変更が先に来ることが構造上保証される
         XCTAssertEqual(m.suggestionSourceFolder, b.standardizedFileURL)
+        gateA.signal()   // A の走査を進める。世代がずれているので結果は棄却されるはず
+        try await waitUntil { scanner.returnedCount(of: "A") == 1 }
         XCTAssertFalse(hasImageChip(m))
     }
 
     func testReAddingSameFolderScansAgainWithNewGeneration() async throws {
         let (a, image) = try makeFolderWithImage("A")
         let scanner = ScanRecorder()
-        scanner.results["A"] = imageSummary(image)
+        scanner.configure(results: ["A": imageSummary(image)])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
-        try await Task.sleep(nanoseconds: 300_000_000)
+        try await waitUntil { self.hasImageChip(m) }
         XCTAssertTrue(hasImageChip(m))
         m.folders.removeAll()
         XCTAssertTrue(m.suggestions.isEmpty)
         m.addFolders([a])
-        try await Task.sleep(nanoseconds: 300_000_000)
+        try await waitUntil { self.hasImageChip(m) }
         XCTAssertTrue(hasImageChip(m))
         XCTAssertEqual(scanner.count(of: "A"), 2)
     }
@@ -450,12 +483,12 @@ final class AppModelTests: XCTestCase {
     func testPresetChangeReusesContentWithoutRescan() async throws {
         let (a, image) = try makeFolderWithImage("A")
         let scanner = ScanRecorder()
-        scanner.results["A"] = imageSummary(image)
+        scanner.configure(results: ["A": imageSummary(image)])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
-        try await Task.sleep(nanoseconds: 300_000_000)
+        try await waitUntil { self.hasImageChip(m) }
         try m.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
-        try await Task.sleep(nanoseconds: 300_000_000)
+        // お気に入りの追加は CombineLatest3 経由で同期的に候補を作り直す。走査はし直されないはず
         XCTAssertEqual(scanner.count(of: "A"), 1)
         XCTAssertTrue(hasImageChip(m))   // 使い回した結果で候補が作り直される
     }
@@ -463,13 +496,17 @@ final class AppModelTests: XCTestCase {
     func testScanResultIsDroppedWhenListBecomesEmpty() async throws {
         let (a, image) = try makeFolderWithImage("A")
         let scanner = ScanRecorder()
-        scanner.delays["A"] = 0.4
-        scanner.results["A"] = imageSummary(image)
+        let gateA = DispatchSemaphore(value: 0)
+        scanner.configure(results: ["A": imageSummary(image)], gates: ["A": gateA])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
+        try await waitUntil { scanner.count(of: "A") == 1 }   // A の走査が確実に始まってから空にする
         m.folders.removeAll()   // 走査中に対象が無くなる → cancel、戻ってきても採らない
-        try await Task.sleep(nanoseconds: 700_000_000)
         XCTAssertTrue(m.suggestions.isEmpty)
+        gateA.signal()   // 足止めしていた A の走査を進める
+        try await waitUntil { scanner.returnedCount(of: "A") == 1 }
+        XCTAssertTrue(m.suggestions.isEmpty)
+        XCTAssertEqual(scanner.count(of: "A"), 1)   // 走査は 1 回だけ始まり、その結果は棄却された (再走査もされていない)
     }
 
     /// A を走査済みの状態で B に切り替え (走査中)、B の走査が終わる前に A へ戻ると
@@ -480,17 +517,23 @@ final class AppModelTests: XCTestCase {
         let b = root.appendingPathComponent("B")
         try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
         let scanner = ScanRecorder()
-        scanner.delays["B"] = 0.4
-        scanner.results["A"] = imageSummary(image)
+        let gateB = DispatchSemaphore(value: 0)
+        scanner.configure(results: ["A": imageSummary(image)], gates: ["B": gateB])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
-        try await Task.sleep(nanoseconds: 300_000_000)   // A はキャッシュ済み (画像チップあり)
+        try await waitUntil { self.hasImageChip(m) }   // A はキャッシュ済み (画像チップあり)
         XCTAssertTrue(hasImageChip(m))
-        m.addFolders([b])   // B の走査が始まる (0.4 秒かかる)
-        m.folders.selectedIDs = [a.standardizedFileURL]   // B の走査中に A へ戻る (A はキャッシュ命中)
-        try await Task.sleep(nanoseconds: 700_000_000)   // B の走査が終わる (結果は棄却されるはず)
+        m.addFolders([b])   // B の走査が始まる (gateB で足止めされる)
+        try await waitUntil { scanner.count(of: "B") == 1 }   // B の走査が確実に始まってから A へ戻る
+        m.folders.selectedIDs = [a.standardizedFileURL]   // B の走査中に A へ戻る (A はキャッシュ命中なので同期で反映される)
+        try await waitUntil { self.hasImageChip(m) }
+        XCTAssertTrue(hasImageChip(m))
+        gateB.signal()   // 1 回目の B の走査を進める (対象はもう A なので棄却されるはず)
+        try await waitUntil { scanner.returnedCount(of: "B") == 1 }
         m.folders.selectedIDs = [b.standardizedFileURL]   // 再び B に戻る → 再走査されるべき
-        try await Task.sleep(nanoseconds: 300_000_000)
+        try await waitUntil { scanner.count(of: "B") == 2 }   // 2 回目の走査が始まった (固まっていない証拠)
+        gateB.signal()   // 2 回目の走査も進めて後始末する (テストを跨いでスレッドを足止めしたままにしない)
+        try await waitUntil { scanner.returnedCount(of: "B") == 2 }
         XCTAssertEqual(m.suggestionSourceFolder, b.standardizedFileURL)
         XCTAssertEqual(scanner.count(of: "B"), 2)
     }
