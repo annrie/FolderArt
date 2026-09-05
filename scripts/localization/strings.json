@@ -160,5 +160,7 @@
   "提案辞書のキーが長すぎます: %@": ["提案辞書のキーが長すぎます: %@", "A dictionary key is too long: %@", "Ein Wörterbuchschlüssel ist zu lang: %@", "Una clave del diccionario es demasiado larga: %@", "Une clé du dictionnaire est trop longue : %@", "사전의 키가 너무 깁니다: %@", "Uma chave do dicionário é longa demais: %@", "字典的鍵過長：%@"],
   "提案辞書の記号名が長すぎます: %@": ["提案辞書の記号名が長すぎます: %@", "A dictionary symbol name is too long: %@", "Ein Symbolname im Wörterbuch ist zu lang: %@", "Un nombre de símbolo del diccionario es demasiado largo: %@", "Un nom de symbole du dictionnaire est trop long : %@", "사전의 심볼 이름이 너무 깁니다: %@", "Um nome de símbolo do dicionário é longo demais: %@", "字典的符號名稱過長：%@"],
   "提案辞書の絵文字が長すぎます: %@": ["提案辞書の絵文字が長すぎます: %@", "A dictionary emoji is too long: %@", "Ein Emoji im Wörterbuch ist zu lang: %@", "Un emoji del diccionario es demasiado largo: %@", "Un emoji du dictionnaire est trop long : %@", "사전의 이모지가 너무 깁니다: %@", "Um emoji do dicionário é longo demais: %@", "字典的表情符號過長：%@"],
-  "提案辞書の JSON の形式が違います: %@": ["提案辞書の JSON の形式が違います: %@", "The suggestion dictionary is not valid JSON: %@", "Das Wörterbuch ist kein gültiges JSON: %@", "El diccionario no es un JSON válido: %@", "Le dictionnaire n’est pas un JSON valide : %@", "제안 사전의 JSON 형식이 올바르지 않습니다: %@", "O dicionário não é um JSON válido: %@", "建議字典的 JSON 格式不正確：%@"]
+  "提案辞書の JSON の形式が違います: %@": ["提案辞書の JSON の形式が違います: %@", "The suggestion dictionary is not valid JSON: %@", "Das Wörterbuch ist kein gültiges JSON: %@", "El diccionario no es un JSON válido: %@", "Le dictionnaire n’est pas un JSON valide : %@", "제안 사전의 JSON 형식이 올바르지 않습니다: %@", "O dicionário não é um JSON válido: %@", "建議字典的 JSON 格式不正確：%@"],
+  "": ["", "", "", "", "", "", "", ""],
+  "OK": ["OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK"]
 }
