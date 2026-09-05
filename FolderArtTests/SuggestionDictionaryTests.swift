@@ -47,4 +47,17 @@ final class SuggestionDictionaryTests: XCTestCase {
             XCTAssertEqual(count, 1, "key appears in multiple entries: \(key)")
         }
     }
+
+    /// 中身からの提案は辞書の代表キーで記号・絵文字を引く。folder 以外の全種類が引けて、記号と絵文字の両方を持つ
+    func testEveryContentKindHasADictionaryEntry() {
+        let dict = SuggestionDictionary.load(bundle: Bundle(for: SuggestionDictionaryTests.self))
+        for kind in ContentKind.allCases {
+            guard let key = kind.dictionaryKey else { XCTAssertEqual(kind, .folder); continue }
+            let entry = dict.entry(forKey: key)
+            XCTAssertNotNil(entry, "no entry for \(kind) (key \(key))")
+            XCTAssertNotNil(entry?.symbol, "\(kind)")
+            XCTAssertNotNil(entry?.emoji, "\(kind)")
+        }
+        XCTAssertNil(dict.entry(forKey: "no-such-key"))
+    }
 }

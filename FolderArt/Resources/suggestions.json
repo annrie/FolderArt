@@ -100,5 +100,7 @@
   {"keys": ["クリスマス", "christmas", "xmas"], "symbol": "gift.fill", "emoji": "🎄"},
   {"keys": ["正月", "新年", "newyear"], "symbol": "sparkles", "emoji": "🎍"},
   {"keys": ["夏休み", "夏季", "summer"], "symbol": "sun.max.fill", "emoji": "☀️"},
-  {"keys": ["冬季", "雪山", "スキー", "winter", "snow", "ski"], "symbol": "snowflake", "emoji": "❄️"}
+  {"keys": ["冬季", "雪山", "スキー", "winter", "snow", "ski"], "symbol": "snowflake", "emoji": "❄️"},
+  {"keys": ["プレゼン", "スライド", "presentation", "presentations", "slides", "slide", "keynote", "pptx"], "symbol": "play.rectangle.fill", "emoji": "📽️"},
+  {"keys": ["表計算", "スプレッドシート", "spreadsheet", "spreadsheets", "excel", "xlsx", "numbers"], "symbol": "tablecells.fill", "emoji": "📊"}
 ]
