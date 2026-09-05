@@ -16,11 +16,11 @@ struct ControlsView: View {
 
             HStack {
                 Text("配置:").font(.callout).frame(width: 80, alignment: .trailing)
-                Picker("", selection: $settings.position) {
+                Picker(selection: $settings.position) {
                     ForEach(IconPosition.allCases, id: \.self) { pos in
                         Text(pos.displayName).tag(pos)
                     }
-                }
+                } label: { EmptyView() }
                 .pickerStyle(.radioGroup)
                 .labelsHidden()
             }
@@ -43,7 +43,9 @@ struct ControlsView: View {
 
             HStack {
                 Text("色:").font(.callout).frame(width: 80, alignment: .trailing)
-                ColorPicker("", selection: tintBinding, supportsOpacity: false)
+                ColorPicker(selection: tintBinding, supportsOpacity: false) {
+                    EmptyView()
+                }
                     .labelsHidden()
                     .disabled(!showsTint)
                     .opacity(showsTint ? 1 : 0.4)
@@ -54,11 +56,11 @@ struct ControlsView: View {
             HStack {
                 Text("フォント:").font(.callout).frame(width: 80, alignment: .trailing)
                 // 今の値が一覧に無いとき (別の Mac のパックなど) は「その他 (名前)」を足して選択が空にならないようにする
-                Picker("", selection: $settings.fontName) {
+                Picker(selection: $settings.fontName) {
                     ForEach(FontCatalog.choices(including: settings.fontName, available: FontCatalog.available())) { choice in
                         Text(choice.title).tag(choice.family)
                     }
-                }
+                } label: { EmptyView() }
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .frame(maxWidth: 220)
@@ -68,11 +70,11 @@ struct ControlsView: View {
 
             HStack {
                 Text("太さ:").font(.callout).frame(width: 80, alignment: .trailing)
-                Picker("", selection: $settings.fontWeight) {
+                Picker(selection: $settings.fontWeight) {
                     ForEach(FontWeightValue.allCases, id: \.self) { weight in
                         Text(weight.displayName).tag(weight)
                     }
-                }
+                } label: { EmptyView() }
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .frame(maxWidth: 140)
@@ -83,7 +85,7 @@ struct ControlsView: View {
             Divider()
 
             HStack {
-                Text("").frame(width: 80, alignment: .trailing)
+                Text(verbatim: "").frame(width: 80, alignment: .trailing)
                 // 表示名を内部名 (clipToFolderShape) と一致させる
                 Toggle("フォルダー形に切り抜く", isOn: $settings.clipToFolderShape)
                     .toggleStyle(.checkbox)
