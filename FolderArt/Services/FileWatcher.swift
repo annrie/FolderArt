@@ -7,6 +7,7 @@ import Foundation
 final class FileWatcher {
     private let file: URL
     private let debounce: TimeInterval
+    /// FileWatcher の生存期間中ずっと強参照で保持される。呼び出し元は自分自身を weak でキャプチャすること (AppModel はそうする)
     private let onChange: () -> Void
     private let queue = DispatchQueue(label: "FolderArt.FileWatcher")
     private var directorySource: DispatchSourceFileSystemObject?

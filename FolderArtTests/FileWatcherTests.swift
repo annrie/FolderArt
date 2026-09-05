@@ -14,7 +14,10 @@ final class FileWatcherTests: XCTestCase {
     }
 
     private func makeWatcher(_ expectation: XCTestExpectation) -> FileWatcher? {
-        FileWatcher(directory: dir, file: file, debounce: 0.2) { expectation.fulfill() }
+        FileWatcher(directory: dir, file: file, debounce: 0.2) {
+            XCTAssertTrue(Thread.isMainThread)
+            expectation.fulfill()
+        }
     }
 
     func testCreatingTheFileNotifies() throws {
