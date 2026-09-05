@@ -11,7 +11,7 @@ struct FolderArtApp: App {
         }
         .windowStyle(.titleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 760, height: 720)
+        .defaultSize(width: 760, height: 780)
         .commands {
             CommandGroup(after: .importExport) {
                 Button("お気に入りのパックを書き出す…") {

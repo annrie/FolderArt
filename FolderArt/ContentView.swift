@@ -57,6 +57,8 @@ struct ContentView: View {
             HStack(alignment: .top, spacing: 12) {
                 ControlsView(settings: settingsBinding,
                              showsTint: model.overlay.activeTab == .symbol || model.overlay.activeTab == .text,
+                             showsFont: model.overlay.activeTab == .text,
+                             showsWeight: model.overlay.activeTab == .symbol || model.overlay.activeTab == .text,
                              sizeLockedByFill: model.overlay.activeTab == .image)
                     .frame(maxWidth: .infinity)
                 PreviewView(image: model.overlay.previewImage,
@@ -71,7 +73,7 @@ struct ContentView: View {
 
             actionBar
         }
-        .frame(minWidth: 760, minHeight: 720)
+        .frame(minWidth: 760, minHeight: 780)
         .background(
             // 余白へのドロップ用。.background なので内側の受け口 (リストと画像タブ) が上に来て優先される
             FileDropReceiver(
