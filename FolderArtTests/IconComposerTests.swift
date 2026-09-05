@@ -203,4 +203,54 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(measured, expected, accuracy: 0.015,
                        "本体の中心は正方形の中央より \(measured * 100)% 下 (既定値は \(expected * 100)%)。既定値を測り直してください")
     }
+
+    // MARK: - 敷き詰め時の上下位置クランプ (Codex 指摘対応)
+
+    /// 正方形画像を敷き詰めるとキャンバスぴったりになるので、余白 (slack) が 0 →
+    /// 既定の上下位置 (下4%) があっても動かず、常にキャンバス全体を覆う
+    func testFullBleedSquareImageIgnoresDefaultOffset() {
+        let settings = CompositionSettings()   // 既定値 (verticalOffset -0.04, clipToFolderShape true, position .center)
+        let containerSize = CGSize(width: 512, height: 512)
+
+        let rect = IconComposer.calculateRect(for: CGSize(width: 512, height: 512), in: containerSize,
+                                              settings: settings, fillsWhenClipped: true)
+
+        XCTAssertEqual(rect.origin.x, 0, accuracy: 0.001)
+        XCTAssertEqual(rect.origin.y, 0, accuracy: 0.001)
+        XCTAssertEqual(rect.width, 512, accuracy: 0.001)
+        XCTAssertEqual(rect.height, 512, accuracy: 0.001)
+    }
+
+    /// 縦長画像はキャンバスより縦に大きく引き伸ばされるので、余白 (slack) の範囲内であれば
+    /// 既定の上下位置 (下4%) 分だけパンしても構わない (クランプされない)
+    func testFullBleedTallImageStillPansWithinSlack() {
+        let settings = CompositionSettings()   // 既定値 (verticalOffset -0.04)
+        let containerSize = CGSize(width: 512, height: 512)
+
+        let rect = IconComposer.calculateRect(for: CGSize(width: 171, height: 512), in: containerSize,
+                                              settings: settings, fillsWhenClipped: true)
+
+        let h = 512.0 * 512.0 / 171.0
+        let yBase = (512.0 - h) / 2
+        XCTAssertEqual(rect.minY, yBase - 20.48, accuracy: 0.01)
+        XCTAssertLessThanOrEqual(rect.minY, 0)
+        XCTAssertGreaterThanOrEqual(rect.maxY, 512)
+    }
+
+    /// 余白 (slack) より大きい上下位置は、キャンバスを覆い切れる範囲までクランプされる
+    func testFullBleedOffsetIsClampedToCoverage() {
+        let containerSize = CGSize(width: 512, height: 512)
+
+        var settings = CompositionSettings(position: .center, opacity: 1.0, verticalOffset: 0.4, clipToFolderShape: true)
+        var rect = IconComposer.calculateRect(for: CGSize(width: 512, height: 600), in: containerSize,
+                                              settings: settings, fillsWhenClipped: true)
+        XCTAssertEqual(rect.minY, 0, accuracy: 0.001)
+        XCTAssertEqual(rect.maxY, 600, accuracy: 0.001)
+
+        settings.verticalOffset = -0.4
+        rect = IconComposer.calculateRect(for: CGSize(width: 512, height: 600), in: containerSize,
+                                          settings: settings, fillsWhenClipped: true)
+        XCTAssertEqual(rect.minY, -88, accuracy: 0.001)
+        XCTAssertEqual(rect.maxY, 512, accuracy: 0.001)
+    }
 }

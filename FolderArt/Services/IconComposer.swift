@@ -44,7 +44,8 @@ enum IconComposer {
 
     /// 土台アイコンにオーバーレイ画像 (OverlayRenderer の出力) を合成して返す
     /// - Parameter fillsWhenClipped: 切り抜き ON + 中央のとき、フォルダ全体に敷き詰める (画像) か、
-    ///   サイズ指定どおりに置いてはみ出しだけ切り抜く (記号・絵文字・文字) か。
+    ///   サイズ指定どおりに置いてはみ出しだけ切り抜く (記号・絵文字・文字) か。敷き詰めるときは上下位置が
+    ///   キャンバスを覆い切れる範囲にクランプされるので、正方形画像では既定の上下位置があっても動かない。
     static func compose(
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
@@ -88,7 +89,9 @@ enum IconComposer {
         }
     }
 
-    /// 配置設定に基づいてオーバーレイの描画 Rect を計算する (現行と同一)
+    /// 配置設定に基づいてオーバーレイの描画 Rect を計算する (現行と同一)。
+    /// 敷き詰め (clipToFolderShape && fillsWhenClipped) では、上下位置 (verticalOffset) はキャンバスを
+    /// 縦に覆い切れる範囲 (余白 = はみ出し高さ / 2) にクランプされる。正方形画像は余白 0 なので動かない
     static func calculateRect(
         for imageSize: CGSize,
         in containerSize: CGSize,
@@ -122,7 +125,12 @@ enum IconComposer {
             }
             let x = (containerSize.width  - customWidth)  / 2
             let yBase = (containerSize.height - customHeight) / 2
-            let yShift = containerSize.height * settings.verticalOffset
+            var yShift = containerSize.height * settings.verticalOffset
+            if settings.clipToFolderShape && fillsWhenClipped {
+                // 敷き詰めではキャンバスを縦に覆い切る範囲でだけ動かす (縦長画像のパン)。正方形なら余白 0 で動かない
+                let slack = max(0, (customHeight - containerSize.height) / 2)
+                yShift = min(max(yShift, -slack), slack)
+            }
             return NSRect(x: x, y: yBase + yShift, width: customWidth, height: customHeight)
 
         case .badge:
