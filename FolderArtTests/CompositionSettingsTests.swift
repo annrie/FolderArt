@@ -23,7 +23,7 @@ final class CompositionSettingsTests: XCTestCase {
     func testDecodingJSONWithoutNewKeysUsesDefaults() throws {
         // 将来キーを足したときの後方互換を保証する
         let json = """
-        {"position":"center","scale":0.6,"opacity":0.9,"verticalOffset":0.0,"clipToFolderShape":true}
+        {"position":"center","scale":0.6,"opacity":0.9,"verticalOffset":-0.04,"clipToFolderShape":true}
         """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(CompositionSettings.self, from: json)
         XCTAssertEqual(decoded.tintColor, .white)

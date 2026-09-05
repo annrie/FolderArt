@@ -453,6 +453,7 @@ final class AppModelTests: XCTestCase {
         try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
         let scanner = ScanRecorder()
         let gateA = DispatchSemaphore(value: 0)
+        defer { gateA.signal() }
         scanner.configure(results: ["A": imageSummary(image)], gates: ["A": gateA])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])   // A の走査が始まる (gateA で足止めされる)
@@ -497,6 +498,7 @@ final class AppModelTests: XCTestCase {
         let (a, image) = try makeFolderWithImage("A")
         let scanner = ScanRecorder()
         let gateA = DispatchSemaphore(value: 0)
+        defer { gateA.signal() }
         scanner.configure(results: ["A": imageSummary(image)], gates: ["A": gateA])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
@@ -518,6 +520,7 @@ final class AppModelTests: XCTestCase {
         try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
         let scanner = ScanRecorder()
         let gateB = DispatchSemaphore(value: 0)
+        defer { gateB.signal() }
         scanner.configure(results: ["A": imageSummary(image)], gates: ["B": gateB])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])

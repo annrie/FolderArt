@@ -5,9 +5,10 @@ import AppKit
 final class IconComposerTests: XCTestCase {
 
     func testCenterCalculationIsMiddle() {
-        // clipToFolderShape=false のときはスケールが適用される
+        // clipToFolderShape=false のときはスケールが適用される。ここでは中央配置そのものの計算を見るので、
+        // 既定の上下位置 (下4%) の影響を受けないよう verticalOffset は明示的に 0 にする
         let settings = CompositionSettings(position: .center, scale: 0.5, opacity: 1.0,
-                                           clipToFolderShape: false)
+                                           verticalOffset: 0, clipToFolderShape: false)
         let imageSize = CGSize(width: 100, height: 100)
         let containerSize = CGSize(width: 512, height: 512)
 
@@ -64,7 +65,9 @@ final class IconComposerTests: XCTestCase {
     /// 画像はもう正方形に押し込められず元のアスペクト比のまま渡ってくる (round6)。
     /// バッジ配置ではその画像が右下にぴったり収まる (パディング分だけ内側) ことを確認する
     func testBadgePlacementFlushToBottomRightWithAspectPreservingImage() {
-        let settings = CompositionSettings(position: .badge, opacity: 1.0)
+        // バッジがパディング分だけ内側に収まることを見るテストなので、既定の上下位置 (下4%) の
+        // 影響を受けないよう verticalOffset は明示的に 0 にする
+        let settings = CompositionSettings(position: .badge, opacity: 1.0, verticalOffset: 0)
         let imageSize = CGSize(width: 300, height: 100)  // OverlayRenderer が渡す非正方形画像を模す
         let containerSize = CGSize(width: 512, height: 512)
 
@@ -169,5 +172,35 @@ final class IconComposerTests: XCTestCase {
         XCTAssertGreaterThan(f.redComponent, 0.8)
         // フォルダの色は外観モード (ライト/ダーク) で変わるので、絶対値ではなく敷き詰めた方との差で見る
         XCTAssertLessThan(s.redComponent, f.redComponent - 0.3)
+    }
+
+    // MARK: - フォルダ本体の中心
+
+    /// 蓋 (幅 40% × 高さ 10%) + 本体 (幅 100% × 高さ 70%) の合成図形。本体は y = 20%…90% なので中心は 55%、
+    /// 正方形の中央 (50%) より 5% 下 → +0.05
+    private func makeFolderLikeShape(side: Int) -> NSImage {
+        let s = CGFloat(side)
+        return BitmapCanvas.draw(size: CGSize(width: s, height: s)) { _ in
+            NSColor.blue.setFill()
+            // NSGraphicsContext は左下原点。蓋は上から 10%…20% = 下から 80%…90%
+            NSRect(x: 0, y: s * 0.80, width: s * 0.40, height: s * 0.10).fill()
+            // 本体は上から 20%…90% = 下から 10%…80%
+            NSRect(x: 0, y: s * 0.10, width: s, height: s * 0.70).fill()
+        }!
+    }
+
+    func testFolderBodyCenterOffsetOnFixture() throws {
+        let offset = try XCTUnwrap(IconComposer.folderBodyCenterOffset(of: makeFolderLikeShape(side: 100), side: 100))
+        XCTAssertEqual(offset, 0.05, accuracy: 0.011)   // 1 画素分 (0.01) の丸めを許す
+        XCTAssertNil(IconComposer.folderBodyCenterOffset(of: NSImage(size: NSSize(width: 10, height: 10)), side: 10))   // 不透明な画素が無い
+    }
+
+    /// 環境依存の見張り: 起動中の macOS の標準フォルダアイコンで実測した本体中心と、既定の上下位置が一致すること。
+    /// Apple がフォルダの形を変えた macOS で落ちる。そのときはメッセージの実測値で既定値を測り直す
+    func testDefaultVerticalOffsetMatchesFolderBodyCenter() throws {
+        let measured = try XCTUnwrap(IconComposer.folderBodyCenterOffset(of: IconComposer.standardFolderIcon))
+        let expected = -CompositionSettings().verticalOffset
+        XCTAssertEqual(measured, expected, accuracy: 0.015,
+                       "本体の中心は正方形の中央より \(measured * 100)% 下 (既定値は \(expected * 100)%)。既定値を測り直してください")
     }
 }

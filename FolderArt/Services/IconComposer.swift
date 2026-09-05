@@ -12,6 +12,36 @@ enum IconComposer {
         return icon
     }()
 
+    /// フォルダアイコンの「本体」(蓋を除く) の中心が正方形の中央からどれだけ下にあるか (アイコンの高さに対する比、下が正)。
+    /// 不透明 (alpha > 0.5) な画素が行の最大幅の 90% 以上ある行を本体とみなす (蓋は幅が狭い)。不透明な行が無ければ nil。
+    /// CompositionSettings.verticalOffset の既定値はこの値の符号を反転したもの (macOS 15.7 で 0.040)
+    static func folderBodyCenterOffset(of image: NSImage, side: Int = 512) -> Double? {
+        guard side > 0,
+              let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(x: 0, y: 0, width: side, height: side), from: .zero, operation: .sourceOver, fraction: 1)
+        NSGraphicsContext.restoreGraphicsState()
+
+        // 行ごとの不透明な画素の数 (NSBitmapImageRep の y は上から)
+        var widths: [Int] = []
+        widths.reserveCapacity(side)
+        for y in 0..<side {
+            var n = 0
+            for x in 0..<side where (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 { n += 1 }
+            widths.append(n)
+        }
+        guard let maxWidth = widths.max(), maxWidth > 0 else { return nil }
+        let threshold = Int((Double(maxWidth) * 0.9).rounded(.up))
+        let bodyRows = widths.enumerated().filter { $0.element >= threshold }.map(\.offset)
+        guard let top = bodyRows.first, let bottom = bodyRows.last else { return nil }
+        let center = Double(top + bottom) / 2 + 0.5   // 画素の中心
+        return (center - Double(side) / 2) / Double(side)
+    }
+
     /// 土台アイコンにオーバーレイ画像 (OverlayRenderer の出力) を合成して返す
     /// - Parameter fillsWhenClipped: 切り抜き ON + 中央のとき、フォルダ全体に敷き詰める (画像) か、
     ///   サイズ指定どおりに置いてはみ出しだけ切り抜く (記号・絵文字・文字) か。
