@@ -63,6 +63,7 @@
 		B519A6CF2F2CB4B1C31DE178 /* AssetStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 886BBDCAA1FFC90002F4AAAD /* AssetStoreTests.swift */; };
 		B967EF7413192528205016D8 /* FileIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56B6350BCEAEC37C0011C2D /* FileIdentity.swift */; };
 		BCC884BEC8309F2426275ECB /* suggestions.json in Resources */ = {isa = PBXBuildFile; fileRef = 79612AA7493837023B727FF2 /* suggestions.json */; };
+		BEC4509C5B318747550EAB92 /* PresetExportPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6277A1B79ABF40CA28FCEC17 /* PresetExportPickerView.swift */; };
 		C2C2C06A4F730D6E9BB33088 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502339979955DC1D1A8FEBD5 /* HistoryStore.swift */; };
 		C75DC3BDDEED1C874F45C6FD /* OverlayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4110F76F80F389FC528E43DD /* OverlayTests.swift */; };
 		C7ED163720D509FD3622491F /* CompositionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03397CAD3F70160DD2C879B4 /* CompositionSettings.swift */; };
@@ -130,6 +131,7 @@
 		54826D182ABB56390845CFCF /* FolderArtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FolderArtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5756A3CABD998E75D8AD6787 /* OverlayState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayState.swift; sourceTree = "<group>"; };
 		5EE02AEBFB478CDE088F1DEB /* OverlayRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRendererTests.swift; sourceTree = "<group>"; };
+		6277A1B79ABF40CA28FCEC17 /* PresetExportPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetExportPickerView.swift; sourceTree = "<group>"; };
 		79612AA7493837023B727FF2 /* suggestions.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = suggestions.json; sourceTree = "<group>"; };
 		79B32F2E4CCED86453A4AE2A /* FolderSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderSelection.swift; sourceTree = "<group>"; };
 		7A44D30ADE24E1D0982E3899 /* ContentScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentScanner.swift; sourceTree = "<group>"; };
@@ -300,6 +302,7 @@
 				8EC0E1A55C6D47150442E2BF /* FolderListView.swift */,
 				078CB4D0C0960A8AF20B032F /* HistoryView.swift */,
 				52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */,
+				6277A1B79ABF40CA28FCEC17 /* PresetExportPickerView.swift */,
 				B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */,
 				1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */,
 				98D0652D0329BED1EAE76CEF /* SuggestionStripView.swift */,
@@ -509,6 +512,7 @@
 				41E18E2B109179ED24A22461 /* PackReader.swift in Sources */,
 				00F9837B481316A4C0530C31 /* PackWriter.swift in Sources */,
 				1E94CC78757172E43FADBFD1 /* Preset.swift in Sources */,
+				BEC4509C5B318747550EAB92 /* PresetExportPickerView.swift in Sources */,
 				758533C8B9E56E860E22A01F /* PresetExportSelection.swift in Sources */,
 				D5288870CA8B6B79063E2678 /* PresetImporter.swift in Sources */,
 				1578B601468A3ACEBEA38F44 /* PresetStore.swift in Sources */,

@@ -313,6 +313,25 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.errorMessage, String(localized: "1 件のお気に入りを追加しました。"))
     }
 
+    func testExportPackSubsetWritesOnlySelected() throws {
+        try model.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        try model.presets.add(name: "月", overlay: .symbol(name: "moon.fill"), settings: CompositionSettings())
+        let moon = try XCTUnwrap(model.presets.presets.first { $0.name == "月" })
+        let file = root.appendingPathComponent("subset.folderartpack")
+        model.exportPack(to: file, presets: [moon])
+        XCTAssertNil(model.errorMessage)
+        let pack = try PackReader.read(try Data(contentsOf: file))
+        XCTAssertEqual(pack.presets.map(\.name), ["月"])
+    }
+
+    func testExportPackEmptySubsetExplainsAndWritesNothing() throws {
+        try model.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        let file = root.appendingPathComponent("empty.folderartpack")
+        model.exportPack(to: file, presets: [])
+        XCTAssertEqual(model.errorMessage, String(localized: "書き出せるお気に入りがありません。"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
     func testImportPackReportsCorruptFile() async throws {
         let file = root.appendingPathComponent("bad.folderartpack")
         try "nope".data(using: .utf8)!.write(to: file)

@@ -391,9 +391,14 @@ final class AppModel: ObservableObject {
 
     /// お気に入り全部を 1 ファイルに書き出す (NSSavePanel)
     func exportPack() {
+        exportPack(presets: presets.presets)
+    }
+
+    /// 選んだお気に入りだけを 1 ファイルに書き出す (NSSavePanel)。空なら理由を伝えて戻る
+    func exportPack(presets selected: [Preset]) {
         guard !isApplying else { return }
         // ファイルメニューからは常に選べるので、帯の「…」と違って黙って戻らず理由を伝える
-        guard !presets.presets.isEmpty else {
+        guard !selected.isEmpty else {
             errorMessage = String(localized: "書き出せるお気に入りがありません。")
             return
         }
@@ -402,15 +407,21 @@ final class AppModel: ObservableObject {
         let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyyMMdd"
         panel.nameFieldStringValue = String(localized: "FolderArt-お気に入り-\(formatter.string(from: Date())).folderartpack")
         panel.prompt = String(localized: "書き出す")
-        if panel.runModal() == .OK, let url = panel.url { exportPack(to: url) }
+        if panel.runModal() == .OK, let url = panel.url { exportPack(to: url, presets: selected) }
     }
 
-    func exportPack(to url: URL) {
+    /// presets を省略すれば全件。空なら書かずに理由を伝える (NSSavePanel を通らない経路も同じ判定を通す)
+    func exportPack(to url: URL, presets selected: [Preset]? = nil) {
         guard !isApplying else { return }
+        let toWrite = selected ?? presets.presets
+        guard !toWrite.isEmpty else {
+            errorMessage = String(localized: "書き出せるお気に入りがありません。")
+            return
+        }
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         do {
-            let data = try PackWriter.write(presets.presets, assets: assets, appVersion: appVersion)
+            let data = try PackWriter.write(toWrite, assets: assets, appVersion: appVersion)
             try data.write(to: url, options: .atomic)
         } catch {
             errorMessage = String(localized: "パックを書き出せませんでした: \(error.localizedDescription)")

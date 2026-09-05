@@ -12,9 +12,11 @@ struct PresetStripView: View {
     let onRemove: (Preset) -> Void
     let onExport: () -> Void
     let onImport: () -> Void
+    let onExportSelected: ([Preset]) -> Void
 
     @State private var renaming: Preset?
     @State private var newName = ""
+    @State private var showsExportPicker = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -47,6 +49,11 @@ struct PresetStripView: View {
             Menu {
                 Button("パックを書き出す…") { onExport() }
                     .disabled(store.presets.isEmpty || isApplying)
+                Button("選んで書き出す…") {
+                    // メニューが閉じてから popover を出す (同じ操作の中で dismiss と presentation を競合させない)
+                    DispatchQueue.main.async { showsExportPicker = true }
+                }
+                .disabled(store.presets.isEmpty || isApplying)
                 Button("パックを読み込む…") { onImport() }
                     .disabled(isApplying)
             } label: {
@@ -55,6 +62,12 @@ struct PresetStripView: View {
             .menuStyle(.borderlessButton)
             .frame(width: 28)
             .help(Text("お気に入りのパックを書き出す / 読み込む"))
+            .popover(isPresented: $showsExportPicker, arrowEdge: .bottom) {
+                PresetExportPickerView(store: store, assets: assets) { selected in
+                    showsExportPicker = false
+                    onExportSelected(selected)
+                }
+            }
         }
         .frame(height: 56)
         .padding(.horizontal, 12)
@@ -74,7 +87,7 @@ struct PresetStripView: View {
     }
 }
 
-private struct PresetChip: View {
+struct PresetChip: View {
     let preset: Preset
     let assets: AssetStore
 

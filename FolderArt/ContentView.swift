@@ -51,7 +51,8 @@ struct ContentView: View {
                 onRename: { model.renamePreset($0, to: $1) },
                 onRemove: { model.removePreset($0) },
                 onExport: { model.exportPack() },
-                onImport: { model.importPackWithPanel() }
+                onImport: { model.importPackWithPanel() },
+                onExportSelected: { model.exportPack(presets: $0) }
             )
             Divider()
 
