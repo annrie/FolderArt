@@ -664,6 +664,37 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(hasSymbol("star.fill", in: m))
     }
 
+    /// 上限 (1 MB) を超えるファイルは、指紋のための読み込みでも全体を読まずサイズだけで区別する。
+    /// それでも「内容ごとに 1 回」のアラートは出る (0 回にならない)
+    func testOversizedUserDictionaryAlertsOnce() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        let oversized = "[" + String(repeating: " ", count: SuggestionDictionary.userMaxFileBytes + 1)
+        try oversized.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        m.errorMessage = nil
+        await m.reloadUserDictionary()          // 同じ内容ではもう出ない
+        XCTAssertNil(m.errorMessage)
+    }
+
+    /// 読めないファイル (権限エラーなど) でも、指紋がサイズ+エラー文から作られるため黙らずに 1 回はアラートが出る
+    func testUnreadableUserDictionaryAlertsOnce() async throws {
+        try XCTSkipIf(geteuid() == 0, "root ではパーミッションで弾けない")
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        try m.prepareUserDictionaryFile()
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: user.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: user.path) }
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        await m.reloadUserDictionary()
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        m.errorMessage = nil
+        await m.reloadUserDictionary()          // 同じ内容ではもう出ない
+        XCTAssertNil(m.errorMessage)
+    }
+
     func testPrepareUserDictionaryFileWritesTemplateOnce() throws {
         let user = root.appendingPathComponent("sub/dir/suggestions-user.json")   // ディレクトリごと無い
         let m = makeDictionaryModel(userDictionary: user)
@@ -698,6 +729,7 @@ final class AppModelTests: XCTestCase {
         let dict = String(localized: "提案辞書を読めません: \("")")
         XCTAssertTrue(m.errorMessage?.hasPrefix(saved) ?? false)
         try await waitUntil { m.errorMessage?.contains(dict) ?? false }
+        XCTAssertTrue(m.errorMessage?.contains(dict) ?? false)        // 待った条件そのものを確かめる
         XCTAssertTrue(m.errorMessage?.hasPrefix(saved) ?? false)      // 保存データのエラーは残る
         XCTAssertTrue(m.errorMessage?.contains("\n\n") ?? false)      // 空行で連結
     }

@@ -355,7 +355,7 @@ final class AppModel: ObservableObject {
             let result = SuggestionDictionary.loadUser(at: url)
             // 失敗したときだけ、同じ内容で二度アラートを出さないための指紋を取る
             var hash: Data?
-            if case .failure = result, let data = try? Data(contentsOf: url) { hash = Data(SHA256.hash(data: data)) }
+            if case .failure(let error) = result { hash = Self.dictionaryErrorFingerprint(url: url, error: error) }
             return (result, hash)
         }.value
         guard generation == dictionaryGeneration else { return }
@@ -375,6 +375,16 @@ final class AppModel: ObservableObject {
             }
         }
         refreshSuggestions(folders: folders.folders, selectedIDs: folders.selectedIDs, presets: presets.presets)
+    }
+
+    /// 壊れた辞書の指紋。上限以内で読めれば中身の SHA-256、超過や読めないときはサイズとエラー文から作る (必ず値を返す)。
+    /// detached タスクから呼べるよう nonisolated にする (メインアクター状態には触れない)
+    nonisolated static func dictionaryErrorFingerprint(url: URL, error: Error) -> Data {
+        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? -1
+        if size >= 0, size <= SuggestionDictionary.userMaxFileBytes, let data = try? Data(contentsOf: url) {
+            return Data(SHA256.hash(data: data))
+        }
+        return Data(SHA256.hash(data: Data("\(size):\(error.localizedDescription)".utf8)))
     }
 
     /// 既に出ているアラート (起動時の保存データのエラーなど) があれば、その後ろに空行を挟んで連結する
@@ -400,10 +410,11 @@ final class AppModel: ObservableObject {
     func prepareUserDictionaryFile() throws -> URL {
         let directory = userDictionaryURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // 監視はディレクトリができた直後・雛形を書く前に始める (書き込みイベントを取りこぼさないため)
+        startDictionaryWatcher()
         if !FileManager.default.fileExists(atPath: userDictionaryURL.path) {
             try SuggestionDictionary.userTemplate.write(to: userDictionaryURL, atomically: true, encoding: .utf8)
         }
-        startDictionaryWatcher()
         return userDictionaryURL
     }
 
@@ -413,7 +424,7 @@ final class AppModel: ObservableObject {
             let url = try prepareUserDictionaryFile()
             NSWorkspace.shared.activateFileViewerSelecting([url])
         } catch {
-            errorMessage = String(localized: "提案辞書を作れません: \(error.localizedDescription)")
+            report(String(localized: "提案辞書を作れません: \(error.localizedDescription)"))
         }
     }
 
