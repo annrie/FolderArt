@@ -96,7 +96,7 @@ struct PresetExportSelection: Equatable {
 - 場所: `HistoryStore.appSupportDirectory/suggestions-user.json` (履歴・お気に入りと同じディレクトリ)。
 - 形式: 同梱の `suggestions.json` と同じ JSON 配列 `[{"keys": [...], "symbol": "...", "emoji": "..."}]`。`symbol` と `emoji` はどちらか片方でよい (同梱辞書の規則と同じ)。
 - 読み込み時の正規化と整理 (`loadUser` の中で行う。順に):
-  1. `keys` の各要素に `SuggestionEngine.normalize` (NFKC + 小文字化) をかけ、空になったキーと前後の空白だけのキーは捨てる。項目内の重複キーは 1 つにまとめる。
+  1. `keys` の各要素を NFKC + 小文字化し (`SuggestionEngine.normalize` は camelCase の境界に空白を入れるので使わない。辞書のキーは同梱辞書と同じ「小文字の 1 語」)、前後の空白を落とす。空になったキーは捨てる。項目内の重複キーは 1 つにまとめる。
   2. 項目間で同じキーが出たら **先の項目が勝ち**、後の項目からそのキーを外す。
   3. `symbol` と `emoji` は空文字を nil と同じに扱い、両方 nil の項目は捨てる。
   4. `keys` が空になった項目は捨てる。
