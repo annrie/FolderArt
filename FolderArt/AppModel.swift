@@ -341,7 +341,7 @@ final class AppModel: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [Self.packType]
         let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyyMMdd"
-        panel.nameFieldStringValue = "FolderArt-お気に入り-\(formatter.string(from: Date())).folderartpack"
+        panel.nameFieldStringValue = String(localized: "FolderArt-お気に入り-\(formatter.string(from: Date())).folderartpack")
         panel.prompt = String(localized: "書き出す")
         if panel.runModal() == .OK, let url = panel.url { exportPack(to: url) }
     }

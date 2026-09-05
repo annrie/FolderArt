@@ -7,9 +7,9 @@ enum BookmarkError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .creationFailed(let msg): return "ブックマーク作成失敗: \(msg)"
-        case .resolutionFailed(let msg): return "ブックマーク解決失敗: \(msg)"
-        case .stale: return "ブックマークが古くなっています"
+        case .creationFailed(let msg):   return String(localized: "ブックマーク作成失敗: \(msg)")
+        case .resolutionFailed(let msg): return String(localized: "ブックマーク解決失敗: \(msg)")
+        case .stale:                     return String(localized: "ブックマークが古くなっています")
         }
     }
 }

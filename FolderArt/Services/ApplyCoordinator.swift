@@ -13,7 +13,7 @@ struct ApplyOutcome {
     /// 一部失敗のときだけ文言を返す。全成功なら nil。
     var summary: String? {
         guard !failed.isEmpty else { return nil }
-        let lines = failed.map { "・\($0.folder.lastPathComponent): \($0.reason)" }.joined(separator: "\n")
+        let lines = failed.map { String(localized: "・\($0.folder.lastPathComponent): \($0.reason)") }.joined(separator: "\n")
         return String(localized: "\(succeeded.count) 件成功、\(failed.count) 件失敗") + "\n\n" + lines
     }
 }
@@ -125,7 +125,9 @@ final class ApplyCoordinator {
                     iconManager.removeBackup(for: folder, fileID: fileID)
                 }
                 var reason = error.localizedDescription
-                if rollbackFailed { reason += " / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)" }
+                if rollbackFailed {
+                    reason = String(localized: "\(reason) / 巻き戻し失敗: \(FolderIconError.resetFailed(folder).localizedDescription)")
+                }
                 failed.append(ApplyFailure(folder: folder, reason: reason))
             }
             progress(index + 1, total)

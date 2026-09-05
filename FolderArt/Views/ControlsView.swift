@@ -43,7 +43,7 @@ struct ControlsView: View {
                     .labelsHidden()
                     .disabled(!showsTint)
                     .opacity(showsTint ? 1 : 0.4)
-                Text(showsTint ? "記号と文字に適用" : "記号と文字にのみ適用されます")
+                (showsTint ? Text("記号と文字に適用") : Text("記号と文字にのみ適用されます"))
                     .font(.caption).foregroundColor(.secondary)
             }
 
