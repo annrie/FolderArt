@@ -248,6 +248,7 @@ final class AppModel: ObservableObject {
         case .emoji(let e):     overlay.activeTab = .emoji;  overlay.emoji = e
         case .text(let t):      overlay.activeTab = .text;   overlay.text = t
         case .preset(let p):    applyPreset(p)
+        case .image(let r):     selectImage(r.url)
         }
     }
 

@@ -59,18 +59,21 @@ private struct SuggestionChip: View {
         case .emoji(let e):  return e
         case .text(let t):   return t
         case .preset(let p): return p.name
+        case .image(let r):  return r.url.lastPathComponent
         }
     }
 
     private var thumbnail: NSImage? {
-        let (overlay, settings): (Overlay, CompositionSettings) = {
+        let pair: (Overlay, CompositionSettings)? = {
             switch suggestion.kind {
             case .symbol(let s): return (.symbol(name: s), CompositionSettings())
             case .emoji(let e):  return (.emoji(e), CompositionSettings())
             case .text(let t):   return (.text(t), CompositionSettings())
             case .preset(let p): return (p.overlay, p.settings)
+            case .image:         return nil
             }
         }()
+        guard let (overlay, settings) = pair else { return nil }
         guard let rendered = OverlayRenderer.render(overlay, settings: settings, side: 128, assets: assets) else { return nil }
         return IconComposer.compose(overlay: rendered, settings: settings, fillsWhenClipped: overlay.fillsFolderWhenClipped)
     }
