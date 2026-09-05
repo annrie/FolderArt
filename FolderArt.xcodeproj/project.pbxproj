@@ -43,6 +43,7 @@
 		6D62D70A8556D0DF15E26B79 /* CodableStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */; };
 		72268D2971AF2E0DB37123C4 /* DropZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A0E82244158396C217FC8F /* DropZoneView.swift */; };
 		742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */; };
+		748E6A17C8A9EAA6720E60CA /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 100D0D5442BFC1DAC1F9D160 /* Localizable.xcstrings */; };
 		7606511DB9E310ED197C4AFD /* AssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD35A03399A8B8D6D621A34 /* AssetStore.swift */; };
 		7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044DE538A5614FC88683B7C0 /* FolderIconManager.swift */; };
 		904C581F16020CE21261E00E /* Pack.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F3C060DF945BE5D432A72 /* Pack.swift */; };
@@ -64,12 +65,14 @@
 		D4BB903736EDCD202633E4D4 /* SuggestionStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D0652D0329BED1EAE76CEF /* SuggestionStripView.swift */; };
 		D5288870CA8B6B79063E2678 /* PresetImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2203683A052D8D35C6E6D1 /* PresetImporter.swift */; };
 		D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */; };
+		D8FD37B7849DDC80350E9C63 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 930F33A9B29E40DF4B899371 /* LocalizationTests.swift */; };
 		D9C2EA7379E6DAC82AF8C324 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */; };
 		DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948C526800FD33239F8ECEE6 /* Overlay.swift */; };
 		E1C67CBC82DD295E2B99CFAB /* FolderSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */; };
 		E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5756A3CABD998E75D8AD6787 /* OverlayState.swift */; };
 		EB122DD5941E87901BDD373E /* MaintenanceSweep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056AA67AC312C71036E58A65 /* MaintenanceSweep.swift */; };
 		EC0C479C039CA3CAC97A9B5A /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14655BB80BEA4FC7C2C3D286 /* TestSupport.swift */; };
+		F0BE85950691A7731FCC0566 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 3A6EA12B08DE66E4FDAEA8E2 /* InfoPlist.xcstrings */; };
 		F7D6459F55FCCA1C2478C13F /* OverlayPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52036C68722BE2C67F3B7A5C /* OverlayPickerView.swift */; };
 		FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11E4CC866B6C3E295A97D66 /* IconComposer.swift */; };
 		FCD39F7074BA23F352A74D16 /* FolderArtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */; };
@@ -93,6 +96,7 @@
 		056AA67AC312C71036E58A65 /* MaintenanceSweep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaintenanceSweep.swift; sourceTree = "<group>"; };
 		078CB4D0C0960A8AF20B032F /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		09A2D6D7F0354394BC163CA8 /* SymbolCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolCatalog.swift; sourceTree = "<group>"; };
+		100D0D5442BFC1DAC1F9D160 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		14655BB80BEA4FC7C2C3D286 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
 		1946BB2EC721EA592675228F /* OverlayRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRenderer.swift; sourceTree = "<group>"; };
 		19A6E7CA2E739A11F5E1D1AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -104,6 +108,7 @@
 		2C7DB3DC3FE5DDB6740D4C69 /* CodableColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableColor.swift; sourceTree = "<group>"; };
 		2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
 		38A81799CE8A48D1556863A3 /* SuggestionDictionaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionDictionaryTests.swift; sourceTree = "<group>"; };
+		3A6EA12B08DE66E4FDAEA8E2 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		3AB94FB8D6D12BBEB82689E8 /* SuggestionEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngineTests.swift; sourceTree = "<group>"; };
 		3C896FE93D4736373D7AA1BF /* SuggestionDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionDictionary.swift; sourceTree = "<group>"; };
 		4110F76F80F389FC528E43DD /* OverlayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayTests.swift; sourceTree = "<group>"; };
@@ -125,6 +130,7 @@
 		8EC0E1A55C6D47150442E2BF /* FolderListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderListView.swift; sourceTree = "<group>"; };
 		924D9EE2D6BF04C5EA31EC11 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		92EC6034740091CF94285965 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		930F33A9B29E40DF4B899371 /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
 		948C526800FD33239F8ECEE6 /* Overlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Overlay.swift; sourceTree = "<group>"; };
 		96E7E61697579BBEC2656D90 /* SuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngine.swift; sourceTree = "<group>"; };
 		98D0652D0329BED1EAE76CEF /* SuggestionStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionStripView.swift; sourceTree = "<group>"; };
@@ -236,6 +242,7 @@
 				2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */,
 				D27276A44F5727DA9071A647 /* IconComposerTests.swift */,
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
+				930F33A9B29E40DF4B899371 /* LocalizationTests.swift */,
 				F93D854D4BE08BA90FAF3C91 /* MaintenanceSweepTests.swift */,
 				5EE02AEBFB478CDE088F1DEB /* OverlayRendererTests.swift */,
 				E6D9C6B436BD80D8EB6DA88D /* OverlayStateTests.swift */,
@@ -254,6 +261,8 @@
 		6F3EA0AF53103E37FB54FFF6 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				3A6EA12B08DE66E4FDAEA8E2 /* InfoPlist.xcstrings */,
+				100D0D5442BFC1DAC1F9D160 /* Localizable.xcstrings */,
 				F0C60917E085AAACA1DE062B /* restricted-symbols.txt */,
 				79612AA7493837023B727FF2 /* suggestions.json */,
 			);
@@ -365,7 +374,14 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				de,
 				en,
+				es,
+				fr,
+				ja,
+				ko,
+				"pt-BR",
+				"zh-Hant",
 			);
 			mainGroup = 34416F59322AB2EAD38E6596;
 			minimizedProjectReferenceProxies = 1;
@@ -386,6 +402,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				17A6C0A14B4FF845B273461F /* AppIcon.icns in Resources */,
+				F0BE85950691A7731FCC0566 /* InfoPlist.xcstrings in Resources */,
+				748E6A17C8A9EAA6720E60CA /* Localizable.xcstrings in Resources */,
 				228C204E5BCD2D05C84838C2 /* restricted-symbols.txt in Resources */,
 				BCC884BEC8309F2426275ECB /* suggestions.json in Resources */,
 			);
@@ -412,6 +430,7 @@
 				D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */,
 				22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */,
 				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
+				D8FD37B7849DDC80350E9C63 /* LocalizationTests.swift in Sources */,
 				D2B921E9EE891F3E86E24E69 /* MaintenanceSweepTests.swift in Sources */,
 				10051CC54025B0D4438C48DF /* OverlayRendererTests.swift in Sources */,
 				60C59C040FAE20A5693B0128 /* OverlayStateTests.swift in Sources */,
@@ -514,6 +533,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
 				SDKROOT = macosx;
@@ -552,6 +572,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
 				SDKROOT = macosx;
