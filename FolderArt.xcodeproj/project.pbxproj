@@ -16,6 +16,7 @@
 		16B841691F974ADAFC692A31 /* IconTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */; };
 		170607A212FEE28FD48AF59C /* Suggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF8108BC19FE668435105AF /* Suggestion.swift */; };
 		17A6C0A14B4FF845B273461F /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 924D9EE2D6BF04C5EA31EC11 /* AppIcon.icns */; };
+		17FC3CD23BB8A0278698679A /* FontCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D89C2CCDDAEAE3BC0177EA /* FontCatalogTests.swift */; };
 		1A14FEFD6767D6C974EB5819 /* ControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB0911FF8635FF2CF356D4A /* ControlsView.swift */; };
 		1E085A2FE04984AE7A7BF03C /* ApplyCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BBDA62DF07FE22FED7C65A /* ApplyCoordinator.swift */; };
 		1E94CC78757172E43FADBFD1 /* Preset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DB1AE63EF9CAB1C55BF567E /* Preset.swift */; };
@@ -49,6 +50,7 @@
 		904C581F16020CE21261E00E /* Pack.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F3C060DF945BE5D432A72 /* Pack.swift */; };
 		93CADD822960CA739C001168 /* ApplyCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
+		9A6287F694382FD690A4D06C /* FontCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80BE8A662DF32E320C9A499 /* FontCatalog.swift */; };
 		9D407DB3F8AD81F2B34FE1AF /* CodableStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */; };
 		A7A55AAF3C49496A09E70042 /* SymbolGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD72D9929DA31F59FD2C696 /* SymbolGridView.swift */; };
 		AC1F7A79E6D6FF48D620D6C1 /* SymbolCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A2A9BA2B67B7E024218066 /* SymbolCatalogTests.swift */; };
@@ -144,6 +146,7 @@
 		C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManagerTests.swift; sourceTree = "<group>"; };
 		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
 		C56B6350BCEAEC37C0011C2D /* FileIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileIdentity.swift; sourceTree = "<group>"; };
+		C80BE8A662DF32E320C9A499 /* FontCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontCatalog.swift; sourceTree = "<group>"; };
 		CFF8108BC19FE668435105AF /* Suggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Suggestion.swift; sourceTree = "<group>"; };
 		D27276A44F5727DA9071A647 /* IconComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconComposerTests.swift; sourceTree = "<group>"; };
 		D57AA5539BDA9678ABE895A2 /* FolderArt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FolderArt.entitlements; sourceTree = "<group>"; };
@@ -155,6 +158,7 @@
 		E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionSettingsTests.swift; sourceTree = "<group>"; };
 		E6C12619979901BAA4F0ACF7 /* PresetStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetStoreTests.swift; sourceTree = "<group>"; };
 		E6D9C6B436BD80D8EB6DA88D /* OverlayStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayStateTests.swift; sourceTree = "<group>"; };
+		E7D89C2CCDDAEAE3BC0177EA /* FontCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontCatalogTests.swift; sourceTree = "<group>"; };
 		EBD35A03399A8B8D6D621A34 /* AssetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetStore.swift; sourceTree = "<group>"; };
 		F0C60917E085AAACA1DE062B /* restricted-symbols.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "restricted-symbols.txt"; sourceTree = "<group>"; };
 		F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStoreTests.swift; sourceTree = "<group>"; };
@@ -212,6 +216,7 @@
 				443675269CBE370462363D0D /* BookmarkManager.swift */,
 				C56B6350BCEAEC37C0011C2D /* FileIdentity.swift */,
 				044DE538A5614FC88683B7C0 /* FolderIconManager.swift */,
+				C80BE8A662DF32E320C9A499 /* FontCatalog.swift */,
 				E11E4CC866B6C3E295A97D66 /* IconComposer.swift */,
 				056AA67AC312C71036E58A65 /* MaintenanceSweep.swift */,
 				1946BB2EC721EA592675228F /* OverlayRenderer.swift */,
@@ -239,6 +244,7 @@
 				52990AC15E576E0D76436F0D /* FolderArtTests.swift */,
 				C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */,
 				1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */,
+				E7D89C2CCDDAEAE3BC0177EA /* FontCatalogTests.swift */,
 				2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */,
 				D27276A44F5727DA9071A647 /* IconComposerTests.swift */,
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
@@ -427,6 +433,7 @@
 				1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */,
 				56BE7EE712939472DD7A24E5 /* FolderIconManagerTests.swift in Sources */,
 				E1C67CBC82DD295E2B99CFAB /* FolderSelectionTests.swift in Sources */,
+				17FC3CD23BB8A0278698679A /* FontCatalogTests.swift in Sources */,
 				D63271B05EC32948AA5699D5 /* HistoryStoreTests.swift in Sources */,
 				22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */,
 				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
@@ -465,6 +472,7 @@
 				7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */,
 				51AEFCEB51A574101AD25DBC /* FolderListView.swift in Sources */,
 				5AA64FCACB1BFB0670E149F7 /* FolderSelection.swift in Sources */,
+				9A6287F694382FD690A4D06C /* FontCatalog.swift in Sources */,
 				C2C2C06A4F730D6E9BB33088 /* HistoryStore.swift in Sources */,
 				13D14D7EA7FBA6DD82D95109 /* HistoryView.swift in Sources */,
 				FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */,

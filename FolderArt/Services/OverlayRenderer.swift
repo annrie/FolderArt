@@ -116,16 +116,8 @@ enum OverlayRenderer {
         NSFont(name: "Apple Color Emoji", size: size) ?? NSFont.systemFont(ofSize: size)
     }
 
-    /// fontName が nil ならシステムフォントの rounded デザイン
+    /// フォントの解決は FontCatalog (nil = 丸ゴシック、家族 + 太さ、PostScript 名の互換、既定への退避)
     static func makeFont(size: CGFloat, settings: CompositionSettings) -> NSFont {
-        if let name = settings.fontName, let custom = NSFont(name: name, size: size) {
-            return custom
-        }
-        let system = NSFont.systemFont(ofSize: size, weight: settings.fontWeight.nsWeight)
-        if let rounded = system.fontDescriptor.withDesign(.rounded),
-           let font = NSFont(descriptor: rounded, size: size) {
-            return font
-        }
-        return system
+        FontCatalog.font(family: settings.fontName, weight: settings.fontWeight, size: size)
     }
 }
