@@ -538,6 +538,25 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(scanner.count(of: "B"), 2)
     }
 
+    /// 一括追加 (ドロップ・パネルでの複数選択) は 1 回の走査にまとまるべき。
+    /// FolderSelection.add がフォルダごとに $folders を公開していた頃は、A → B → C と追加のたびに
+    /// 走査が始まっては cancel される (cancel は列挙前の I/O までは止められないので A, B も実際に走査されてしまう)
+    func testAddingFoldersInBatchScansOnlyTheLastFolder() async throws {
+        let a = root.appendingPathComponent("A")
+        let b = root.appendingPathComponent("B")
+        let c = root.appendingPathComponent("C")
+        for d in [a, b, c] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+        let empty = ContentSummary(counts: [:], dominant: nil, representative: nil)
+        let scanner = ScanRecorder()
+        scanner.configure(results: ["A": empty, "B": empty, "C": empty])
+        let m = makeModel(scanner: scanner)
+        m.addFolders([a, b, c])
+        try await waitUntil { scanner.count(of: "C") == 1 }
+        XCTAssertEqual(scanner.count(of: "A"), 0)
+        XCTAssertEqual(scanner.count(of: "B"), 0)
+        XCTAssertEqual(m.suggestionSourceFolder, c.standardizedFileURL)
+    }
+
     func testApplyingImageSuggestionCopiesIntoAssetsAndSwitchesTab() throws {
         let (_, image) = try makeFolderWithImage("A")
         model.applySuggestion(Suggestion(kind: .image(image), reason: ""))

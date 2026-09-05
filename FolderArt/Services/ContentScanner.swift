@@ -105,6 +105,7 @@ enum ContentScanner {
     /// 読めなければ nil (フォルダごと存在しない、権限が無い、1 件も読めなかった、cancel された)。
     /// 直下の一部の項目だけが読めない (壊れたエントリなど) 場合は、その項目を飛ばして残りは数え続ける
     static func scan(_ folder: URL, limit: Int = entryLimit, maxImageBytes: Int = maxImageBytes) -> ContentSummary? {
+        if Task.isCancelled { return nil }
         var failed = false
         guard let enumerator = FileManager.default.enumerator(
             at: folder,

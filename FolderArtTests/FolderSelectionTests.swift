@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 @testable import FolderArt
 
@@ -43,5 +44,21 @@ final class FolderSelectionTests: XCTestCase {
         sel.removeAll()
         XCTAssertTrue(sel.isEmpty)
         XCTAssertTrue(sel.selectedIDs.isEmpty)
+    }
+
+    /// バッチでの追加は $folders を 1 回だけ公開する。毎回公開すると、購読側 (AppModel) が
+    /// 追加のたびに走査を始めて cancel する、を繰り返してしまうため
+    func testAddPublishesOnceForBatch() {
+        let sel = FolderSelection()
+        var cancellables: Set<AnyCancellable> = []
+        var emissions: [[URL]] = []
+        sel.$folders.dropFirst().sink { emissions.append($0) }.store(in: &cancellables)
+
+        sel.add([a, b, c])
+        XCTAssertEqual(emissions.count, 1)
+        XCTAssertEqual(emissions.first?.map(\.lastPathComponent), ["A", "B", "C"])
+
+        sel.add([a])   // 既存分のみの追加は何も変わらないので公開しない
+        XCTAssertEqual(emissions.count, 1)
     }
 }
