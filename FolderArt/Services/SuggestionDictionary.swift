@@ -73,12 +73,10 @@ extension SuggestionDictionary {
     static let userMaxSymbolLength = 100
     static let userMaxEmojiLength = 8
 
-    /// 「提案辞書を開く…」がファイルを作るときの雛形 (例を 1 件)。
-    /// 2 つ目のキーは Unicode エスケープで書く (build-xcstrings.py --check は複数行文字列の中の
-    /// 日本語もソース文言として拾ってしまうため。実行時の値は "サンプル" と同じ)
+    /// 「提案辞書を開く…」がファイルを作るときの雛形 (例を 1 件)
     static let userTemplate = """
     [
-      {"keys": ["example", "\u{30B5}\u{30F3}\u{30D7}\u{30EB}"], "symbol": "star.fill", "emoji": "⭐"}
+      {"keys": ["example", "サンプル"], "symbol": "star.fill", "emoji": "⭐"}
     ]
 
     """

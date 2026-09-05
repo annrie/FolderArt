@@ -104,8 +104,19 @@ def source_literals():
             if not fn.endswith(".swift"):
                 continue
             path = os.path.join(dirpath, fn)
+            in_multiline = False
             with open(path, encoding="utf-8") as f:
                 for lineno, line in enumerate(f, 1):
+                    # 複数行文字列 (""") の中身は読み飛ばす (UI 文言は複数行リテラルを使わない。
+                    # JSON テンプレートなどの中身をここで日本語リテラルとして拾わないようにする。
+                    # 実物照合は --stringsdata のコンパイラ抽出が正確に行う)
+                    if in_multiline:
+                        if '"""' in line:
+                            in_multiline = False
+                        continue
+                    if '"""' in line:
+                        in_multiline = line.count('"""') % 2 == 1
+                        continue
                     code = line.strip()
                     if code.startswith("//"):
                         continue
