@@ -401,7 +401,7 @@ final class AppModel: ObservableObject {
         guard dictionaryWatcher == nil else { return }
         let directory = userDictionaryURL.deletingLastPathComponent()
         dictionaryWatcher = FileWatcher(directory: directory, file: userDictionaryURL) { [weak self] in
-            Task { [weak self] in await self?.reloadUserDictionary() }
+            Task { await self?.reloadUserDictionary() }
         }
     }
 

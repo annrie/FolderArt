@@ -14,6 +14,8 @@ final class AppModelTests: XCTestCase {
             history: HistoryStore(storageURL: root.appendingPathComponent("history.json")),
             presets: PresetStore(storageURL: root.appendingPathComponent("presets.json")),
             assets: AssetStore(directory: root.appendingPathComponent("assets")),
+            // 実機の Application Support の辞書を読まないよう、存在しないディレクトリの下を指す (監視も始まらない)
+            userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
             runsMaintenance: false)
     }
     override func tearDown() async throws {
@@ -430,6 +432,8 @@ final class AppModelTests: XCTestCase {
         AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("history2.json")),
                  presets: PresetStore(storageURL: root.appendingPathComponent("presets2.json")),
                  assets: AssetStore(directory: root.appendingPathComponent("assets2")),
+                 // 実機の Application Support の辞書を読まないよう、存在しないディレクトリの下を指す (監視も始まらない)
+                 userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
                  contentScanner: { scanner.record($0) },
                  runsMaintenance: false)
     }
