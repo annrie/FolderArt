@@ -355,4 +355,136 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.overlay.text, "before")
     }
 
+    // MARK: - 中身の走査
+
+    /// 走査の呼び出しを記録し、フォルダ名ごとに遅延と結果を差し替えられる scanner (メインの外から呼ばれる)
+    private final class ScanRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var calls: [String] = []
+        var delays: [String: TimeInterval] = [:]
+        var results: [String: ContentSummary] = [:]
+
+        func record(_ url: URL) -> ContentSummary? {
+            lock.lock(); calls.append(url.lastPathComponent); lock.unlock()
+            if let delay = delays[url.lastPathComponent] { Thread.sleep(forTimeInterval: delay) }
+            return results[url.lastPathComponent] ?? ContentSummary(counts: [:], dominant: nil, representative: nil)
+        }
+
+        func count(of name: String) -> Int {
+            lock.lock(); defer { lock.unlock() }
+            return calls.filter { $0 == name }.count
+        }
+    }
+
+    private func makeModel(scanner: ScanRecorder) -> AppModel {
+        AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("history2.json")),
+                 presets: PresetStore(storageURL: root.appendingPathComponent("presets2.json")),
+                 assets: AssetStore(directory: root.appendingPathComponent("assets2")),
+                 contentScanner: { scanner.record($0) },
+                 runsMaintenance: false)
+    }
+
+    /// 実際に読める PNG を 1 枚持つフォルダと、その代表画像
+    private func makeFolderWithImage(_ name: String) throws -> (folder: URL, image: RepresentativeImage) {
+        let folder = root.appendingPathComponent(name)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let png = try XCTUnwrap(TestSupport.bitmap(of: TestSupport.makeSolidImage(size: CGSize(width: 16, height: 16), color: .red))
+            .representation(using: .png, properties: [:]))
+        let file = folder.appendingPathComponent("photo.png")
+        try png.write(to: file)
+        return (folder, RepresentativeImage(url: file, modificationDate: Date(), thumbnailPNG: png))
+    }
+
+    private func imageSummary(_ image: RepresentativeImage) -> ContentSummary {
+        ContentSummary(counts: [.image: 1], dominant: .image, representative: image)
+    }
+
+    private func hasImageChip(_ m: AppModel) -> Bool {
+        m.suggestions.contains { if case .image = $0.kind { return true }; return false }
+    }
+
+    func testContentScanAddsImageChipWhenFolderStaysSelected() async throws {
+        let (a, image) = try makeFolderWithImage("A")
+        let scanner = ScanRecorder()
+        scanner.results["A"] = imageSummary(image)
+        let m = makeModel(scanner: scanner)
+        m.addFolders([a])
+        XCTAssertFalse(hasImageChip(m))   // 走査は非同期。同期の時点では名前の候補だけ
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(hasImageChip(m))
+        XCTAssertTrue(m.suggestions.contains { $0.kind == .emoji("📷") })   // 中身の多数派 (画像) の絵文字も入る
+        XCTAssertEqual(scanner.count(of: "A"), 1)
+    }
+
+    func testStaleScanResultIsDiscardedWhenSourceChanges() async throws {
+        let (a, image) = try makeFolderWithImage("A")
+        let b = root.appendingPathComponent("B")
+        try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
+        let scanner = ScanRecorder()
+        scanner.delays["A"] = 0.4
+        scanner.results["A"] = imageSummary(image)
+        let m = makeModel(scanner: scanner)
+        m.addFolders([a])   // A の走査が始まる (0.4 秒かかる)
+        m.addFolders([b])   // 対象が B に変わる → A の結果は捨てられる
+        try await Task.sleep(nanoseconds: 700_000_000)
+        XCTAssertEqual(m.suggestionSourceFolder, b.standardizedFileURL)
+        XCTAssertFalse(hasImageChip(m))
+    }
+
+    func testReAddingSameFolderScansAgainWithNewGeneration() async throws {
+        let (a, image) = try makeFolderWithImage("A")
+        let scanner = ScanRecorder()
+        scanner.results["A"] = imageSummary(image)
+        let m = makeModel(scanner: scanner)
+        m.addFolders([a])
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(hasImageChip(m))
+        m.folders.removeAll()
+        XCTAssertTrue(m.suggestions.isEmpty)
+        m.addFolders([a])
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(hasImageChip(m))
+        XCTAssertEqual(scanner.count(of: "A"), 2)
+    }
+
+    func testPresetChangeReusesContentWithoutRescan() async throws {
+        let (a, image) = try makeFolderWithImage("A")
+        let scanner = ScanRecorder()
+        scanner.results["A"] = imageSummary(image)
+        let m = makeModel(scanner: scanner)
+        m.addFolders([a])
+        try await Task.sleep(nanoseconds: 300_000_000)
+        try m.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(scanner.count(of: "A"), 1)
+        XCTAssertTrue(hasImageChip(m))   // 使い回した結果で候補が作り直される
+    }
+
+    func testScanResultIsDroppedWhenListBecomesEmpty() async throws {
+        let (a, image) = try makeFolderWithImage("A")
+        let scanner = ScanRecorder()
+        scanner.delays["A"] = 0.4
+        scanner.results["A"] = imageSummary(image)
+        let m = makeModel(scanner: scanner)
+        m.addFolders([a])
+        m.folders.removeAll()   // 走査中に対象が無くなる → cancel、戻ってきても採らない
+        try await Task.sleep(nanoseconds: 700_000_000)
+        XCTAssertTrue(m.suggestions.isEmpty)
+    }
+
+    func testApplyingImageSuggestionCopiesIntoAssetsAndSwitchesTab() throws {
+        let (_, image) = try makeFolderWithImage("A")
+        model.applySuggestion(Suggestion(kind: .image(image), reason: ""))
+        XCTAssertEqual(model.overlay.activeTab, .image)
+        XCTAssertNotNil(model.overlay.imageAssetID)
+        XCTAssertNil(model.errorMessage)
+    }
+
+    func testApplyingMissingImageSuggestionReportsError() {
+        let missing = RepresentativeImage(url: root.appendingPathComponent("gone.png"), modificationDate: Date(), thumbnailPNG: Data())
+        model.applySuggestion(Suggestion(kind: .image(missing), reason: ""))
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertNil(model.overlay.imageAssetID)
+    }
+
 }

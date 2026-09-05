@@ -9,13 +9,7 @@ enum OverlayRenderer {
         switch overlay {
         case .image(let id):
             guard let image = assets.image(for: id) else { return nil }
-            // 画像は配置設定 (中央/バッジ、切り抜き有無) に関わらず正方形に切り抜かず、
-            // 長辺を side に合わせて縮小するだけに留める。配置・アスペクト比の扱いは
-            // IconComposer 側の calculateRect (中央 fit / AspectFill / バッジ) にすべて委ねる。
-            // ここで正方形に押し込めてしまうと、余白ができたり (中央 fit・バッジ)、
-            // AspectFill + verticalOffset のパンではみ出し部分が失われてフォルダーの
-            // 地色が透けて見えたりする (1.0.1 の巻き戻し)
-            return scaleToLongSide(image, side: side)
+            return render(image: image, side: side)
 
         case .symbol(let name):
             guard let symbol = symbolImage(name: name, side: side, settings: settings) else { return nil }
@@ -30,6 +24,15 @@ enum OverlayRenderer {
         case .legacyImage:
             return nil
         }
+    }
+
+    /// 画像を配置設定に関わらず正方形に切り抜かず、長辺を side に合わせて縮小するだけに留める。
+    /// 配置・アスペクト比の扱いは IconComposer 側の calculateRect (中央 fit / AspectFill / バッジ) にすべて委ねる。
+    /// ここで正方形に押し込めてしまうと、余白ができたり (中央 fit・バッジ)、AspectFill + verticalOffset の
+    /// パンではみ出し部分が失われてフォルダーの地色が透けて見えたりする (1.0.1 の巻き戻し)。
+    /// 中身の代表画像のチップ (AssetStore に無い画像) からも使う
+    static func render(image: NSImage, side: CGFloat) -> NSImage? {
+        scaleToLongSide(image, side: side)
     }
 
     // MARK: - Private

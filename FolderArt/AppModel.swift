@@ -19,9 +19,18 @@ final class AppModel: ObservableObject {
     /// パックの読み込み中 (多重起動しない)
     private var isImportingPack = false
     @Published var progress: (done: Int, total: Int)?
-    /// 提案 (フォルダ名から)。空なら帯はチップ無しで高さだけ保つ
+    /// 提案 (フォルダ名と中身から)。空なら帯はチップ無しで高さだけ保つ
     @Published private(set) var suggestions: [Suggestion] = []
     private let suggestionEngine: SuggestionEngine
+    /// 中身の走査 (テストで差し替える)。メインの外で呼ばれる
+    typealias ContentScannerFunction = @Sendable (URL) -> ContentSummary?
+    private let scanContents: ContentScannerFunction
+    /// 最後に走査したフォルダとその結果 (summary nil = 読めなかった)。対象が変わるまで使い回す
+    private var contentSummary: (folder: URL, summary: ContentSummary?)?
+    private var contentScanTask: Task<Void, Never>?
+    /// 走査の世代。戻ってきた結果がこれと違えば捨てる (同じ URL を外して入れ直した場合も新しい世代だけ採る)
+    private var scanGeneration = 0
+    private var scanningFolder: URL?
     private var cancellables: Set<AnyCancellable> = []
     /// 履歴から開いたセキュリティスコープ。鍵は標準化した URL、値はスコープを持つ URL 本体
     /// (stop は start を呼んだ URL に対して呼ぶ必要がある)
@@ -34,11 +43,13 @@ final class AppModel: ObservableObject {
          presets: PresetStore = PresetStore(),
          assets: AssetStore = AssetStore(),
          suggestionEngine: SuggestionEngine = SuggestionEngine(dictionary: SuggestionDictionary.load(), catalog: SymbolCatalog.shared),
+         contentScanner: @escaping ContentScannerFunction = { ContentScanner.scan($0) },
          runsMaintenance: Bool = true) {
         self.history = history
         self.presets = presets
         self.assets = assets
         self.suggestionEngine = suggestionEngine
+        self.scanContents = contentScanner
         self.folders = FolderSelection()
         self.overlay = OverlayState(assets: assets)
         self.coordinator = ApplyCoordinator(history: history)
@@ -231,13 +242,49 @@ final class AppModel: ObservableObject {
     }
 
     /// CombineLatest3 のクロージャから渡された最新値だけを使って提案を作り直す
-    /// (self.folders 等を読み直すと willSet 発火時点の更新前の値になりうるため)
+    /// (self.folders 等を読み直すと willSet 発火時点の更新前の値になりうるため)。
+    /// 名前からの候補は同期で即時。中身は対象フォルダが変わったときだけ非同期で走査し、戻ったら作り直す
     private func refreshSuggestions(folders: [URL], selectedIDs: Set<URL>, presets: [Preset]) {
         guard let folder = Self.suggestionSourceFolder(folders: folders, selectedIDs: selectedIDs) else {
             suggestions = []
+            cancelContentScan()
+            contentSummary = nil
             return
         }
-        suggestions = suggestionEngine.suggest(for: folder.lastPathComponent, presets: presets)
+        let content = contentSummary?.folder == folder ? contentSummary?.summary : nil
+        suggestions = suggestionEngine.suggest(for: folder.lastPathComponent, presets: presets, content: content)
+        // 対象が変わったときだけ走査する (お気に入りの変化では走査し直さない)
+        if contentSummary?.folder != folder, scanningFolder != folder {
+            startContentScan(for: folder)
+        }
+    }
+
+    private func cancelContentScan() {
+        contentScanTask?.cancel()
+        contentScanTask = nil
+        scanningFolder = nil
+    }
+
+    /// cancel は best effort (列挙のループでは効くが、サムネイル 1 枚分は途中で止まらない)。
+    /// 古い結果を採らないことは generation と対象フォルダの照合で保証する
+    private func startContentScan(for folder: URL) {
+        cancelContentScan()
+        scanGeneration += 1
+        let generation = scanGeneration
+        scanningFolder = folder
+        let scan = scanContents
+        contentScanTask = Task.detached(priority: .utility) { [weak self] in
+            let summary = scan(folder)
+            guard let self else { return }
+            await MainActor.run {
+                guard self.scanGeneration == generation, self.suggestionSourceFolder == folder else { return }
+                self.contentSummary = (folder, summary)
+                self.scanningFolder = nil
+                self.contentScanTask = nil
+                self.refreshSuggestions(folders: self.folders.folders, selectedIDs: self.folders.selectedIDs,
+                                        presets: self.presets.presets)
+            }
+        }
     }
 
     /// 候補を採用する。記号・絵文字・文字はタブと入力だけ変え、設定は触らない。お気に入りは設定まで復元。
@@ -309,6 +356,7 @@ final class AppModel: ObservableObject {
     }
 
     deinit {
+        contentScanTask?.cancel()
         for url in scopedURLs.values { url.stopAccessingSecurityScopedResource() }
     }
 
