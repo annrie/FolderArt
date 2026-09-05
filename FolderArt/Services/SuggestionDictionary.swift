@@ -27,4 +27,9 @@ struct SuggestionDictionary: Equatable {
         }
         return .empty
     }
+
+    /// 代表キー (小文字) を持つ項目。中身からの提案が種類 → 記号・絵文字を引くのに使う
+    func entry(forKey key: String) -> SuggestionEntry? {
+        entries.first { $0.keys.contains(key) }
+    }
 }

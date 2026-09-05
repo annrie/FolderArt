@@ -4,6 +4,10 @@ struct ControlsView: View {
     @Binding var settings: CompositionSettings
     /// 画像タブでは色は効かないので無効表示にする
     var showsTint: Bool = true
+    /// フォントは文字タブでのみ効く
+    var showsFont: Bool = false
+    /// 太さは記号と文字で効く (画像・絵文字では無効表示)
+    var showsWeight: Bool = false
     /// 切り抜き ON + 中央でサイズが効かなくなるのは画像 (敷き詰め) だけ。記号・絵文字・文字ではサイズは常に有効
     var sizeLockedByFill: Bool
 
@@ -43,8 +47,37 @@ struct ControlsView: View {
                     .labelsHidden()
                     .disabled(!showsTint)
                     .opacity(showsTint ? 1 : 0.4)
-                Text(showsTint ? "記号と文字に適用" : "記号と文字にのみ適用されます")
+                (showsTint ? Text("記号と文字に適用") : Text("記号と文字にのみ適用されます"))
                     .font(.caption).foregroundColor(.secondary)
+            }
+
+            HStack {
+                Text("フォント:").font(.callout).frame(width: 80, alignment: .trailing)
+                // 今の値が一覧に無いとき (別の Mac のパックなど) は「その他 (名前)」を足して選択が空にならないようにする
+                Picker("", selection: $settings.fontName) {
+                    ForEach(FontCatalog.choices(including: settings.fontName, available: FontCatalog.available())) { choice in
+                        Text(choice.title).tag(choice.family)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(maxWidth: 220)
+                .disabled(!showsFont)
+                .opacity(showsFont ? 1 : 0.4)
+            }
+
+            HStack {
+                Text("太さ:").font(.callout).frame(width: 80, alignment: .trailing)
+                Picker("", selection: $settings.fontWeight) {
+                    ForEach(FontWeightValue.allCases, id: \.self) { weight in
+                        Text(weight.displayName).tag(weight)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(maxWidth: 140)
+                .disabled(!showsWeight)
+                .opacity(showsWeight ? 1 : 0.4)
             }
 
             Divider()

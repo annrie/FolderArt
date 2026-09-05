@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される
     @StateObject private var model = AppModel()
+    @EnvironmentObject private var language: LanguageSetting
     @State private var showHistory = false
     @State private var showError = false
     @State private var windowTargeted = false
@@ -57,6 +58,8 @@ struct ContentView: View {
             HStack(alignment: .top, spacing: 12) {
                 ControlsView(settings: settingsBinding,
                              showsTint: model.overlay.activeTab == .symbol || model.overlay.activeTab == .text,
+                             showsFont: model.overlay.activeTab == .text,
+                             showsWeight: model.overlay.activeTab == .symbol || model.overlay.activeTab == .text,
                              sizeLockedByFill: model.overlay.activeTab == .image)
                     .frame(maxWidth: .infinity)
                 PreviewView(image: model.overlay.previewImage,
@@ -71,7 +74,7 @@ struct ContentView: View {
 
             actionBar
         }
-        .frame(minWidth: 760, minHeight: 720)
+        .frame(minWidth: 760, minHeight: 780)
         .background(
             // 余白へのドロップ用。.background なので内側の受け口 (リストと画像タブ) が上に来て優先される
             FileDropReceiver(
@@ -112,6 +115,19 @@ struct ContentView: View {
                 .disabled(model.isApplying)
         }
         .padding(.horizontal).padding(.vertical, 10)
+        // 適用中は [再起動] を出さない (終了すると適用が途中で止まる)。設定は保存済みなので次回起動で反映される
+        .alert("言語の変更", isPresented: $language.needsRelaunch) {
+            if !model.isApplying {
+                Button("再起動") {
+                    language.relaunch { error in
+                        model.errorMessage = String(localized: "再起動できませんでした: \(error.localizedDescription)")
+                    }
+                }
+            }
+            Button("あとで", role: .cancel) {}
+        } message: {
+            Text("言語の変更は次回起動時に反映されます。今すぐ再起動しますか？ (フォルダーのリストと今の入力は消えます)")
+        }
     }
 
     private var actionBar: some View {

@@ -104,4 +104,70 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertFalse(engine.suggest(for: "Photos", presets: [a]).contains { $0.kind == .preset(a) })
     }
 
+    // MARK: - 中身からの合流
+
+    private func summary(_ kind: ContentKind, count: Int, representative: RepresentativeImage? = nil) -> ContentSummary {
+        ContentSummary(counts: [kind: count], dominant: kind, representative: representative)
+    }
+
+    private var sampleImage: RepresentativeImage {
+        RepresentativeImage(url: URL(fileURLWithPath: "/tmp/Photos/IMG_001.jpg"),
+                            modificationDate: Date(timeIntervalSince1970: 1_700_000_000), thumbnailPNG: Data([1, 2, 3]))
+    }
+
+    func testContentFillsOnlyEmptySlots() {
+        // 名前で記号・絵文字が埋まっていれば、中身 (画像) では上書きしない
+        let s = engine.suggest(for: "music", presets: [], content: summary(.image, count: 5))
+        XCTAssertEqual(s.map(\.kind), [.symbol("music.note"), .emoji("🎵")])
+    }
+
+    func testContentAloneGivesSymbolAndEmojiWithCount() {
+        let s = engine.suggest(for: "xyzzy", presets: [], content: summary(.image, count: 12))
+        XCTAssertEqual(s.map(\.kind), [.symbol("photo.fill"), .emoji("📷")])
+        XCTAssertTrue(s[0].reason.contains("12"), s[0].reason)
+        XCTAssertEqual(s[0].reason, s[1].reason)
+    }
+
+    func testFolderDominantGivesNoContentChip() {
+        XCTAssertTrue(engine.suggest(for: "xyzzy", presets: [], content: summary(.folder, count: 9)).isEmpty)
+    }
+
+    func testKindWithoutDictionaryEntryGivesNoContentChip() {
+        // このテストの辞書には video の項目が無い
+        XCTAssertTrue(engine.suggest(for: "xyzzy", presets: [], content: summary(.video, count: 3)).isEmpty)
+    }
+
+    func testSymbolMissingFromCatalogSkipsSymbolButKeepsEmoji() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["photo"], symbol: "not.in.catalog", emoji: "📷"),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        let s = localEngine.suggest(for: "xyzzy", presets: [], content: summary(.image, count: 2))
+        XCTAssertEqual(s.map(\.kind), [.emoji("📷")])
+    }
+
+    func testRepresentativeImageIsAppendedLast() {
+        let rep = sampleImage
+        let s = engine.suggest(for: "Photos 2024", presets: [], content: summary(.image, count: 5, representative: rep))
+        XCTAssertEqual(s.count, 4)
+        XCTAssertEqual(s[3].kind, .image(rep))
+        XCTAssertTrue(s[3].reason.contains("IMG_001.jpg"), s[3].reason)
+        XCTAssertEqual(s[3].id, "image:/tmp/Photos/IMG_001.jpg:1700000000.0")
+    }
+
+    func testImageEqualityIgnoresThumbnailButNotDate() {
+        let a = sampleImage
+        let b = RepresentativeImage(url: a.url, modificationDate: a.modificationDate, thumbnailPNG: Data([9]))
+        let c = RepresentativeImage(url: a.url, modificationDate: a.modificationDate.addingTimeInterval(1), thumbnailPNG: a.thumbnailPNG)
+        XCTAssertEqual(Suggestion.Kind.image(a), .image(b))
+        XCTAssertNotEqual(Suggestion.Kind.image(a), .image(c))
+        XCTAssertNotEqual(Suggestion(kind: .image(a), reason: "").id, Suggestion(kind: .image(c), reason: "").id)
+    }
+
+    func testNilContentMatchesLegacyOverload() {
+        for name in ["Photos 2024", "xyzzy", "Q3 reports", ""] {
+            XCTAssertEqual(engine.suggest(for: name, presets: []), engine.suggest(for: name, presets: [], content: nil), name)
+        }
+    }
+
 }

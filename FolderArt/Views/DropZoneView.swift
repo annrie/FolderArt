@@ -34,7 +34,7 @@ struct DropZoneView: View {
         return type.conforms(to: .image)
     }
 
-    private var buttonLabel: String {
+    private var buttonLabel: LocalizedStringKey {
         displayURL == nil ? "画像を選択..." : "変更..."
     }
 

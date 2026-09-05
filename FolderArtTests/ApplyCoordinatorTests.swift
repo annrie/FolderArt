@@ -287,7 +287,8 @@ final class ApplyCoordinatorTests: XCTestCase {
                                     settings: CompositionSettings(), to: [a, b])
         XCTAssertTrue(outcome.succeeded.isEmpty)
         XCTAssertEqual(outcome.failed.count, 2)
-        XCTAssertTrue(outcome.failed.allSatisfy { $0.reason.contains("履歴の保存に失敗") })
+        let prefix = String(localized: "履歴の保存に失敗しました: \("")")
+        XCTAssertTrue(outcome.failed.allSatisfy { $0.reason.hasPrefix(prefix) }, outcome.failed.map(\.reason).joined(separator: " | "))
         for f in [a, b] {
             XCTAssertFalse(FileManager.default.fileExists(atPath: f.appendingPathComponent("Icon\r").path))
         }

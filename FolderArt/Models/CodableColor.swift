@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// JSON に保存できる sRGB 色。
 struct CodableColor: Codable, Equatable, Sendable {
@@ -42,6 +43,20 @@ enum FontWeightValue: String, Codable, CaseIterable, Sendable {
         case .bold:     return .bold
         case .heavy:    return .heavy
         case .black:    return .black
+        }
+    }
+}
+
+extension FontWeightValue {
+    /// Picker の表示名 (太さの UI は第3段階で開放)
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .regular:  return "標準"
+        case .medium:   return "中太"
+        case .semibold: return "半太"
+        case .bold:     return "太字"
+        case .heavy:    return "特太"
+        case .black:    return "極太"
         }
     }
 }

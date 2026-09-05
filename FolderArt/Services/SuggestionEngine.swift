@@ -11,8 +11,35 @@ struct SuggestionEngine {
     }
 
     func suggest(for folderName: String, presets: [Preset]) -> [Suggestion] {
+        suggest(for: folderName, presets: presets, content: nil)
+    }
+
+    /// 名前からの候補 (記号・絵文字・文字) を先に作り、中身の多数派で空いた枠だけ埋め、代表画像があれば末尾に足す。最大 4
+    func suggest(for folderName: String, presets: [Preset], content: ContentSummary?) -> [Suggestion] {
+        var (symbol, emoji, text) = nameSuggestions(for: folderName, presets: presets)
+
+        if let content, let kind = content.dominant, let key = kind.dictionaryKey,
+           let count = content.counts[kind], let reason = kind.reason(count: count) {
+            let entry = dictionary.entry(forKey: key)
+            if symbol == nil, let name = entry?.symbol, catalog.contains(name) {
+                symbol = Suggestion(kind: .symbol(name), reason: reason)
+            }
+            if emoji == nil, let e = entry?.emoji {
+                emoji = Suggestion(kind: .emoji(e), reason: reason)
+            }
+        }
+
+        var out = [symbol, emoji, text].compactMap { $0 }
+        if let rep = content?.representative {
+            out.append(Suggestion(kind: .image(rep), reason: String(localized: "中身の画像「\(rep.url.lastPathComponent)」")))
+        }
+        return out
+    }
+
+    /// 第2段階の 4 層 (お気に入り → 辞書 → 検索語 → 規則)。枠ごとの候補を返す
+    private func nameSuggestions(for folderName: String, presets: [Preset]) -> (symbol: Suggestion?, emoji: Suggestion?, text: Suggestion?) {
         let normalized = Self.normalize(folderName)
-        guard !normalized.isEmpty else { return [] }
+        guard !normalized.isEmpty else { return (nil, nil, nil) }
         let tokens = Self.latinTokens(normalized)
 
         var symbol: Suggestion?
@@ -79,7 +106,7 @@ struct SuggestionEngine {
             }
         }
 
-        return [symbol, emoji, text].compactMap { $0 }
+        return (symbol, emoji, text)
     }
 
     // MARK: - 正規化と分割

@@ -128,4 +128,13 @@ final class OverlayRendererTests: XCTestCase {
         XCTAssertEqual(size.width, 128, accuracy: 1)
         XCTAssertEqual(size.height, 1, accuracy: 0.001)
     }
+
+    func testTextRendersWithCustomFamily() throws {
+        try XCTSkipUnless(FontCatalog.installedFamilies.contains("Hiragino Mincho ProN"), "Hiragino Mincho ProN is not installed")
+        var settings = CompositionSettings()
+        settings.fontName = "Hiragino Mincho ProN"
+        settings.tintColor = CodableColor(red: 1, green: 0, blue: 0, alpha: 1)
+        let image = try XCTUnwrap(render(.text("明"), settings: settings))
+        XCTAssertTrue(TestSupport.contains(color: .red, in: image))
+    }
 }

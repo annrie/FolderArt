@@ -19,9 +19,18 @@ final class AppModel: ObservableObject {
     /// パックの読み込み中 (多重起動しない)
     private var isImportingPack = false
     @Published var progress: (done: Int, total: Int)?
-    /// 提案 (フォルダ名から)。空なら帯はチップ無しで高さだけ保つ
+    /// 提案 (フォルダ名と中身から)。空なら帯はチップ無しで高さだけ保つ
     @Published private(set) var suggestions: [Suggestion] = []
     private let suggestionEngine: SuggestionEngine
+    /// 中身の走査 (テストで差し替える)。メインの外で呼ばれる
+    typealias ContentScannerFunction = @Sendable (URL) -> ContentSummary?
+    private let scanContents: ContentScannerFunction
+    /// 最後に走査したフォルダとその結果 (summary nil = 読めなかった)。対象が変わるまで使い回す
+    private var contentSummary: (folder: URL, summary: ContentSummary?)?
+    private var contentScanTask: Task<Void, Never>?
+    /// 走査の世代。戻ってきた結果がこれと違えば捨てる (同じ URL を外して入れ直した場合も新しい世代だけ採る)
+    private var scanGeneration = 0
+    private var scanningFolder: URL?
     private var cancellables: Set<AnyCancellable> = []
     /// 履歴から開いたセキュリティスコープ。鍵は標準化した URL、値はスコープを持つ URL 本体
     /// (stop は start を呼んだ URL に対して呼ぶ必要がある)
@@ -34,11 +43,13 @@ final class AppModel: ObservableObject {
          presets: PresetStore = PresetStore(),
          assets: AssetStore = AssetStore(),
          suggestionEngine: SuggestionEngine = SuggestionEngine(dictionary: SuggestionDictionary.load(), catalog: SymbolCatalog.shared),
+         contentScanner: @escaping ContentScannerFunction = { ContentScanner.scan($0) },
          runsMaintenance: Bool = true) {
         self.history = history
         self.presets = presets
         self.assets = assets
         self.suggestionEngine = suggestionEngine
+        self.scanContents = contentScanner
         self.folders = FolderSelection()
         self.overlay = OverlayState(assets: assets)
         self.coordinator = ApplyCoordinator(history: history)
@@ -231,13 +242,59 @@ final class AppModel: ObservableObject {
     }
 
     /// CombineLatest3 のクロージャから渡された最新値だけを使って提案を作り直す
-    /// (self.folders 等を読み直すと willSet 発火時点の更新前の値になりうるため)
+    /// (self.folders 等を読み直すと willSet 発火時点の更新前の値になりうるため)。
+    /// 名前からの候補は同期で即時。中身は対象フォルダが変わったときだけ非同期で走査し、戻ったら作り直す
     private func refreshSuggestions(folders: [URL], selectedIDs: Set<URL>, presets: [Preset]) {
         guard let folder = Self.suggestionSourceFolder(folders: folders, selectedIDs: selectedIDs) else {
             suggestions = []
+            cancelContentScan()
+            contentSummary = nil
             return
         }
-        suggestions = suggestionEngine.suggest(for: folder.lastPathComponent, presets: presets)
+        // 走査中に対象が (キャッシュ命中などで) 他のフォルダへ戻ると、下の start 条件が false のままになり
+        // scanningFolder が古い対象を指し続けてしまう。対象が変わったらここで無条件に cancel する
+        if let scanning = scanningFolder, scanning != folder { cancelContentScan() }
+        let content = contentSummary?.folder == folder ? contentSummary?.summary : nil
+        suggestions = suggestionEngine.suggest(for: folder.lastPathComponent, presets: presets, content: content)
+        // 対象が変わったときだけ走査する (お気に入りの変化では走査し直さない)
+        if contentSummary?.folder != folder, scanningFolder != folder {
+            startContentScan(for: folder)
+        }
+    }
+
+    private func cancelContentScan() {
+        contentScanTask?.cancel()
+        contentScanTask = nil
+        scanningFolder = nil
+    }
+
+    /// cancel は best effort (列挙のループでは効くが、サムネイル 1 枚分は途中で止まらない)。
+    /// 古い結果を採らないことは generation と対象フォルダの照合で保証する
+    private func startContentScan(for folder: URL) {
+        cancelContentScan()
+        scanGeneration += 1
+        let generation = scanGeneration
+        scanningFolder = folder
+        let scan = scanContents
+        contentScanTask = Task.detached(priority: .utility) { [weak self] in
+            let summary = scan(folder)
+            guard let self else { return }
+            await MainActor.run {
+                guard self.scanGeneration == generation else { return }
+                // 世代は最新でも対象がもう違うなら結果は棄却する。ただし scanningFolder / contentScanTask は
+                // ここで戻しておかないと、対象が古いフォルダに一致してしまったとき二度と走査されなくなる
+                guard self.suggestionSourceFolder == folder else {
+                    self.scanningFolder = nil
+                    self.contentScanTask = nil
+                    return
+                }
+                self.contentSummary = (folder, summary)
+                self.scanningFolder = nil
+                self.contentScanTask = nil
+                self.refreshSuggestions(folders: self.folders.folders, selectedIDs: self.folders.selectedIDs,
+                                        presets: self.presets.presets)
+            }
+        }
     }
 
     /// 候補を採用する。記号・絵文字・文字はタブと入力だけ変え、設定は触らない。お気に入りは設定まで復元。
@@ -248,6 +305,7 @@ final class AppModel: ObservableObject {
         case .emoji(let e):     overlay.activeTab = .emoji;  overlay.emoji = e
         case .text(let t):      overlay.activeTab = .text;   overlay.text = t
         case .preset(let p):    applyPreset(p)
+        case .image(let r):     selectImage(r.url)
         }
     }
 
@@ -308,6 +366,7 @@ final class AppModel: ObservableObject {
     }
 
     deinit {
+        contentScanTask?.cancel()
         for url in scopedURLs.values { url.stopAccessingSecurityScopedResource() }
     }
 
@@ -341,7 +400,7 @@ final class AppModel: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [Self.packType]
         let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyyMMdd"
-        panel.nameFieldStringValue = "FolderArt-お気に入り-\(formatter.string(from: Date())).folderartpack"
+        panel.nameFieldStringValue = String(localized: "FolderArt-お気に入り-\(formatter.string(from: Date())).folderartpack")
         panel.prompt = String(localized: "書き出す")
         if panel.runModal() == .OK, let url = panel.url { exportPack(to: url) }
     }
