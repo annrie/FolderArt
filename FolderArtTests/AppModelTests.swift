@@ -82,6 +82,8 @@ final class AppModelTests: XCTestCase {
         let m = AppModel(history: HistoryStore(storageURL: broken),
                          presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
                          assets: model.assets,
+                         // 実機の Application Support の辞書を読まないよう、存在しないディレクトリの下を指す (監視も始まらない)
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
                          runsMaintenance: false)
         let orphan = try m.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .blue))
         m.reapAssets()
