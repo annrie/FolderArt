@@ -32,8 +32,8 @@ macOS のフォルダーアイコンにカスタム画像を合成してアイ�
 - 文字のフォントと太さ: macOS 同梱の 8 種のフォントと 6 段階の太さ (太さは記号にも効く) — Font and weight for text: eight fonts bundled with macOS and six weights (weight also applies to symbols)
 - お気に入り: 見た目 (オーバーレイ + 設定) を保存し 1 クリックで復元 — Presets: save a look and restore it in one click
 - 複数フォルダへの一括適用、行を選べば一部だけに再適用 — Batch apply to many folders; select rows to re-apply to a subset
-- フォルダ名と中身からの自動提案: 記号・絵文字・文字・お気に入りの候補をタブの上に最大 4 つ表示。直下のファイルの種類 (画像・動画・書類など) に合う記号・絵文字と、画像が多ければ代表画像 — Suggestions from the folder name and contents: up to four symbol / emoji / text / preset candidates above the tabs, plus a symbol / emoji for the dominant file kind and a representative image when images dominate
-- お気に入りパック (`.folderartpack`): お気に入りを 1 ファイルで書き出し・読み込み、ダブルクリックで取り込み — Preset packs (`.folderartpack`): export and import all presets as one file; double-click to import
+- フォルダ名と中身からの自動提案: 記号・絵文字・文字・お気に入りの候補をタブの上に最大 4 つ表示。直下のファイルの種類 (画像・動画・書類など) に合う記号・絵文字と、画像が多ければ代表画像 — Suggestions from the folder name and contents: up to four symbol / emoji / text / preset candidates above the tabs, plus a symbol / emoji for the dominant file kind and a representative image when images dominate。自分の辞書 (`suggestions-user.json`) で語を足せる — add your own words with a user dictionary
+- お気に入りパック (`.folderartpack`): お気に入りを 1 ファイルで書き出し・読み込み、ダブルクリックで取り込み — Preset packs (`.folderartpack`): export and import all presets as one file; double-click to import。一部だけの書き出しも可 — partial export from the … menu
 - プレビューに hover で拡大表示と 16/32/64/128px の実寸 — Hover the preview to enlarge it and see 16/32/64/128px renderings
 - ドラッグ&ドロップ (複数フォルダ、ウィンドウ任意位置への画像) — Drag & drop (multiple folders, images anywhere in the window)
 - 位置・サイズ・不透明度・上下位置・フォルダ形切り抜き — Position, size, opacity, vertical offset, clip to folder shape
@@ -95,18 +95,37 @@ xcodebuild test -scheme FolderArt -destination 'platform=macOS'
    **フォルダー形に切り抜く** を ON にすると、はみ出した部分をフォルダーの形で切り落とす
    Adjust position, size, opacity, vertical offset, tint and weight (symbols and text), and font (text).
    Turn on "clip to folder shape" to trim the overlay to the folder outline
+   上下位置の既定は「下4%」(蓋つきのフォルダー本体の見た目の中心)
+   The vertical position defaults to 4% down, the visual center of the folder body
 4. **プレビューを確認** — 合成結果はその場で更新。プレビューに hover すると拡大表示と 16/32/64/128px の実寸が出る
    Check the preview: it updates as you go, and hovering enlarges it and shows 16/32/64/128px renderings
 5. **適用** — 「N フォルダに適用」ボタン。リストで行を選んでいれば、その行だけに適用する
    Apply: the button applies to every folder in the list, or only to the rows you selected
 6. **お気に入り** — 「＋」で今の見た目（重ねるもの + 設定）を保存し、チップをクリックで復元
    Presets: save the current look (overlay + settings) with +, and restore it by clicking its chip
+   「…」の「選んで書き出す…」で一部だけをパックにできる
+   Use "Export Selected…" in the … menu to pack only some presets
 7. **元に戻す** — 「リセット」で適用先のアイコンを戻す。FolderArt が適用していないフォルダーには触らない
    Reset: restores the icons FolderArt applied; folders it never touched are left alone
 8. **履歴** — ツールバーの「履歴」から、過去の適用を再適用したり、リセットしたりできる
    History: re-apply or reset a past application from the History sheet in the toolbar
 9. **言語** — メニューバーの「表示 > 言語」から 8 言語を選べる (再起動で反映)
    Language: pick one of eight languages from View > Language in the menu bar (takes effect after a restart)
+
+> **Note:** 欄の無い手書きのパックの上下位置は既定 (下4%) になります。
+> A hand-written pack without a vertical position gets the default (4% down).
+
+## 提案辞書のカスタマイズ / Customizing suggestions
+
+「ファイル > 提案辞書を開く…」で `suggestions-user.json` (Application Support/FolderArt) を Finder に表示します。無ければ例を 1 件入れて作ります。形式は同梱の辞書と同じで、保存すると自動で反映されます (壊れていれば知らせます)。同じ語が同梱辞書にもあれば自分の辞書が優先されます。記号名は記号タブの検索で探せます。
+File > Open Suggestion Dictionary… reveals `suggestions-user.json` (Application Support/FolderArt) in the Finder, creating it with one example if needed. It uses the bundled dictionary's format and is reloaded automatically when saved (you are told if it is broken). Your entries win over bundled ones for the same word. Symbol names can be found in the Symbol tab's search.
+
+```json
+[
+  {"keys": ["案件", "project"], "symbol": "folder.fill.badge.gearshape", "emoji": "🗂️"},
+  {"keys": ["請求書"], "emoji": "🧾"}
+]
+```
 
 ## プロジェクト構成
 
@@ -122,6 +141,7 @@ FolderArt/
 │   ├── Overlay.swift           # 重ねるもの（画像 / 記号 / 絵文字 / 文字）
 │   ├── Pack.swift              # お気に入りパックの形式
 │   ├── Preset.swift            # お気に入り（重ねるもの + 設定）
+│   ├── PresetExportSelection.swift # 「選んで書き出す」の選択状態
 │   └── Suggestion.swift        # 提案 1 つ（記号 / 絵文字 / 文字 / お気に入り / 代表画像）
 ├── Services/
 │   ├── AppLanguage.swift       # 言語メニューの選択と AppleLanguages への保存
@@ -130,6 +150,7 @@ FolderArt/
 │   ├── BookmarkManager.swift   # Security-Scoped Bookmark 管理
 │   ├── ContentScanner.swift    # フォルダ直下の種類と代表画像
 │   ├── FileIdentity.swift      # フォルダの同一性（ボリューム UUID + inode）
+│   ├── FileWatcher.swift       # ユーザー辞書の監視 (ディレクトリ + ファイル)
 │   ├── FolderIconManager.swift # NSWorkspace アイコン操作・バックアップ
 │   ├── FontCatalog.swift       # 厳選フォントと家族 + 太さの解決
 │   ├── IconComposer.swift      # 標準フォルダーアイコンとの合成
@@ -138,7 +159,7 @@ FolderArt/
 │   ├── PackReader.swift        # パックの読み込みと検証
 │   ├── PackWriter.swift        # パックの書き出し
 │   ├── PresetImporter.swift    # パックからお気に入りへの取り込み
-│   ├── SuggestionDictionary.swift # 提案辞書（suggestions.json）の読み込み
+│   ├── SuggestionDictionary.swift # 提案辞書（suggestions.json + suggestions-user.json）の読み込み
 │   ├── SuggestionEngine.swift  # フォルダ名と中身からの提案
 │   └── SymbolCatalog.swift     # SF Symbols のカタログ（制限付きは除外）
 ├── State/
@@ -155,6 +176,7 @@ FolderArt/
 │   ├── FolderListView.swift    # 適用先フォルダのリスト
 │   ├── HistoryView.swift       # 履歴シート
 │   ├── OverlayPickerView.swift # 4 タブの選択画面
+│   ├── PresetExportPickerView.swift # 「選んで書き出す」の popover
 │   ├── PresetStripView.swift   # お気に入りのチップ列
 │   ├── PreviewView.swift       # プレビューと hover 拡大
 │   ├── SuggestionStripView.swift # 提案のチップ列
@@ -167,7 +189,8 @@ FolderArt/
 scripts/localization/
 ├── strings.json                # 文言の元 (キー → 8 言語)
 ├── infoplist.json              # InfoPlist 用の文言
-└── build-xcstrings.py          # .xcstrings の生成と、ソースとの突き合わせ (--check)
+├── build-xcstrings.py          # .xcstrings の生成と、ソースとの突き合わせ (--check / --stringsdata)
+└── check-compiled.sh           # コンパイラ抽出のキーとの厳密照合
 ```
 
 ## 技術詳細
