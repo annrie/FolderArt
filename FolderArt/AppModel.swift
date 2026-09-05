@@ -251,6 +251,9 @@ final class AppModel: ObservableObject {
             contentSummary = nil
             return
         }
+        // 走査中に対象が (キャッシュ命中などで) 他のフォルダへ戻ると、下の start 条件が false のままになり
+        // scanningFolder が古い対象を指し続けてしまう。対象が変わったらここで無条件に cancel する
+        if let scanning = scanningFolder, scanning != folder { cancelContentScan() }
         let content = contentSummary?.folder == folder ? contentSummary?.summary : nil
         suggestions = suggestionEngine.suggest(for: folder.lastPathComponent, presets: presets, content: content)
         // 対象が変わったときだけ走査する (お気に入りの変化では走査し直さない)
@@ -277,7 +280,14 @@ final class AppModel: ObservableObject {
             let summary = scan(folder)
             guard let self else { return }
             await MainActor.run {
-                guard self.scanGeneration == generation, self.suggestionSourceFolder == folder else { return }
+                guard self.scanGeneration == generation else { return }
+                // 世代は最新でも対象がもう違うなら結果は棄却する。ただし scanningFolder / contentScanTask は
+                // ここで戻しておかないと、対象が古いフォルダに一致してしまったとき二度と走査されなくなる
+                guard self.suggestionSourceFolder == folder else {
+                    self.scanningFolder = nil
+                    self.contentScanTask = nil
+                    return
+                }
                 self.contentSummary = (folder, summary)
                 self.scanningFolder = nil
                 self.contentScanTask = nil

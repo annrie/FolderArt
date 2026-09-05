@@ -472,6 +472,29 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(m.suggestions.isEmpty)
     }
 
+    /// A を走査済みの状態で B に切り替え (走査中)、B の走査が終わる前に A へ戻ると
+    /// A はキャッシュ命中なので開始条件が満たされず、scanningFolder が B のまま固まってしまっていた。
+    /// B の結果は棄却されつつ scanningFolder / contentScanTask を戻し、B に戻ったときまた走査できることを確認する
+    func testReturningToCachedFolderDuringScanCancelsAndAllowsRescan() async throws {
+        let (a, image) = try makeFolderWithImage("A")
+        let b = root.appendingPathComponent("B")
+        try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
+        let scanner = ScanRecorder()
+        scanner.delays["B"] = 0.4
+        scanner.results["A"] = imageSummary(image)
+        let m = makeModel(scanner: scanner)
+        m.addFolders([a])
+        try await Task.sleep(nanoseconds: 300_000_000)   // A はキャッシュ済み (画像チップあり)
+        XCTAssertTrue(hasImageChip(m))
+        m.addFolders([b])   // B の走査が始まる (0.4 秒かかる)
+        m.folders.selectedIDs = [a.standardizedFileURL]   // B の走査中に A へ戻る (A はキャッシュ命中)
+        try await Task.sleep(nanoseconds: 700_000_000)   // B の走査が終わる (結果は棄却されるはず)
+        m.folders.selectedIDs = [b.standardizedFileURL]   // 再び B に戻る → 再走査されるべき
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(m.suggestionSourceFolder, b.standardizedFileURL)
+        XCTAssertEqual(scanner.count(of: "B"), 2)
+    }
+
     func testApplyingImageSuggestionCopiesIntoAssetsAndSwitchesTab() throws {
         let (_, image) = try makeFolderWithImage("A")
         model.applySuggestion(Suggestion(kind: .image(image), reason: ""))
