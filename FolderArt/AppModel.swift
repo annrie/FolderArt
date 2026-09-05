@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CryptoKit
 import SwiftUI
 import UniformTypeIdentifiers
 import os
@@ -21,7 +22,17 @@ final class AppModel: ObservableObject {
     @Published var progress: (done: Int, total: Int)?
     /// 提案 (フォルダ名と中身から)。空なら帯はチップ無しで高さだけ保つ
     @Published private(set) var suggestions: [Suggestion] = []
-    private let suggestionEngine: SuggestionEngine
+    /// 提案エンジン。ユーザー辞書が変わると作り直す
+    private(set) var suggestionEngine: SuggestionEngine
+    private let bundledDictionary: SuggestionDictionary
+    private let catalog: SymbolCatalog
+    /// ユーザー辞書 (suggestions-user.json)。テストでは一時ディレクトリを注入する
+    let userDictionaryURL: URL
+    private var dictionaryWatcher: FileWatcher?
+    /// 読み込みの世代。監視の通知が重なっても最後の 1 回の結果だけ採る
+    private var dictionaryGeneration = 0
+    /// 直近に失敗したユーザー辞書の内容の SHA-256。同じ内容では二度アラートを出さない
+    private var lastDictionaryErrorHash: Data?
     /// 中身の走査 (テストで差し替える)。メインの外で呼ばれる
     typealias ContentScannerFunction = @Sendable (URL) -> ContentSummary?
     private let scanContents: ContentScannerFunction
@@ -42,13 +53,18 @@ final class AppModel: ObservableObject {
     init(history: HistoryStore = HistoryStore(),
          presets: PresetStore = PresetStore(),
          assets: AssetStore = AssetStore(),
-         suggestionEngine: SuggestionEngine = SuggestionEngine(dictionary: SuggestionDictionary.load(), catalog: SymbolCatalog.shared),
+         dictionary bundledDictionary: SuggestionDictionary = SuggestionDictionary.load(),
+         catalog: SymbolCatalog = SymbolCatalog.shared,
+         userDictionaryURL: URL = HistoryStore.appSupportDirectory.appendingPathComponent(SuggestionDictionary.userFileName),
          contentScanner: @escaping ContentScannerFunction = { ContentScanner.scan($0) },
          runsMaintenance: Bool = true) {
         self.history = history
         self.presets = presets
         self.assets = assets
-        self.suggestionEngine = suggestionEngine
+        self.bundledDictionary = bundledDictionary
+        self.catalog = catalog
+        self.userDictionaryURL = userDictionaryURL
+        self.suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
         self.scanContents = contentScanner
         self.folders = FolderSelection()
         self.overlay = OverlayState(assets: assets)
@@ -79,6 +95,13 @@ final class AppModel: ObservableObject {
                 self?.refreshSuggestions(folders: folders, selectedIDs: selectedIDs, presets: presets)
             }
             .store(in: &cancellables)
+
+        // ユーザー辞書: ディレクトリがあれば監視を始め、初回を読む (メインの外で。結果はメインで反映)。
+        // 世代は Task { } の実行を待たずここで同期的に確保する (reloadUserDictionary() 参照)
+        startDictionaryWatcher()
+        dictionaryGeneration += 1
+        let initialDictionaryGeneration = dictionaryGeneration
+        Task { [weak self] in await self?.performDictionaryReload(generation: initialDictionaryGeneration) }
 
         reapAssets()
 
@@ -306,6 +329,91 @@ final class AppModel: ObservableObject {
         case .text(let t):      overlay.activeTab = .text;   overlay.text = t
         case .preset(let p):    applyPreset(p)
         case .image(let r):     selectImage(r.url)
+        }
+    }
+
+    // MARK: - ユーザー辞書
+
+    static let revealUserDictionaryNotification = Notification.Name("FolderArt.revealUserDictionary")
+
+    /// ユーザー辞書を読み直して提案エンジンを差し替える。読み込みと復号はメインの外、差し替えはメイン。
+    /// 世代番号で古い結果を捨てる (監視の通知が重なっても最後の 1 回だけ採る)。中身の走査結果は使い回す。
+    /// 世代の確保 (dictionaryGeneration += 1) はここで同期的に行う。init の初回読み込みも
+    /// (Task { } の実行を待たず) 同じタイミングで世代を確保するため、明示的な呼び出しと初回読み込みが
+    /// 競合しても「呼ばれた順」どおりに新しい方が勝つ (Task の実行順序に依存しない)
+    func reloadUserDictionary() async {
+        dictionaryGeneration += 1
+        await performDictionaryReload(generation: dictionaryGeneration)
+    }
+
+    /// 実際の読み込みと差し替え。generation は呼び出し側 (reloadUserDictionary / init) が
+    /// 同期的に採番したものを渡す。世代は呼び出し側が同期的に確保する
+    /// (Task 開始の遅延で順序が入れ替わるのを防ぐ)
+    private func performDictionaryReload(generation: Int) async {
+        let url = userDictionaryURL
+        let loaded = await Task.detached(priority: .utility) { () -> (result: Result<SuggestionDictionary, Error>?, hash: Data?) in
+            let result = SuggestionDictionary.loadUser(at: url)
+            // 失敗したときだけ、同じ内容で二度アラートを出さないための指紋を取る
+            var hash: Data?
+            if case .failure = result, let data = try? Data(contentsOf: url) { hash = Data(SHA256.hash(data: data)) }
+            return (result, hash)
+        }.value
+        guard generation == dictionaryGeneration else { return }
+
+        switch loaded.result {
+        case nil:
+            suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
+            lastDictionaryErrorHash = nil
+        case .success(let user):
+            suggestionEngine = SuggestionEngine(dictionary: .merging(user: user, bundled: bundledDictionary), catalog: catalog)
+            lastDictionaryErrorHash = nil
+        case .failure(let error):
+            suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
+            if loaded.hash != lastDictionaryErrorHash {
+                lastDictionaryErrorHash = loaded.hash
+                report(String(localized: "提案辞書を読めません: \(error.localizedDescription)"))
+            }
+        }
+        refreshSuggestions(folders: folders.folders, selectedIDs: folders.selectedIDs, presets: presets.presets)
+    }
+
+    /// 既に出ているアラート (起動時の保存データのエラーなど) があれば、その後ろに空行を挟んで連結する
+    private func report(_ message: String) {
+        if let current = errorMessage, !current.isEmpty {
+            errorMessage = current + "\n\n" + message
+        } else {
+            errorMessage = message
+        }
+    }
+
+    /// ディレクトリがあるときだけ監視する (無い間は「提案辞書を開く…」で作ったときに始める)。通知のたびに必ず読み直す
+    private func startDictionaryWatcher() {
+        guard dictionaryWatcher == nil else { return }
+        let directory = userDictionaryURL.deletingLastPathComponent()
+        dictionaryWatcher = FileWatcher(directory: directory, file: userDictionaryURL) { [weak self] in
+            Task { [weak self] in await self?.reloadUserDictionary() }
+        }
+    }
+
+    /// ユーザー辞書のファイルを (無ければディレクトリごと作って雛形で) 用意し、監視を始める。Finder 表示はしない
+    @discardableResult
+    func prepareUserDictionaryFile() throws -> URL {
+        let directory = userDictionaryURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        if !FileManager.default.fileExists(atPath: userDictionaryURL.path) {
+            try SuggestionDictionary.userTemplate.write(to: userDictionaryURL, atomically: true, encoding: .utf8)
+        }
+        startDictionaryWatcher()
+        return userDictionaryURL
+    }
+
+    /// 「ファイル > 提案辞書を開く…」: ファイルを用意して Finder で選択表示する (編集は好きなエディタで)
+    func revealUserDictionary() {
+        do {
+            let url = try prepareUserDictionaryFile()
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } catch {
+            errorMessage = String(localized: "提案辞書を作れません: \(error.localizedDescription)")
         }
     }
 

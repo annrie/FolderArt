@@ -95,6 +95,7 @@ struct ContentView: View {
         .onOpenURL { url in Task { await model.importPack(url: url) } }
         .onReceive(NotificationCenter.default.publisher(for: AppModel.exportPackNotification)) { _ in model.exportPack() }
         .onReceive(NotificationCenter.default.publisher(for: AppModel.importPackNotification)) { _ in model.importPackWithPanel() }
+        .onReceive(NotificationCenter.default.publisher(for: AppModel.revealUserDictionaryNotification)) { _ in model.revealUserDictionary() }
         // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
         .onAppear { showError = (model.errorMessage != nil) }
         .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
