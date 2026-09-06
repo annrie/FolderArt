@@ -39,6 +39,7 @@ macOS のフォルダーアイコンにカスタム画像を合成してアイ�
 - 位置・サイズ・不透明度・上下位置・フォルダ形切り抜き — Position, size, opacity, vertical offset, clip to folder shape
 - バックアップ、リセット、履歴 — Backup, reset, history
 - 8 言語対応 (日本語・英語・ドイツ語・スペイン語・フランス語・韓国語・ポルトガル語 (ブラジル)・繁体字中国語) と「表示 > 言語」メニュー — Eight languages (Japanese, English, German, Spanish, French, Korean, Brazilian Portuguese, Traditional Chinese) and a View > Language menu
+- Finder の右クリックからクイックアクション (開く / 直前のお気に入りを適用 / 元に戻す) — Finder right-click Quick Actions (open / apply last preset / reset icon)
 
 > **Note:** SF Symbols は macOS の実行時 API で描画しており、画像ファイルは同梱していません。Apple 製品や機能を表す制限付き記号は選択肢から除外しています。
 > SF Symbols are rendered via macOS's runtime API, so no image files are bundled with the app. Restricted symbols that represent Apple products or features are excluded from the picker.
@@ -127,10 +128,29 @@ File > Open Suggestion Dictionary… reveals `suggestions-user.json` (Applicatio
 ]
 ```
 
+## クイックアクション / Quick Actions
+
+Finder でフォルダーを右クリックすると、次の 3 つがサービスメニューに追加されます。
+Right-click a folder in the Finder to find these three items in the services menu.
+
+- **FolderArt で開く** — 選んだフォルダーを FolderArt のリストに追加し、アプリを前面化する
+  Open in FolderArt: adds the selected folders to FolderArt's list and brings the app forward
+- **直前のお気に入りを適用** — FolderArt を開かずに、直前に使ったお気に入りをそのまま適用する
+  Apply Last Preset: applies the preset you used most recently, without opening FolderArt
+- **アイコンを元に戻す** — FolderArt が付けたアイコンだけを、開かずに元に戻す
+  Restore Icon: resets icons FolderArt applied, without opening FolderArt
+
+「直前のお気に入りを適用」と「アイコンを元に戻す」は静かに実行され、Finder 上でアイコンが変わることが完了の合図です (エラー時のみ FolderArt が前面に出てメッセージを出します)。「FolderArt で開く」は常にアプリを前面化します。
+"Apply Last Preset" and "Restore Icon" run silently — the changed folder icon in the Finder is the confirmation (FolderArt only comes forward to show a message if something fails). "Open in FolderArt" always brings the app forward.
+
+項目が出ない場合は、`FolderArt.app` を `/Applications` か `~/アプリケーション` に置いて一度起動してから、**システム設定 > キーボード > キーボードショートカット > サービス** (または **一般 > 機能拡張 > 拡張機能** の Finder 拡張) で有効になっているか確認してください。
+If the items don't appear, put `FolderArt.app` in `/Applications` or `~/Applications` and launch it once, then check that they're enabled under **System Settings > Keyboard > Keyboard Shortcuts > Services** (or the Finder extension under **General > Login Items & Extensions**).
+
 ## プロジェクト構成
 
 ```
 FolderArt/
+├── AppDelegate.swift           # 共有 AppModel の所有と NSServices の登録、静かな終了の判定
 ├── AppModel.swift              # 画面全体の状態を束ねる
 ├── ContentView.swift           # メイン画面の組み立て
 ├── FolderArtApp.swift          # アプリのエントリポイント
@@ -159,6 +179,7 @@ FolderArt/
 │   ├── PackReader.swift        # パックの読み込みと検証
 │   ├── PackWriter.swift        # パックの書き出し
 │   ├── PresetImporter.swift    # パックからお気に入りへの取り込み
+│   ├── QuickActionProvider.swift # NSServices の提供オブジェクト (pboard → AppModel への薄い委譲)
 │   ├── SuggestionDictionary.swift # 提案辞書（suggestions.json + suggestions-user.json）の読み込み
 │   ├── SuggestionEngine.swift  # フォルダ名と中身からの提案
 │   └── SymbolCatalog.swift     # SF Symbols のカタログ（制限付きは除外）
@@ -169,6 +190,7 @@ FolderArt/
 │   ├── AssetStore.swift        # 画像を 512px PNG で複製・回収
 │   ├── CodableStore.swift      # JSON の読み書き・破損ファイルの退避
 │   ├── HistoryStore.swift      # 適用履歴
+│   ├── LastPresetStore.swift   # 直前に使ったお気に入りの id を永続化
 │   └── PresetStore.swift       # お気に入り
 ├── Views/
 │   ├── ControlsView.swift      # 設定スライダーと色
