@@ -4,7 +4,11 @@ struct CompositionSettings: Codable, Equatable, Sendable {
     var position: IconPosition = .center
     var scale: Double = 0.6              // 0.2 ... 1.0
     var opacity: Double = 0.9            // 0.1 ... 1.0
-    var verticalOffset: Double = 0.0     // -0.4 ... 0.4 (上:正, 下:負)
+    /// 上下位置 (−0.4 … 0.4、上が正)。既定は「下4%」: 標準フォルダアイコンは蓋の分だけ本体が下に寄っているので、
+    /// 正方形の中央に置くと少し上に見える。本体 (蓋を除く) の中心は macOS 15.7 の実測で正方形の中央より 4.0% 下
+    /// (IconComposer.folderBodyCenterOffset(of:) を参照。IconComposerTests の見張りテストが OS の変化を知らせる)。
+    /// 保存済みの設定は自分の値を持つので変わらない
+    var verticalOffset: Double = -0.04   // -0.4 ... 0.4 (上:正, 下:負)
     var clipToFolderShape: Bool = true   // フォルダー形状に切り抜く
     var tintColor: CodableColor = .white // 記号・文字の色
     var fontName: String? = nil          // nil = システムフォント (rounded)。第3段階で UI 開放

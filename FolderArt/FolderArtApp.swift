@@ -23,6 +23,9 @@ struct FolderArtApp: App {
                 Button("お気に入りのパックを読み込む…") {
                     NotificationCenter.default.post(name: AppModel.importPackNotification, object: nil)
                 }
+                Button("提案辞書を開く…") {
+                    NotificationCenter.default.post(name: AppModel.revealUserDictionaryNotification, object: nil)
+                }
             }
             // 「表示」メニューに「言語」サブメニュー (チェックマーク付きの 9 択)。選ぶと ContentView がアラートで再起動を促す
             CommandGroup(after: .toolbar) {

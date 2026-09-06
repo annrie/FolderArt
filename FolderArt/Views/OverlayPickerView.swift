@@ -28,11 +28,11 @@ struct OverlayPickerView: View {
             SuggestionStripView(suggestions: suggestions, assets: state.assets,
                                 isApplying: isApplying, onPick: onPickSuggestion)
 
-            Picker("", selection: $state.activeTab) {
+            Picker(selection: $state.activeTab) {
                 ForEach(OverlayState.Tab.allCases) { tab in
                     Text(tab.title).tag(tab)
                 }
-            }
+            } label: { EmptyView() }
             .pickerStyle(.segmented)
             .labelsHidden()
 

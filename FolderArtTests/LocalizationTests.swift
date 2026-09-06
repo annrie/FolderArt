@@ -56,7 +56,7 @@ final class LocalizationTests: XCTestCase {
 
     /// 全言語で同一であることを許す、固有名詞や記号だけの文言 (訳しようが無いもの)
     private static let identicalEverywhere: Set<String> = [
-        "FolderArt", "Avenir Next", "%lld", "%lld / %lld", "%@ · %@", "日本語", "繁體中文",
+        "FolderArt", "Avenir Next", "%lld", "%lld / %lld", "%@ · %@", "日本語", "繁體中文", "OK",
     ]
     /// その言語でだけ ja と同一であることを許すキー (簡体字と違って漢字をそのまま使う繁体字など)
     private static let identicalPerLanguage: [String: Set<String>] = [

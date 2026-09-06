@@ -3,12 +3,14 @@
 
     python3 scripts/localization/build-xcstrings.py          # 生成
     python3 scripts/localization/build-xcstrings.py --check  # ソースの文言との突き合わせ (欠けがあれば exit 1)
+    python3 scripts/localization/build-xcstrings.py --stringsdata <DerivedData>  # コンパイラ抽出のキーとの厳密照合 (scripts/localization/check-compiled.sh 参照)
 
 strings.json の形: {"キー": ["ja", "en", "de", "es", "fr", "ko", "pt-BR", "zh-Hant"], ...}
 値に "one||other" と書くと単数・複数の variation になる。"\n" は改行。
 キーは Swift の補間から抽出される形 (%lld / %@ / %%) で書く。
 sourceLanguage は en (未対応の言語は英語に落ちる)。キーは日本語リテラルのまま。
 """
+import glob
 import json
 import os
 import re
@@ -104,8 +106,19 @@ def source_literals():
             if not fn.endswith(".swift"):
                 continue
             path = os.path.join(dirpath, fn)
+            in_multiline = False
             with open(path, encoding="utf-8") as f:
                 for lineno, line in enumerate(f, 1):
+                    # 複数行文字列 (""") の中身は読み飛ばす (UI 文言は複数行リテラルを使わない。
+                    # JSON テンプレートなどの中身をここで日本語リテラルとして拾わないようにする。
+                    # 実物照合は --stringsdata のコンパイラ抽出が正確に行う)
+                    if in_multiline:
+                        if '"""' in line:
+                            in_multiline = False
+                        continue
+                    if '"""' in line:
+                        in_multiline = line.count('"""') % 2 == 1
+                        continue
                     code = line.strip()
                     if code.startswith("//"):
                         continue
@@ -132,8 +145,54 @@ def check():
     sys.exit(1 if missing else 0)
 
 
+def compiled_keys(root):
+    """SWIFT_EMIT_LOC_STRINGS=YES のビルドが出す *.stringsdata から、コンパイラが抽出した Localizable のキーを集める。
+    形式: {"source": "...swift", "tables": {"Localizable": [{"key": "...", "comment": "", "location": {...}}, ...]}, "version": 1}
+    tables は「テーブル名 → 項目の配列」。文言の無いファイルは "tables": {}。項目はオブジェクトでも素の文字列でも受ける"""
+    keys, files = set(), 0
+    for path in glob.glob(os.path.join(root, "**", "*.stringsdata"), recursive=True):
+        files += 1
+        try:
+            with open(path, encoding="utf-8") as f:
+                doc = json.load(f)
+        except (OSError, ValueError) as e:
+            print(f"warning: cannot read {path}: {e}")
+            continue
+        tables = doc.get("tables") if isinstance(doc, dict) else None
+        if not isinstance(tables, dict):
+            continue
+        for item in tables.get("Localizable") or []:
+            key = item.get("key") if isinstance(item, dict) else item
+            if isinstance(key, str):
+                keys.add(key)
+    return keys, files
+
+
+def check_compiled(root):
+    """コンパイラ抽出のキー (実物、%lld / %@ / %% を含む) と strings.json のキーを厳密に比較する"""
+    keys, files = compiled_keys(root)
+    if files == 0:
+        print(f"no .stringsdata under {root} (build with SWIFT_EMIT_LOC_STRINGS=YES, see check-compiled.sh)")
+        sys.exit(2)
+    table = load("strings.json")
+    missing = sorted(keys - set(table))
+    unused = sorted(set(table) - keys)
+    for k in missing:
+        print(f"missing: {k!r}")
+    for k in unused:
+        print(f"unused (info): {k!r}")
+    print(f"stringsdata files: {files}, compiled keys: {len(keys)}, missing: {len(missing)}, unused: {len(unused)}")
+    sys.exit(1 if missing else 0)
+
+
 if __name__ == "__main__":
-    if "--check" in sys.argv[1:]:
+    args = sys.argv[1:]
+    if "--stringsdata" in args:
+        i = args.index("--stringsdata")
+        if i + 1 >= len(args):
+            sys.exit("usage: build-xcstrings.py --stringsdata <DerivedData dir>")
+        check_compiled(args[i + 1])
+    elif "--check" in args:
         check()
     else:
         for name, dest in TARGETS:

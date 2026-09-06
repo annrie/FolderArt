@@ -14,6 +14,8 @@ final class AppModelTests: XCTestCase {
             history: HistoryStore(storageURL: root.appendingPathComponent("history.json")),
             presets: PresetStore(storageURL: root.appendingPathComponent("presets.json")),
             assets: AssetStore(directory: root.appendingPathComponent("assets")),
+            // 実機の Application Support の辞書を読まないよう、存在しないディレクトリの下を指す (監視も始まらない)
+            userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
             runsMaintenance: false)
     }
     override func tearDown() async throws {
@@ -80,6 +82,8 @@ final class AppModelTests: XCTestCase {
         let m = AppModel(history: HistoryStore(storageURL: broken),
                          presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
                          assets: model.assets,
+                         // 実機の Application Support の辞書を読まないよう、存在しないディレクトリの下を指す (監視も始まらない)
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
                          runsMaintenance: false)
         let orphan = try m.assets.store(TestSupport.makeSolidImage(size: CGSize(width: 8, height: 8), color: .blue))
         m.reapAssets()
@@ -313,6 +317,25 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.errorMessage, String(localized: "1 件のお気に入りを追加しました。"))
     }
 
+    func testExportPackSubsetWritesOnlySelected() throws {
+        try model.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        try model.presets.add(name: "月", overlay: .symbol(name: "moon.fill"), settings: CompositionSettings())
+        let moon = try XCTUnwrap(model.presets.presets.first { $0.name == "月" })
+        let file = root.appendingPathComponent("subset.folderartpack")
+        model.exportPack(to: file, presets: [moon])
+        XCTAssertNil(model.errorMessage)
+        let pack = try PackReader.read(try Data(contentsOf: file))
+        XCTAssertEqual(pack.presets.map(\.name), ["月"])
+    }
+
+    func testExportPackEmptySubsetExplainsAndWritesNothing() throws {
+        try model.presets.add(name: "星", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        let file = root.appendingPathComponent("empty.folderartpack")
+        model.exportPack(to: file, presets: [])
+        XCTAssertEqual(model.errorMessage, String(localized: "書き出せるお気に入りがありません。"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
     func testImportPackReportsCorruptFile() async throws {
         let file = root.appendingPathComponent("bad.folderartpack")
         try "nope".data(using: .utf8)!.write(to: file)
@@ -411,6 +434,8 @@ final class AppModelTests: XCTestCase {
         AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("history2.json")),
                  presets: PresetStore(storageURL: root.appendingPathComponent("presets2.json")),
                  assets: AssetStore(directory: root.appendingPathComponent("assets2")),
+                 // 実機の Application Support の辞書を読まないよう、存在しないディレクトリの下を指す (監視も始まらない)
+                 userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
                  contentScanner: { scanner.record($0) },
                  runsMaintenance: false)
     }
@@ -453,6 +478,7 @@ final class AppModelTests: XCTestCase {
         try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
         let scanner = ScanRecorder()
         let gateA = DispatchSemaphore(value: 0)
+        defer { gateA.signal() }
         scanner.configure(results: ["A": imageSummary(image)], gates: ["A": gateA])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])   // A の走査が始まる (gateA で足止めされる)
@@ -497,6 +523,7 @@ final class AppModelTests: XCTestCase {
         let (a, image) = try makeFolderWithImage("A")
         let scanner = ScanRecorder()
         let gateA = DispatchSemaphore(value: 0)
+        defer { gateA.signal() }
         scanner.configure(results: ["A": imageSummary(image)], gates: ["A": gateA])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
@@ -518,6 +545,7 @@ final class AppModelTests: XCTestCase {
         try FileManager.default.createDirectory(at: b, withIntermediateDirectories: true)
         let scanner = ScanRecorder()
         let gateB = DispatchSemaphore(value: 0)
+        defer { gateB.signal() }
         scanner.configure(results: ["A": imageSummary(image)], gates: ["B": gateB])
         let m = makeModel(scanner: scanner)
         m.addFolders([a])
@@ -570,6 +598,146 @@ final class AppModelTests: XCTestCase {
         model.applySuggestion(Suggestion(kind: .image(missing), reason: ""))
         XCTAssertNotNil(model.errorMessage)
         XCTAssertNil(model.overlay.imageAssetID)
+    }
+
+    // MARK: - ユーザー辞書
+
+    private var testDictionary: SuggestionDictionary {
+        SuggestionDictionary(entries: [SuggestionEntry(keys: ["photo"], symbol: "photo.fill", emoji: "📷")])
+    }
+
+    /// ユーザー辞書の URL を注入したモデル。ディレクトリ (root) は既にあるので init で監視が始まる
+    private func makeDictionaryModel(userDictionary: URL) -> AppModel {
+        AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("history3.json")),
+                 presets: PresetStore(storageURL: root.appendingPathComponent("presets3.json")),
+                 assets: AssetStore(directory: root.appendingPathComponent("assets3")),
+                 dictionary: testDictionary,
+                 catalog: SymbolCatalog.shared,
+                 userDictionaryURL: userDictionary,
+                 runsMaintenance: false)
+    }
+
+    private func makeFolder(_ name: String) throws -> URL {
+        let url = root.appendingPathComponent(name)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    private func hasSymbol(_ name: String, in m: AppModel) -> Bool {
+        m.suggestions.contains { $0.kind == .symbol(name) }
+    }
+
+    func testReloadUserDictionaryChangesSuggestions() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        XCTAssertFalse(hasSymbol("star.fill", in: m))
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+        XCTAssertNil(m.errorMessage)
+    }
+
+    func testUserDictionaryOverridesBundledKey() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("photo")])
+        XCTAssertTrue(hasSymbol("photo.fill", in: m))
+        try #"[{"keys": ["photo"], "symbol": "camera.fill", "emoji": "📸"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()
+        XCTAssertTrue(hasSymbol("camera.fill", in: m))
+        XCTAssertFalse(hasSymbol("photo.fill", in: m))
+    }
+
+    func testBrokenUserDictionaryAlertsOncePerContentAndRecovers() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        try "{ broken".write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        m.errorMessage = nil
+        await m.reloadUserDictionary()          // 同じ内容ではもう出ない
+        XCTAssertNil(m.errorMessage)
+        try "{ broken again".write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()          // 内容が変われば 1 回出る
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false)
+        m.errorMessage = nil
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()          // 直せば黙って復帰する
+        XCTAssertNil(m.errorMessage)
+        m.addFolders([try makeFolder("xyzzy")])
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+    }
+
+    /// 上限 (1 MB) を超えるファイルは、指紋のための読み込みでも全体を読まずサイズだけで区別する。
+    /// それでも「内容ごとに 1 回」のアラートは出る (0 回にならない)
+    func testOversizedUserDictionaryAlertsOnce() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        let oversized = "[" + String(repeating: " ", count: SuggestionDictionary.userMaxFileBytes + 1)
+        try oversized.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        m.errorMessage = nil
+        await m.reloadUserDictionary()          // 同じ内容ではもう出ない
+        XCTAssertNil(m.errorMessage)
+    }
+
+    /// 読めないファイル (権限エラーなど) でも、指紋がサイズ+エラー文から作られるため黙らずに 1 回はアラートが出る
+    func testUnreadableUserDictionaryAlertsOnce() async throws {
+        try XCTSkipIf(geteuid() == 0, "root ではパーミッションで弾けない")
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        try m.prepareUserDictionaryFile()
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: user.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: user.path) }
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        await m.reloadUserDictionary()
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        m.errorMessage = nil
+        await m.reloadUserDictionary()          // 同じ内容ではもう出ない
+        XCTAssertNil(m.errorMessage)
+    }
+
+    func testPrepareUserDictionaryFileWritesTemplateOnce() throws {
+        let user = root.appendingPathComponent("sub/dir/suggestions-user.json")   // ディレクトリごと無い
+        let m = makeDictionaryModel(userDictionary: user)
+        let url = try m.prepareUserDictionaryFile()
+        XCTAssertEqual(url, user)
+        XCTAssertEqual(try String(contentsOf: user, encoding: .utf8), SuggestionDictionary.userTemplate)
+        try "[]".write(to: user, atomically: true, encoding: .utf8)
+        try m.prepareUserDictionaryFile()        // 既にあれば上書きしない
+        XCTAssertEqual(try String(contentsOf: user, encoding: .utf8), "[]")
+    }
+
+    func testWatcherReloadsUserDictionaryAutomatically() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        try await waitUntil { self.hasSymbol("star.fill", in: m) }
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+    }
+
+    func testStartupErrorsAreJoined() async throws {
+        let historyURL = root.appendingPathComponent("history4.json")
+        try "{ broken history".write(to: historyURL, atomically: true, encoding: .utf8)
+        let user = root.appendingPathComponent("suggestions-user.json")
+        try "{ broken dictionary".write(to: user, atomically: true, encoding: .utf8)
+        let m = AppModel(history: HistoryStore(storageURL: historyURL),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("presets4.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("assets4")),
+                         dictionary: testDictionary, catalog: SymbolCatalog.shared,
+                         userDictionaryURL: user, runsMaintenance: false)
+        let saved = String(localized: "保存データの読み込みに失敗しました: \("")")
+        let dict = String(localized: "提案辞書を読めません: \("")")
+        XCTAssertTrue(m.errorMessage?.hasPrefix(saved) ?? false)
+        try await waitUntil { m.errorMessage?.contains(dict) ?? false }
+        XCTAssertTrue(m.errorMessage?.contains(dict) ?? false)        // 待った条件そのものを確かめる
+        XCTAssertTrue(m.errorMessage?.hasPrefix(saved) ?? false)      // 保存データのエラーは残る
+        XCTAssertTrue(m.errorMessage?.contains("\n\n") ?? false)      // 空行で連結
     }
 
 }
