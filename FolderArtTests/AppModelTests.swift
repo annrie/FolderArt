@@ -786,6 +786,31 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(m.lastAppliedPreset)   // 解決結果も nil
     }
 
+    // お気に入りの削除に失敗したら last-preset の参照はクリアしない (Codex PR #6 r2)。
+    // presets.json を (ファイルの代わりに) ディレクトリにして remove の保存を失敗させる
+    // (ApplyCoordinatorTests.testHistorySaveFailureRollsBackThatFolder と同じ手法)
+    func testRemovePresetFailureKeepsLastPresetReference() throws {
+        let presetsURL = root.appendingPathComponent("p.json")
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: presetsURL),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertEqual(store.id, preset.id)
+        // add で作られた p.json を消してディレクトリに置き換え、以後の保存 (remove) を失敗させる
+        try FileManager.default.removeItem(at: presetsURL)
+        try FileManager.default.createDirectory(at: presetsURL, withIntermediateDirectories: true)
+
+        m.removePreset(preset)
+        XCTAssertNotNil(m.errorMessage)               // 削除の失敗が見える
+        XCTAssertEqual(store.id, preset.id)            // 削除できていないので last-preset の参照は残る
+        XCTAssertEqual(m.lastAppliedPreset?.id, preset.id)
+    }
+
     // LastPresetStore.save の失敗を握り潰さず errorMessage に出す (Codex PR #6)。
     // 保存先を (ファイルの代わりに) ディレクトリにして書き込みを失敗させる
     // (ApplyCoordinatorTests.testHistorySaveFailureRollsBackThatFolder と同じ手法)

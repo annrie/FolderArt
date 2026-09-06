@@ -45,8 +45,11 @@ final class QuickActionProvider: NSObject {
                 // 静かに成功 (合図は Finder のアイコン変化)。ここでだけ静かに終了してよい
                 self.onSilentServiceFinished?()
             case .noPreset:
-                // コールド起動ではウィンドウが無くアラートの出しようが無いので、先にウィンドウを出す
-                self.model.errorMessage = String(localized: "まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。")
+                // コールド起動ではウィンドウが無くアラートの出しようが無いので、先にウィンドウを出す。
+                // 既に起動エラー (壊れた保存データ等) が出ているなら、そちらを上書きしない
+                if self.model.errorMessage == nil {
+                    self.model.errorMessage = String(localized: "まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。")
+                }
                 self.onShowWindow?()
             case .failed(let message):
                 self.model.errorMessage = message
