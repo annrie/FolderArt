@@ -681,7 +681,7 @@ final class AppModel: ObservableObject {
         // reapAssets() は isApplying 中は何もしないので、defer の実行を待たずここで明示的に倒しておく (apply() と同じ手当て)
         isApplying = false
         reapAssets()
-        if outcome.succeeded.isEmpty {
+        if !outcome.failed.isEmpty {
             return .failed(outcome.summary ?? String(localized: "フォルダーにアイコンを適用できませんでした。"))
         }
         return .applied
