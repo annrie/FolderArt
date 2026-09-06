@@ -24,8 +24,9 @@
 </p>
 
 macOS のフォルダーアイコンにカスタム画像を合成してアイコンを変更するアプリです。
+A macOS app that changes folder icons by compositing a custom image onto the standard folder icon.
 
-## 機能
+## 機能 / Features
 
 - 重ねるものを 4 種類から選択: 画像 / SF Symbols (制限付き記号は除外) / 絵文字 / 文字 — Overlay sources: image, SF Symbols (restricted symbols excluded), emoji, text
 - 記号と文字の色を指定 — Tint color for symbols and text
@@ -39,33 +40,35 @@ macOS のフォルダーアイコンにカスタム画像を合成してアイ�
 - 位置・サイズ・不透明度・上下位置・フォルダ形切り抜き — Position, size, opacity, vertical offset, clip to folder shape
 - バックアップ、リセット、履歴 — Backup, reset, history
 - 8 言語対応 (日本語・英語・ドイツ語・スペイン語・フランス語・韓国語・ポルトガル語 (ブラジル)・繁体字中国語) と「表示 > 言語」メニュー — Eight languages (Japanese, English, German, Spanish, French, Korean, Brazilian Portuguese, Traditional Chinese) and a View > Language menu
+- Finder の右クリックからクイックアクション (FolderArt で開く / FolderArt で直前のお気に入りを適用 / FolderArt でアイコンを元に戻す) — Finder right-click Quick Actions (Open in FolderArt / Apply Last Preset in FolderArt / Reset Icon in FolderArt)
 
 > **Note:** SF Symbols は macOS の実行時 API で描画しており、画像ファイルは同梱していません。Apple 製品や機能を表す制限付き記号は選択肢から除外しています。
 > SF Symbols are rendered via macOS's runtime API, so no image files are bundled with the app. Restricted symbols that represent Apple products or features are excluded from the picker.
 
-## スクリーンショット
+## スクリーンショット / Screenshots
 
 <img width="760" alt="FolderArt 1.4.0" src="docs/images/main.png" />
 
-## 動作環境
+## 動作環境 / Requirements
 
-| 項目 | 要件 |
+| 項目 / Item | 要件 / Requirement |
 |------|------|
-| OS | macOS 13 Ventura 以降 |
-| アーキテクチャ | Apple Silicon / Intel |
-| Xcode | 15 以上（ビルド時） |
+| OS | macOS 13 Ventura 以降 / macOS 13 Ventura or later |
+| アーキテクチャ / Architecture | Apple Silicon / Intel |
+| Xcode | 15 以上（ビルド時） / 15 or later (for building) |
 
-## インストール
+## インストール / Installation
 
-### ビルド済み .app を使う
+### ビルド済み .app を使う / Use the prebuilt .app
 
-1. `FolderArt.app` をダウンロード
-2. `/Applications` フォルダーへ移動
-3. 初回起動は **右クリック → 開く → 「開く」** で起動
+1. `FolderArt.app` をダウンロード / Download `FolderArt.app`
+2. `/Applications` フォルダーへ移動 / Move it to the `/Applications` folder
+3. 初回起動は **右クリック → 開く → 「開く」** で起動 / For the first launch, **right-click → Open → "Open"**
 
 > **Note:** 現時点では Notarize 未対応のため、初回のみ右クリックからの起動が必要です。
+> Notarization is not yet supported, so the right-click launch is needed only the first time.
 
-### ソースからビルドする
+### ソースからビルドする / Build from source
 
 ```bash
 # 依存ツール
@@ -85,7 +88,7 @@ xcodebuild build -scheme FolderArt -destination 'platform=macOS'
 xcodebuild test -scheme FolderArt -destination 'platform=macOS'
 ```
 
-## 使い方
+## 使い方 / Usage
 
 1. **フォルダーをリストに追加** — 左のリストにフォルダーをドロップ（「＋」から複数選択も可）
    Add folders to the list: drop them on the left list, or pick several with the + button
@@ -127,10 +130,32 @@ File > Open Suggestion Dictionary… reveals `suggestions-user.json` (Applicatio
 ]
 ```
 
-## プロジェクト構成
+## クイックアクション / Quick Actions
+
+Finder でフォルダーを右クリックすると、次の 3 つがサービスメニューに追加されます。
+Right-click a folder in the Finder to find these three items in the services menu.
+
+- **FolderArt で開く** — 選んだフォルダーを FolderArt のリストに追加し、アプリを前面化する
+  Open in FolderArt: adds the selected folders to FolderArt's list and brings the app forward
+- **FolderArt で直前のお気に入りを適用** — FolderArt を開かずに、直前に使ったお気に入りをそのまま適用する
+  Apply Last Preset in FolderArt: applies the preset you used most recently, without opening FolderArt
+- **FolderArt でアイコンを元に戻す** — FolderArt が付けたアイコンだけを、開かずに元に戻す
+  Reset Icon in FolderArt: resets icons FolderArt applied, without opening FolderArt
+
+3 つとも表示名が「FolderArt で〜」で始まるのは、右クリックのクイックアクション欄はアプリ別にまとまらず平坦に並ぶため、どのアプリの機能かひと目で分かるようにするためです。
+All three names start with "… in FolderArt" because the right-click Quick Actions list is flat (not grouped by app), so the name alone shows which app a given action belongs to.
+
+「FolderArt で直前のお気に入りを適用」と「FolderArt でアイコンを元に戻す」は静かに実行され、Finder 上でアイコンが変わることが完了の合図です (エラー時のみ FolderArt が前面に出てメッセージを出します)。「FolderArt で開く」は常にアプリを前面化します。
+"Apply Last Preset in FolderArt" and "Reset Icon in FolderArt" run silently — the changed folder icon in the Finder is the confirmation (FolderArt only comes forward to show a message if something fails). "Open in FolderArt" always brings the app forward.
+
+項目が出ない場合は、`FolderArt.app` を `/Applications` か `~/アプリケーション` に置いて一度起動してから、**システム設定 > キーボード > キーボードショートカット > サービス** で有効になっているか確認してください。
+If the items don't appear, put `FolderArt.app` in `/Applications` or `~/Applications` and launch it once, then check that they're enabled under **System Settings > Keyboard > Keyboard Shortcuts > Services**.
+
+## プロジェクト構成 / Project structure
 
 ```
 FolderArt/
+├── AppDelegate.swift           # 共有 AppModel の所有と NSServices の登録、静かな終了の判定
 ├── AppModel.swift              # 画面全体の状態を束ねる
 ├── ContentView.swift           # メイン画面の組み立て
 ├── FolderArtApp.swift          # アプリのエントリポイント
@@ -159,6 +184,7 @@ FolderArt/
 │   ├── PackReader.swift        # パックの読み込みと検証
 │   ├── PackWriter.swift        # パックの書き出し
 │   ├── PresetImporter.swift    # パックからお気に入りへの取り込み
+│   ├── QuickActionProvider.swift # NSServices の提供オブジェクト (pboard → AppModel への薄い委譲)
 │   ├── SuggestionDictionary.swift # 提案辞書（suggestions.json + suggestions-user.json）の読み込み
 │   ├── SuggestionEngine.swift  # フォルダ名と中身からの提案
 │   └── SymbolCatalog.swift     # SF Symbols のカタログ（制限付きは除外）
@@ -169,6 +195,7 @@ FolderArt/
 │   ├── AssetStore.swift        # 画像を 512px PNG で複製・回収
 │   ├── CodableStore.swift      # JSON の読み書き・破損ファイルの退避
 │   ├── HistoryStore.swift      # 適用履歴
+│   ├── LastPresetStore.swift   # 直前に使ったお気に入りの id を永続化
 │   └── PresetStore.swift       # お気に入り
 ├── Views/
 │   ├── ControlsView.swift      # 設定スライダーと色
@@ -193,19 +220,19 @@ scripts/localization/
 └── check-compiled.sh           # コンパイラ抽出のキーとの厳密照合
 ```
 
-## 技術詳細
+## 技術詳細 / Technical details
 
-- **Swift 5.9 + SwiftUI + AppKit**（macOS 13+）
-- **App Sandbox** 対応（Security-Scoped Bookmark でフォルダーアクセスを永続化）
-- **Core Graphics / NSBitmapImageRep** による高品質な画像合成
-- `NSCompositingOperation.destinationIn` でフォルダー形状クリッピング
-- AppKit `NSDraggingDestination` による信頼性の高いドラッグ＆ドロップ
-- **String Catalog** による 8 言語対応 (`scripts/localization/strings.json` から生成)
+- **Swift 5.9 + SwiftUI + AppKit**（macOS 13+）— Swift 5.9 + SwiftUI + AppKit (macOS 13+)
+- **App Sandbox** 対応（Security-Scoped Bookmark でフォルダーアクセスを永続化）— **App Sandbox** support, persisting folder access with Security-Scoped Bookmarks
+- **Core Graphics / NSBitmapImageRep** による高品質な画像合成 — High-quality image compositing with **Core Graphics / NSBitmapImageRep**
+- `NSCompositingOperation.destinationIn` でフォルダー形状クリッピング — Folder-shape clipping via `NSCompositingOperation.destinationIn`
+- AppKit `NSDraggingDestination` による信頼性の高いドラッグ＆ドロップ — Reliable drag & drop with AppKit's `NSDraggingDestination`
+- **String Catalog** による 8 言語対応 (`scripts/localization/strings.json` から生成) — Eight-language support via **String Catalog**, generated from `scripts/localization/strings.json`
 
-## ライセンス
+## ライセンス / License
 
 MIT License
 
-## 作者
+## 作者 / Author
 
 [@annrie](https://github.com/annrie)

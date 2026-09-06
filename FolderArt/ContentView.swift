@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct ContentView: View {
-    // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される
-    @StateObject private var model = AppModel()
+    // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される。
+    // NSServices からも同じインスタンスを操作できるよう、AppDelegate が所有するものを注入で受け取る
+    @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var language: LanguageSetting
     @State private var showHistory = false
     @State private var showError = false

@@ -863,6 +863,59 @@
         }
       }
     },
+    "FolderArt が処理中です。しばらくしてからお試しください。": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt ist beschäftigt. Bitte versuchen Sie es gleich noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt is busy. Please try again in a moment."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt está ocupado. Inténtalo de nuevo en un momento."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt est occupé. Réessayez dans un instant."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt が処理中です。しばらくしてからお試しください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt가 작업 중입니다. 잠시 후 다시 시도해 주세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O FolderArt está ocupado. Tente novamente em instantes."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt 忙碌中，請稍後再試。"
+          }
+        }
+      }
+    },
     "FolderArt-お気に入り-%@.folderartpack": {
       "extractionState": "manual",
       "localizations": {
@@ -1817,6 +1870,59 @@
         }
       }
     },
+    "お気に入りの絵柄を作れませんでした。": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Bild der Vorlage konnte nicht erstellt werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to create the preset’s image."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo crear la imagen del favorito."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de créer l’image du favori."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お気に入りの絵柄を作れませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "즐겨찾기의 이미지를 만들지 못했습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível criar a imagem do favorito."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法建立收藏的影像。"
+          }
+        }
+      }
+    },
     "お気に入りを選んで書き出す": {
       "extractionState": "manual",
       "localizations": {
@@ -2131,6 +2237,59 @@
           "stringUnit": {
             "state": "translated",
             "value": "其他（%@）"
+          }
+        }
+      }
+    },
+    "まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es wurde noch keine Vorlage verwendet. Wende zuerst in FolderArt eine Vorlage an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You haven’t used a preset yet. Apply a preset in FolderArt first."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía no has usado ningún favorito. Aplica primero un favorito en FolderArt."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous n’avez pas encore utilisé de favori. Veuillez d’abord appliquer un favori dans FolderArt."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 즐겨찾기를 사용한 적이 없습니다. 먼저 FolderArt에서 즐겨찾기를 적용해 주세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você ainda não usou nenhum favorito. Aplique um favorito no FolderArt primeiro."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未使用過收藏。請先在 FolderArt 中套用一個收藏。"
           }
         }
       }
@@ -3191,6 +3350,59 @@
           "stringUnit": {
             "state": "translated",
             "value": "選擇資料夾\n與疊加內容"
+          }
+        }
+      }
+    },
+    "フォルダーにアイコンを適用できませんでした。": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Symbol konnte nicht auf die Ordner angewendet werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to apply the icon to the folders."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo aplicar el icono a las carpetas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’appliquer l’icône aux dossiers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォルダーにアイコンを適用できませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "폴더에 아이콘을 적용하지 못했습니다."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível aplicar o ícone às pastas."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法將圖示套用到資料夾。"
           }
         }
       }

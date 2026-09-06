@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     let history: HistoryStore
     let presets: PresetStore
     let assets: AssetStore
+    private let lastPresetStore: LastPresetStore
     private let coordinator: ApplyCoordinator
 
     @Published var errorMessage: String?
@@ -57,10 +58,12 @@ final class AppModel: ObservableObject {
          catalog: SymbolCatalog = SymbolCatalog.shared,
          userDictionaryURL: URL = HistoryStore.appSupportDirectory.appendingPathComponent(SuggestionDictionary.userFileName),
          contentScanner: @escaping ContentScannerFunction = { ContentScanner.scan($0) },
+         lastPresetStore: LastPresetStore = LastPresetStore(),
          runsMaintenance: Bool = true) {
         self.history = history
         self.presets = presets
         self.assets = assets
+        self.lastPresetStore = lastPresetStore
         self.bundledDictionary = bundledDictionary
         self.catalog = catalog
         self.userDictionaryURL = userDictionaryURL
@@ -439,6 +442,13 @@ final class AppModel: ObservableObject {
     func applyPreset(_ preset: Preset) {
         guard !isApplying else { return }
         overlay.restore(overlay: preset.overlay, settings: preset.settings)
+        do { try lastPresetStore.save(preset.id) } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// 直前に使ったお気に入り (削除済み・未記録なら nil)
+    var lastAppliedPreset: Preset? {
+        guard let id = lastPresetStore.id else { return nil }
+        return presets.presets.first { $0.id == id }
     }
 
     /// 履歴の行を現在の入力に戻す (旧形式は不可)。フォルダがまだあればリストに足す。
@@ -491,7 +501,12 @@ final class AppModel: ObservableObject {
 
     func removePreset(_ preset: Preset) {
         guard !isApplying else { return }
-        do { try presets.remove(preset) } catch { errorMessage = error.localizedDescription }
+        do {
+            try presets.remove(preset)
+            if lastPresetStore.id == preset.id { try? lastPresetStore.save(nil) }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         reapAssets()
     }
 
@@ -610,5 +625,106 @@ final class AppModel: ObservableObject {
         var keep = history.referencedAssetIDs.union(presets.referencedAssetIDs)
         if let id = overlay.imageAssetID { keep.insert(id) }
         _ = try? assets.reap(keeping: keep)
+    }
+
+    // MARK: - Quick Action (Finder サービス)
+
+    /// サービス起動・サンドボックス・コールド起動固有の不具合を実機で追うための診断ログ。
+    /// QuickActionProvider (subsystem "com.example.FolderArt", category "quickaction") と同じ組で見る
+    private let quickActionLog = Logger(subsystem: "com.example.FolderArt", category: "quickaction")
+
+    /// URL 群のうち、実在するディレクトリだけを standardized で返す (ファイル・欠落は除外)。
+    /// 純関数で AppModel の状態に触れないため nonisolated (QuickActionProvider の nonisolated な
+    /// static コンテキストから同期で呼べるようにする)
+    nonisolated static func directories(from urls: [URL]) -> [URL] {
+        urls.compactMap { url in
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
+            return url.standardizedFileURL
+        }
+    }
+
+    /// フォルダーをリストに読み込んでアプリを前面化する (サービス「FolderArt で開く」)
+    func openFolders(_ urls: [URL]) {
+        let dirs = Self.directories(from: urls)
+        guard !dirs.isEmpty else { return }
+        folders.add(dirs)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Quick Action の適用結果。呼び出し側 (QuickActionProvider) が前面化とアラートを判断する。
+    enum QuickApplyResult: Equatable {
+        case applied         // 1 つ以上のフォルダーに適用できた (静かに終了してよい)
+        case noPreset        // 直前のお気に入りが無い/解決できない/対象フォルダーが無い
+        case failed(String)  // お気に入りはあるが、描画に失敗 or 全フォルダーで失敗 (メッセージ付き)
+    }
+
+    /// 直前のお気に入りを、UI 状態に触れず指定フォルダーへ静かに適用する。
+    /// isApplying の間 (通常の「適用」と交錯しうる await 区間) は弾き、他は前面の適用/リセットと同じ排他に従う
+    func applyLastPreset(to urls: [URL]) async -> QuickApplyResult {
+        guard !isApplying else {
+            return .failed(String(localized: "FolderArt が処理中です。しばらくしてからお試しください。"))
+        }
+        let dirs = Self.directories(from: urls)
+        let preset = lastAppliedPreset
+        guard let preset, !dirs.isEmpty else {
+            quickActionLog.info("applyLastPreset urls=\(urls.count) dirs=\(dirs.count) hasPreset=\(preset != nil)")
+            return .noPreset
+        }
+        guard let image = OverlayRenderer.render(preset.overlay, settings: preset.settings,
+                                                 side: IconComposer.iconSize.width, assets: assets) else {
+            quickActionLog.error("applyLastPreset render FAILED")
+            return .failed(String(localized: "お気に入りの絵柄を作れませんでした。"))
+        }
+        isApplying = true
+        defer { isApplying = false }
+        let started = dirs.filter { $0.startAccessingSecurityScopedResource() }
+        defer { for u in started { u.stopAccessingSecurityScopedResource() } }
+        let outcome = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
+                                              settings: preset.settings, to: dirs)
+        quickActionLog.info("applyLastPreset outcome succeeded=\(outcome.succeeded.count) failed=\(outcome.failed.count)")
+        // reapAssets() は isApplying 中は何もしないので、defer の実行を待たずここで明示的に倒しておく (apply() と同じ手当て)
+        isApplying = false
+        reapAssets()
+        if !outcome.failed.isEmpty {
+            return .failed(outcome.summary ?? String(localized: "フォルダーにアイコンを適用できませんでした。"))
+        }
+        return .applied
+    }
+
+    /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)。
+    /// 戻り値は「エラーが 1 件も無かったか」(呼び出し側の QuickActionProvider が静かに終了してよいか判断するため)。
+    /// 内部に await が無く MainActor 上で中断されないため、適用中でなければそのまま最後まで実行してよい
+    /// (先頭で弾くだけで足りる)。複数フォルダーで失敗が重なっても最後の 1 件だけにならないよう、
+    /// 失敗はいったん集めて report() で 1 回にまとめて出す (起動エラー等の既存アラートも report() が保つ)
+    @discardableResult
+    func resetIcons(at urls: [URL]) -> Bool {
+        guard !isApplying else {
+            report(String(localized: "FolderArt が処理中です。しばらくしてからお試しください。"))
+            return false
+        }
+        let dirs = Self.directories(from: urls)
+        quickActionLog.info("resetIcons urls=\(urls.count) dirs=\(dirs.count)")
+        var failures: [String] = []
+        for url in dirs {
+            let has = hasHistory(url)
+            quickActionLog.info("reset candidate \(url.path, privacy: .private) hasHistory=\(has)")
+            guard has else { continue }
+            let started = url.startAccessingSecurityScopedResource()
+            defer { if started { url.stopAccessingSecurityScopedResource() } }
+            do {
+                try coordinator.reset(folder: url)
+                quickActionLog.info("reset ok \(url.path, privacy: .private)")
+            } catch {
+                quickActionLog.error("reset FAILED \(url.path, privacy: .private): \(error.localizedDescription, privacy: .public)")
+                failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+        reapAssets()
+        if !failures.isEmpty {
+            report(failures.joined(separator: "\n"))
+            return false
+        }
+        return true
     }
 }

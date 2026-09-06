@@ -18,8 +18,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.FolderArt
-        MARKETING_VERSION: 1.5.0
-        CURRENT_PROJECT_VERSION: 8
+        MARKETING_VERSION: 1.6.0
+        CURRENT_PROJECT_VERSION: 9
         SWIFT_VERSION: 5.9
         ENABLE_HARDENED_RUNTIME: YES
         INFOPLIST_FILE: FolderArt/Info.plist
@@ -50,6 +50,22 @@ targets:
             UTTypeConformsTo: [public.json]
             UTTypeTagSpecification:
               public.filename-extension: [folderartpack]
+        NSServices:
+          - NSMenuItem: { default: "FolderArt で開く" }
+            NSMessage: openFoldersInFolderArt
+            NSPortName: FolderArt
+            NSSendFileTypes: [public.folder]
+            NSRequiredContext: {}
+          - NSMenuItem: { default: "FolderArt で直前のお気に入りを適用" }
+            NSMessage: applyLastPreset
+            NSPortName: FolderArt
+            NSSendFileTypes: [public.folder]
+            NSRequiredContext: {}
+          - NSMenuItem: { default: "FolderArt でアイコンを元に戻す" }
+            NSMessage: resetIcon
+            NSPortName: FolderArt
+            NSSendFileTypes: [public.folder]
+            NSRequiredContext: {}
   FolderArtTests:
     type: bundle.unit-test
     platform: macOS

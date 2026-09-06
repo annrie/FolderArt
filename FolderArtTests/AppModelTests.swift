@@ -740,4 +740,205 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(m.errorMessage?.contains("\n\n") ?? false)      // 空行で連結
     }
 
+    // MARK: - 直前のお気に入り
+
+    func testApplyPresetRecordsLastAppliedPreset() throws {
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertEqual(m.lastAppliedPreset?.id, preset.id)
+        XCTAssertEqual(store.id, preset.id) // 永続化された
+    }
+
+    func testLastAppliedPresetIsNilWhenDeleted() throws {
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        try m.presets.remove(preset)
+        XCTAssertNil(m.lastAppliedPreset)          // 削除済み id は解決できない
+    }
+
+    func testRemovingLastAppliedPresetClearsPersistedID() throws {
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertEqual(store.id, preset.id)
+        m.removePreset(preset)
+        XCTAssertNil(store.id)              // 永続 id がクリアされる
+        XCTAssertNil(m.lastAppliedPreset)   // 解決結果も nil
+    }
+
+    // お気に入りの削除に失敗したら last-preset の参照はクリアしない (Codex PR #6 r2)。
+    // presets.json を (ファイルの代わりに) ディレクトリにして remove の保存を失敗させる
+    // (ApplyCoordinatorTests.testHistorySaveFailureRollsBackThatFolder と同じ手法)
+    func testRemovePresetFailureKeepsLastPresetReference() throws {
+        let presetsURL = root.appendingPathComponent("p.json")
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: presetsURL),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertEqual(store.id, preset.id)
+        // add で作られた p.json を消してディレクトリに置き換え、以後の保存 (remove) を失敗させる
+        try FileManager.default.removeItem(at: presetsURL)
+        try FileManager.default.createDirectory(at: presetsURL, withIntermediateDirectories: true)
+
+        m.removePreset(preset)
+        XCTAssertNotNil(m.errorMessage)               // 削除の失敗が見える
+        XCTAssertEqual(store.id, preset.id)            // 削除できていないので last-preset の参照は残る
+        XCTAssertEqual(m.lastAppliedPreset?.id, preset.id)
+    }
+
+    // LastPresetStore.save の失敗を握り潰さず errorMessage に出す (Codex PR #6)。
+    // 保存先を (ファイルの代わりに) ディレクトリにして書き込みを失敗させる
+    // (ApplyCoordinatorTests.testHistorySaveFailureRollsBackThatFolder と同じ手法)
+    func testApplyPresetSurfacesLastPresetSaveFailure() throws {
+        let lastPresetURL = root.appendingPathComponent("last-preset.json")
+        try FileManager.default.createDirectory(at: lastPresetURL, withIntermediateDirectories: true)
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: LastPresetStore(storageURL: lastPresetURL),
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertNotNil(m.errorMessage)
+    }
+
+    // MARK: - Quick Action
+
+    func testDirectoriesFiltersOutFilesAndMissing() throws {
+        let d1 = try makeFolder("d1"); let d2 = try makeFolder("d2")
+        let file = root.appendingPathComponent("f.txt"); try "x".data(using: .utf8)!.write(to: file)
+        let missing = root.appendingPathComponent("nope")
+        let result = AppModel.directories(from: [d1, file, d2, missing])
+        XCTAssertEqual(Set(result), Set([d1, d2].map { $0.standardizedFileURL }))
+    }
+
+    func testApplyLastPresetReturnsNoPresetWithoutLastPreset() async throws {
+        let m = makeQuickActionModel()
+        let d = try makeFolder("target")
+        let r = await m.applyLastPreset(to: [d])
+        XCTAssertEqual(r, .noPreset)
+    }
+
+    func testApplyLastPresetAppliesToGivenFoldersAndRecordsHistory() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let d = try makeFolder("target")
+        let r = await m.applyLastPreset(to: [d])
+        XCTAssertEqual(r, .applied)
+        XCTAssertTrue(m.history.tasks.contains { $0.folderPath == d.standardizedFileURL.path }) // 履歴に残る
+    }
+
+    func testApplyLastPresetReturnsNoPresetForEmptyDirs() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let file = root.appendingPathComponent("f.txt"); try "x".data(using: .utf8)!.write(to: file)
+        let r = await m.applyLastPreset(to: [file])   // ディレクトリが 1 つも無い
+        XCTAssertEqual(r, .noPreset)
+    }
+
+    func testApplyLastPresetFailsWhenRenderFails() async throws {
+        let m = makeQuickActionModel()
+        // AssetStore に無い assetID を参照するお気に入り → 描画できない
+        let preset = try m.presets.add(name: "broken", overlay: .image(assetID: UUID()), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let d = try makeFolder("target")
+        let r = await m.applyLastPreset(to: [d])
+        if case .failed = r {} else { XCTFail("expected .failed, got \(r)") }
+    }
+
+    func testOpenFoldersAddsDirectoriesToList() throws {
+        let m = makeQuickActionModel()
+        let d = try makeFolder("target")
+        m.openFolders([d])
+        XCTAssertTrue(m.folders.folders.contains(d.standardizedFileURL))
+    }
+
+    func testResetIconsResetsOnlyFoldersWithHistory() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let applied = try makeFolder("applied"); let untouched = try makeFolder("untouched")
+        _ = await m.applyLastPreset(to: [applied])
+        XCTAssertTrue(m.resetIcons(at: [applied, untouched]))
+        XCTAssertFalse(m.history.tasks.contains { $0.folderPath == applied.standardizedFileURL.path })
+    }
+
+    // 通常の「適用」(apply()) と Quick Action の交錯を防ぐ排他。isApplying は internal な @Published なのでテストから直接立てられる
+    func testApplyLastPresetReturnsFailedWhenBusy() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let d = try makeFolder("target")
+        m.isApplying = true
+        let r = await m.applyLastPreset(to: [d])
+        if case .failed = r {} else { XCTFail("expected .failed, got \(r)") }
+    }
+
+    func testResetIconsReturnsFalseWhenBusy() throws {
+        let m = makeQuickActionModel()
+        let d = try makeFolder("target")
+        m.isApplying = true
+        XCTAssertFalse(m.resetIcons(at: [d]))
+        XCTAssertNotNil(m.errorMessage)
+    }
+
+    // 2 件以上の失敗が最後の 1 件で上書きされず、まとめて 1 回の errorMessage に出ることを確認 (Codex PR #6 r3)。
+    // history.json を (ファイルの代わりに) ディレクトリにして、両方のフォルダーで履歴の保存 (reset の後半) を失敗させる
+    // (ApplyCoordinatorTests.testHistorySaveFailureRollsBackThatFolder / round 6-7 と同じ手法)
+    func testResetIconsReportsAllFailuresTogether() async throws {
+        let historyURL = root.appendingPathComponent("h.json")
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let a = try makeFolder("a"), b = try makeFolder("b")
+        let r = await m.applyLastPreset(to: [a, b])
+        XCTAssertEqual(r, .applied)
+        XCTAssertEqual(m.history.tasks.count, 2)
+
+        try FileManager.default.removeItem(at: historyURL)
+        try FileManager.default.createDirectory(at: historyURL, withIntermediateDirectories: true)
+
+        XCTAssertFalse(m.resetIcons(at: [a, b]))
+        let lines = m.errorMessage?.components(separatedBy: "\n") ?? []
+        XCTAssertTrue(lines.contains { $0.hasPrefix("a:") }, m.errorMessage ?? "nil")
+        XCTAssertTrue(lines.contains { $0.hasPrefix("b:") }, m.errorMessage ?? "nil")
+    }
+
+    private func makeQuickActionModel() -> AppModel {
+        AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                 presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                 assets: AssetStore(directory: root.appendingPathComponent("a")),
+                 userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                 lastPresetStore: LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json")),
+                 runsMaintenance: false)
+    }
+
 }
