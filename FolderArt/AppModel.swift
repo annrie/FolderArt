@@ -688,15 +688,15 @@ final class AppModel: ObservableObject {
         var succeeded = true
         for url in dirs {
             let has = hasHistory(url)
-            quickActionLog.info("reset candidate \(url.path, privacy: .public) hasHistory=\(has)")
+            quickActionLog.info("reset candidate \(url.path, privacy: .private) hasHistory=\(has)")
             guard has else { continue }
             let started = url.startAccessingSecurityScopedResource()
             defer { if started { url.stopAccessingSecurityScopedResource() } }
             do {
                 try coordinator.reset(folder: url)
-                quickActionLog.info("reset ok \(url.path, privacy: .public)")
+                quickActionLog.info("reset ok \(url.path, privacy: .private)")
             } catch {
-                quickActionLog.error("reset FAILED \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                quickActionLog.error("reset FAILED \(url.path, privacy: .private): \(error.localizedDescription, privacy: .public)")
                 errorMessage = error.localizedDescription
                 succeeded = false
             }
