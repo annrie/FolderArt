@@ -168,7 +168,10 @@ enum IconComposer {
                 customHeight = badgeMax
                 customWidth  = badgeMax * aspectRatio
             }
-            let padding: CGFloat = 20
+            // 512px 基準で校正した 20px のパディングを、各サイズへ比例させる。固定 20px のままだと
+            // 複数解像度合成 (composeMultiResolution) が side=16 等の小さい表現を作るとき
+            // パディングがキャンバスをはみ出し、バッジが画面外に出てしまう (Codex 指摘)
+            let padding = containerSize.width * (20.0 / iconSize.width)
             let x = containerSize.width  - customWidth  - padding
             let yShift = containerSize.height * settings.verticalOffset
             return NSRect(x: x, y: padding + yShift, width: customWidth, height: customHeight)

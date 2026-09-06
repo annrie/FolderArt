@@ -272,4 +272,22 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(sizes, baseSizes)   // 土台の表現サイズ集合と一致
         for rep in img.representations { XCTAssertEqual(rep.pixelsWide, rep.pixelsHigh) }
     }
+
+    /// Codex 指摘: バッジ配置の固定 20px パディングは 512px 基準で校正されており、複数解像度化で
+    /// side=16 等の小さい表現サイズを合成するとパディングがキャンバスをはみ出し、バッジが画面外に出てしまう。
+    /// パディングをキャンバスサイズへ比例させることで、どのサイズでもキャンバス内に収まるべき
+    func testBadgeStaysOnCanvasAtSmallRepresentationSizes() {
+        let settings = CompositionSettings(position: .badge, scale: 0.6, opacity: 1.0, verticalOffset: 0)
+        let imageSize = CGSize(width: 100, height: 100)
+
+        for side: CGFloat in [16, 32] {
+            let containerSize = CGSize(width: side, height: side)
+            let rect = IconComposer.calculateRect(for: imageSize, in: containerSize,
+                                                  settings: settings, fillsWhenClipped: true)
+            XCTAssertGreaterThanOrEqual(rect.minX, 0, "side=\(side): minX がキャンバス外")
+            XCTAssertGreaterThanOrEqual(rect.minY, 0, "side=\(side): minY がキャンバス外")
+            XCTAssertLessThanOrEqual(rect.maxX, side, "side=\(side): maxX がキャンバス外")
+            XCTAssertLessThanOrEqual(rect.maxY, side, "side=\(side): maxY がキャンバス外")
+        }
+    }
 }
