@@ -10,7 +10,7 @@ struct SuggestionEngine {
     static let stopWords: Set<String> = [
         "new", "old", "my", "the", "and", "for", "temp", "tmp", "misc", "other",
         "data", "file", "files", "folder", "backup", "download", "downloads",
-        "work", "test", "project", "その他", "新規", "一時", "資料",
+        "work", "test", "project", "その他", "新規", "一時", "資料",  // loc-ignore
     ]
 
     init(dictionary: SuggestionDictionary, catalog: SymbolCatalog) {
