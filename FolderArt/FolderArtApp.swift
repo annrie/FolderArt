@@ -2,14 +2,17 @@ import SwiftUI
 
 @main
 struct FolderArtApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var language = LanguageSetting()
 
     var body: some Scene {
         // WindowGroup だと新規ウィンドウごとに別の AppModel が生成され、同じ資産ディレクトリを
         // 共有するため、後から開いたウィンドウの reapAssets() が先のウィンドウでまだ参照されて
-        // いない画像を回収してしまう。単一ウィンドウに限定してこれを防ぐ
+        // いない画像を回収してしまう。単一ウィンドウに限定してこれを防ぐ。
+        // AppModel は AppDelegate が所有し、NSServices からも同じインスタンスを操作できるようにする
         Window("FolderArt", id: "main") {
             ContentView()
+                .environmentObject(appDelegate.model)
                 .environmentObject(language)
         }
         .windowStyle(.titleBar)
