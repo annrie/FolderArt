@@ -24,6 +24,7 @@
 </p>
 
 macOS のフォルダーアイコンにカスタム画像を合成してアイコンを変更するアプリです。
+A macOS app that changes folder icons by compositing a custom image onto the standard folder icon.
 
 ## 機能 / Features
 
