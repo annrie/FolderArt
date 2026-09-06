@@ -311,4 +311,53 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
     }
 
+    // MARK: - PR-3: アクセント付き Latin キーはトークン一致のみ (部分一致で誤爆しない)
+
+    /// アクセント付き Latin キー ("météo") は、区切られたまるごと一致では引くが、
+    /// 別語の一部 ("météorites") には substring では当たらない。
+    /// 同梱辞書の weather 項目は keys に "météo" を含む (cloud.sun.fill / 🌤️)
+    func testAccentedLatinKeyMatchesWholeTokenNotEmbedded() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["météo"], symbol: "cloud.sun.fill", emoji: "🌤️"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["cloud.sun.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        // まるごと一致: 天気の提案 (記号・絵文字) が出る
+        // (accented 語は latinTokens で断片化し第4層が短コード text を足しうるので、weather 項目の有無で判定する)
+        let whole = localEngine.suggest(for: "Photos météo", presets: []).map(\.kind)
+        XCTAssertTrue(whole.contains(.symbol("cloud.sun.fill")), "\(whole)")
+        XCTAssertTrue(whole.contains(.emoji("🌤️")), "\(whole)")
+        // 別語の一部 (隕石): weather 項目は substring では当たらない (再設計前は誤爆していた)
+        let embedded = localEngine.suggest(for: "météorites", presets: []).map(\.kind)
+        XCTAssertFalse(embedded.contains(.symbol("cloud.sun.fill")), "\(embedded)")
+        XCTAssertFalse(embedded.contains(.emoji("🌤️")), "\(embedded)")
+    }
+
+    /// ASCII キー ("photo") も区切られたまるごと一致のみで、より長い別語 ("photography") には当たらない
+    func testASCIIKeyMatchesWholeTokenNotLongerWord() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["photo"], symbol: "photo.fill", emoji: "📷"),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        XCTAssertEqual(localEngine.suggest(for: "photo 2026", presets: []).first?.kind, .symbol("photo.fill"))
+        XCTAssertTrue(localEngine.suggest(for: "photography", presets: []).isEmpty)
+    }
+
+    // MARK: - PR-2: まるごと一致の位置は「区切られた出現」で測る
+
+    /// 先に埋め込み出現 (旅行写真集 の 写真、index 2) があり、後ろに区切られたまるごと出現 (末尾の 写真) がある場合、
+    /// まるごと一致の位置を末尾の出現で測るべき。埋め込み位置 (2) で測ると、
+    /// 同じくまるごと一致の 資料 (index 5) より不当に「先」扱いされ symbol 枠を奪ってしまう。
+    /// 資料 (先に区切られて出る) が 写真 (後ろで区切られて出る) より先に来ること
+    func testWholeTokenPositionUsesQualifyingOccurrence() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["写真"], symbol: "photo.fill", emoji: "📷"),
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: "📚"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["photo.fill", "books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        let s = localEngine.suggest(for: "旅行写真集 資料 写真", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("books.vertical.fill"))
+    }
+
 }

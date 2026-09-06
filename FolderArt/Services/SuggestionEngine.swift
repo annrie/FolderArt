@@ -70,28 +70,39 @@ struct SuggestionEngine {
         func position(of key: String) -> Int {
             normalized.range(of: key).map { normalized.distance(from: normalized.startIndex, to: $0.lowerBound) } ?? Int.max
         }
+        // key が区切られたまるごと 1 語なら true。isWholeToken は key == normalized も
+        // 区切り出現も両方カバーするので、旧 (k == normalized || tokens.contains(...)) は不要。
         func isWhole(_ key: String) -> Bool {
-            key == normalized || tokens.contains(key) || Self.isWholeToken(key, in: normalized)
+            Self.isWholeToken(key, in: normalized)
+        }
+        // key が区切られたまるごと 1 語として最初に現れる位置 (無ければ nil)。
+        // ランキングのタイブレークで、埋め込み出現ではなくまるごと一致の位置を使うため。
+        func firstWholeTokenPosition(of key: String) -> Int? {
+            Self.firstWholeTokenIndex(of: key, in: normalized)
+                .map { normalized.distance(from: normalized.startIndex, to: $0) }
         }
         var hits: [(key: String, position: Int, entry: SuggestionEntry, isWholeMatch: Bool)] = []
         for entry in dictionary.entries {
             let matching = entry.keys.filter { key in
-                let isLatin = key.unicodeScalars.allSatisfy { $0.isASCII }
-                if isLatin { return tokens.contains(key) }
-                // 非 Latin (日本語・中国語・ハングル等): latinTokens で語に割れないので境界で判定する。
-                // まるごと一致 (フォルダ名そのもの、または空白/句読点で区切られた 1 語) なら、長さ 1 でも
-                // stop-word でも通す (ユーザー辞書の 1 文字キー "猫"/"★" を活かす)。
-                // 部分一致 (埋め込み) は誤爆しやすいので 1 書記素キーと stop-word を除外する。
                 guard normalized.contains(key) else { return false }
+                // 区切られたまるごと 1 語は、どの字種でも・長さや stop-word を問わず通す
+                // (ユーザー辞書の 1 文字キー "猫"/"★"、アクセント付き Latin のまるごと一致も活きる)。
                 if Self.isWholeToken(key, in: normalized) { return true }
-                return key.count >= 2 && !Self.stopWords.contains(key)
+                // 埋め込み部分一致は、語の区切り (空白) を持たない字種 (漢字・かな・ハングル) のキーだけ許す。
+                // Latin (ASCII/アクセント付き) は substring だと誤爆するのでトークン一致のみにする
+                // (météo が météorites に当たる、を防ぐ)。1 書記素キーと stop-word も除く。
+                return Self.needsSubstringMatch(key) && key.count >= 2 && !Self.stopWords.contains(key)
             }
             // まるごと一致のキーを、長いだけの埋め込み部分一致より優先して採用する
             // (そうしないと項目全体がまるごと一致扱いされなくなる)
             if let best = matching.max(by: {
                 (isWhole($0) ? 1 : 0, $0.count, -position(of: $0)) < (isWhole($1) ? 1 : 0, $1.count, -position(of: $1))
             }) {
-                hits.append((best, position(of: best), entry, isWhole(best)))
+                // まるごと一致なら、埋め込み出現ではなくまるごと一致の位置で並べる
+                // (先に埋め込み出現がある語が、後ろのまるごと出現なのに不当に「先」扱いされないように)
+                let whole = isWhole(best)
+                let pos = whole ? (firstWholeTokenPosition(of: best) ?? position(of: best)) : position(of: best)
+                hits.append((best, pos, entry, whole))
             }
         }
         // まるごと一致 → キーが長い → フォルダ名の先に出た順、の優先度で並べる
@@ -174,7 +185,13 @@ struct SuggestionEngine {
     /// key がフォルダ名の中で「まるごと 1 語」として現れるか (前後が文字列端か英数字以外=空白/句読点)。
     /// 非 Latin (日本語・中国語など) は latinTokens で語に割れないので、境界で判定する。
     static func isWholeToken(_ key: String, in text: String) -> Bool {
-        guard !key.isEmpty else { return false }
+        firstWholeTokenIndex(of: key, in: text) != nil
+    }
+
+    /// key が text 内で「まるごと 1 語」(前後が文字列端か英数字以外) として最初に現れる範囲の下限位置。無ければ nil。
+    /// isWholeToken とランキングのタイブレーク (firstWholeTokenPosition) で境界走査を共有する。
+    static func firstWholeTokenIndex(of key: String, in text: String) -> String.Index? {
+        guard !key.isEmpty else { return nil }
         var searchStart = text.startIndex
         while let r = text.range(of: key, range: searchStart..<text.endIndex) {
             let beforeOK = r.lowerBound == text.startIndex || {
@@ -183,10 +200,25 @@ struct SuggestionEngine {
             let afterOK = r.upperBound == text.endIndex || {
                 let c = text[r.upperBound]; return !(c.isLetter || c.isNumber)
             }()
-            if beforeOK && afterOK { return true }
+            if beforeOK && afterOK { return r.lowerBound }
             searchStart = r.upperBound   // 埋め込み出現の次を探す (旅行写真 は写真の前が letter で false、他所に境界出現があれば拾う)
         }
-        return false
+        return nil
+    }
+
+    /// 語の区切り (空白) を持たない字種 (漢字・かな・ハングル) をキーが含むか。
+    /// これらだけ埋め込み部分一致を許し、Latin (アクセント付き含む) はトークン一致のみにする。
+    static func needsSubstringMatch(_ key: String) -> Bool {
+        key.unicodeScalars.contains { s in
+            (0x3040...0x30FF).contains(s.value) ||   // Hiragana + Katakana
+            (0x31F0...0x31FF).contains(s.value) ||   // Katakana phonetic ext
+            (0x3400...0x4DBF).contains(s.value) ||   // CJK Ext A
+            (0x4E00...0x9FFF).contains(s.value) ||   // CJK Unified
+            (0xF900...0xFAFF).contains(s.value) ||   // CJK Compatibility
+            (0xAC00...0xD7A3).contains(s.value) ||   // Hangul syllables
+            (0x1100...0x11FF).contains(s.value) ||   // Hangul Jamo
+            (0x3130...0x318F).contains(s.value)      // Hangul compatibility Jamo
+        }
     }
 
     static func isYear(_ token: String) -> Bool {
