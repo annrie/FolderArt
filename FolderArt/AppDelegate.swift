@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = provider
         provider.onSilentServiceFinished = { [weak self] in self?.terminateIfLaunchedForServiceOnly() }
-        provider.onOpenRequested = { [weak self] in self?.showMainWindow() }
+        provider.onShowWindow = { [weak self] in self?.showMainWindow() }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

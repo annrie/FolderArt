@@ -863,6 +863,59 @@
         }
       }
     },
+    "FolderArt が処理中です。しばらくしてからお試しください。": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt ist beschäftigt. Bitte versuchen Sie es gleich noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt is busy. Please try again in a moment."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt está ocupado. Inténtalo de nuevo en un momento."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt est occupé. Réessayez dans un instant."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt が処理中です。しばらくしてからお試しください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt가 작업 중입니다. 잠시 후 다시 시도해 주세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O FolderArt está ocupado. Tente novamente em instantes."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FolderArt 忙碌中，請稍後再試。"
+          }
+        }
+      }
+    },
     "FolderArt-お気に入り-%@.folderartpack": {
       "extractionState": "manual",
       "localizations": {

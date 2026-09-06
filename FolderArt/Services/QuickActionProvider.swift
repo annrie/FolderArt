@@ -3,7 +3,8 @@ import os
 
 /// NSServices の提供オブジェクト。pboard からフォルダー URL を取り出し、AppModel に委譲する薄い層。
 /// 実処理・エラー表示は AppModel 側。静かな 2 サービス (適用・戻す) が「エラー無しで完了した」ときだけ
-/// onSilentServiceFinished で通知する。「開く」はウィンドウを前面化したいので onOpenRequested で通知する。
+/// onSilentServiceFinished で通知する。ウィンドウを見せたいとき (「開く」/ エラーを見せる前) は
+/// onShowWindow で通知する。コールド起動ではエラーの表示先が無いため、エラー経路も同じ仕組みに乗せる。
 final class QuickActionProvider: NSObject {
     private let model: AppModel
     /// 実機でしか再現しない (サービス起動・サンドボックス・コールド起動固有の) 不具合の診断用
@@ -12,8 +13,9 @@ final class QuickActionProvider: NSObject {
     /// エラーがあるとき (.noPreset / .failed / reset 失敗あり) は呼ばない: アラートを見せる前に
     /// 静かに終了して握りつぶしてしまうため
     var onSilentServiceFinished: (() -> Void)?
-    /// 「FolderArt で開く」でフォルダーを読み込んだあとに呼ばれる。AppDelegate がウィンドウを前面化する
-    var onOpenRequested: (() -> Void)?
+    /// ウィンドウを前面化してほしいときに呼ぶ (「FolderArt で開く」の後、またはエラーを見せる前)。
+    /// AppDelegate.showMainWindow が「既存ウィンドウを前面化、無ければ reopen で生成」を行う
+    var onShowWindow: (() -> Void)?
 
     init(model: AppModel) { self.model = model }
 
@@ -29,7 +31,7 @@ final class QuickActionProvider: NSObject {
         log.info("service \(#function) urls=\(urls.count)")
         Task { @MainActor in
             self.model.openFolders(urls)
-            self.onOpenRequested?()
+            self.onShowWindow?()
         }
     }
 
@@ -43,11 +45,12 @@ final class QuickActionProvider: NSObject {
                 // 静かに成功 (合図は Finder のアイコン変化)。ここでだけ静かに終了してよい
                 self.onSilentServiceFinished?()
             case .noPreset:
+                // コールド起動ではウィンドウが無くアラートの出しようが無いので、先にウィンドウを出す
                 self.model.errorMessage = String(localized: "まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。")
-                NSApp.activate(ignoringOtherApps: true)
+                self.onShowWindow?()
             case .failed(let message):
                 self.model.errorMessage = message
-                NSApp.activate(ignoringOtherApps: true)
+                self.onShowWindow?()
             }
         }
     }
@@ -60,7 +63,8 @@ final class QuickActionProvider: NSObject {
             if self.model.resetIcons(at: urls) {
                 self.onSilentServiceFinished?()
             } else {
-                NSApp.activate(ignoringOtherApps: true)
+                // errorMessage は resetIcons が設定済み。コールド起動でも見せられるようウィンドウを出す
+                self.onShowWindow?()
             }
         }
     }

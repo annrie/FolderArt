@@ -833,6 +833,25 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(m.history.tasks.contains { $0.folderPath == applied.standardizedFileURL.path })
     }
 
+    // 通常の「適用」(apply()) と Quick Action の交錯を防ぐ排他。isApplying は internal な @Published なのでテストから直接立てられる
+    func testApplyLastPresetReturnsFailedWhenBusy() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let d = try makeFolder("target")
+        m.isApplying = true
+        let r = await m.applyLastPreset(to: [d])
+        if case .failed = r {} else { XCTFail("expected .failed, got \(r)") }
+    }
+
+    func testResetIconsReturnsFalseWhenBusy() throws {
+        let m = makeQuickActionModel()
+        let d = try makeFolder("target")
+        m.isApplying = true
+        XCTAssertFalse(m.resetIcons(at: [d]))
+        XCTAssertNotNil(m.errorMessage)
+    }
+
     private func makeQuickActionModel() -> AppModel {
         AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
                  presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),

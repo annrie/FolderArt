@@ -655,7 +655,11 @@ final class AppModel: ObservableObject {
     }
 
     /// 直前のお気に入りを、UI 状態に触れず指定フォルダーへ静かに適用する。
+    /// isApplying の間 (通常の「適用」と交錯しうる await 区間) は弾き、他は前面の適用/リセットと同じ排他に従う
     func applyLastPreset(to urls: [URL]) async -> QuickApplyResult {
+        guard !isApplying else {
+            return .failed(String(localized: "FolderArt が処理中です。しばらくしてからお試しください。"))
+        }
         let dirs = Self.directories(from: urls)
         let preset = lastAppliedPreset
         guard let preset, !dirs.isEmpty else {
@@ -667,11 +671,15 @@ final class AppModel: ObservableObject {
             quickActionLog.error("applyLastPreset render FAILED")
             return .failed(String(localized: "お気に入りの絵柄を作れませんでした。"))
         }
+        isApplying = true
+        defer { isApplying = false }
         let started = dirs.filter { $0.startAccessingSecurityScopedResource() }
         defer { for u in started { u.stopAccessingSecurityScopedResource() } }
         let outcome = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
                                               settings: preset.settings, to: dirs)
         quickActionLog.info("applyLastPreset outcome succeeded=\(outcome.succeeded.count) failed=\(outcome.failed.count)")
+        // reapAssets() は isApplying 中は何もしないので、defer の実行を待たずここで明示的に倒しておく (apply() と同じ手当て)
+        isApplying = false
         reapAssets()
         if outcome.succeeded.isEmpty {
             return .failed(outcome.summary ?? String(localized: "フォルダーにアイコンを適用できませんでした。"))
@@ -680,9 +688,15 @@ final class AppModel: ObservableObject {
     }
 
     /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)。
-    /// 戻り値は「エラーが 1 件も無かったか」(呼び出し側の QuickActionProvider が静かに終了してよいか判断するため)
+    /// 戻り値は「エラーが 1 件も無かったか」(呼び出し側の QuickActionProvider が静かに終了してよいか判断するため)。
+    /// 内部に await が無く MainActor 上で中断されないため、適用中でなければそのまま最後まで実行してよい
+    /// (先頭で弾くだけで足りる)
     @discardableResult
     func resetIcons(at urls: [URL]) -> Bool {
+        guard !isApplying else {
+            errorMessage = String(localized: "FolderArt が処理中です。しばらくしてからお試しください。")
+            return false
+        }
         let dirs = Self.directories(from: urls)
         quickActionLog.info("resetIcons urls=\(urls.count) dirs=\(dirs.count)")
         var succeeded = true
