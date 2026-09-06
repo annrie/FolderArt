@@ -360,4 +360,20 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertEqual(s.first?.kind, .symbol("books.vertical.fill"))
     }
 
+    // MARK: - Codex PR-4: 自己重複するキーの重なった出現でのまるごと一致
+
+    /// 自己重複するキー "a-a" は、フォルダ名 "xa-a-a" では先頭の埋め込み出現 (前が 'x' で境界でない) の後、
+    /// それに重なる末尾の位置でだけ区切られたまるごと 1 語になる。重複走査を upperBound へ飛ばすと
+    /// この重なった出現を取りこぼし、"a-a" はハイフン込みで全 Latin (=部分一致不可) なので提案が完全に消える。
+    /// index(after: lowerBound) で 1 文字ずつ進めれば重なった出現も拾える (再設計前は空だった → RED)。
+    func testSelfOverlappingKeyWholeMatchAtOverlappingOccurrence() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["a-a"], symbol: nil, emoji: "🅰️"),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        // "xa" が第4層の短コード規則で .text("XA") を副次的に足しうるので、辞書の emoji の有無で判定する
+        let s = localEngine.suggest(for: "xa-a-a", presets: []).map(\.kind)
+        XCTAssertTrue(s.contains(.emoji("🅰️")), "\(s)")
+    }
+
 }

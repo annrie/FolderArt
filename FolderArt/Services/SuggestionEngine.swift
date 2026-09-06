@@ -201,7 +201,10 @@ struct SuggestionEngine {
                 let c = text[r.upperBound]; return !(c.isLetter || c.isNumber)
             }()
             if beforeOK && afterOK { return r.lowerBound }
-            searchStart = r.upperBound   // 埋め込み出現の次を探す (旅行写真 は写真の前が letter で false、他所に境界出現があれば拾う)
+            // 1 文字だけ進めて次の出現を探す (旅行写真 は写真の前が letter で false、他所に境界出現があれば拾う)。
+            // upperBound へ飛ぶと、自己重複するキー ("a-a" が "xa-a-a" の重なった位置でだけまるごと一致する等)
+            // の重なった出現を取りこぼす。lowerBound < endIndex なので index(after:) は安全、必ず 1 文字進むので停止する。
+            searchStart = text.index(after: r.lowerBound)
         }
         return nil
     }
