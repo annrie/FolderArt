@@ -780,11 +780,11 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(Set(result), Set([d1, d2].map { $0.standardizedFileURL }))
     }
 
-    func testApplyLastPresetReturnsFalseWithoutLastPreset() async throws {
+    func testApplyLastPresetReturnsNoPresetWithoutLastPreset() async throws {
         let m = makeQuickActionModel()
         let d = try makeFolder("target")
-        let ok = await m.applyLastPreset(to: [d])
-        XCTAssertFalse(ok)
+        let r = await m.applyLastPreset(to: [d])
+        XCTAssertEqual(r, .noPreset)
     }
 
     func testApplyLastPresetAppliesToGivenFoldersAndRecordsHistory() async throws {
@@ -792,9 +792,35 @@ final class AppModelTests: XCTestCase {
         let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
         m.applyPreset(preset)
         let d = try makeFolder("target")
-        let ok = await m.applyLastPreset(to: [d])
-        XCTAssertTrue(ok)
+        let r = await m.applyLastPreset(to: [d])
+        XCTAssertEqual(r, .applied)
         XCTAssertTrue(m.history.tasks.contains { $0.folderPath == d.standardizedFileURL.path }) // 履歴に残る
+    }
+
+    func testApplyLastPresetReturnsNoPresetForEmptyDirs() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let file = root.appendingPathComponent("f.txt"); try "x".data(using: .utf8)!.write(to: file)
+        let r = await m.applyLastPreset(to: [file])   // ディレクトリが 1 つも無い
+        XCTAssertEqual(r, .noPreset)
+    }
+
+    func testApplyLastPresetFailsWhenRenderFails() async throws {
+        let m = makeQuickActionModel()
+        // AssetStore に無い assetID を参照するお気に入り → 描画できない
+        let preset = try m.presets.add(name: "broken", overlay: .image(assetID: UUID()), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let d = try makeFolder("target")
+        let r = await m.applyLastPreset(to: [d])
+        if case .failed = r {} else { XCTFail("expected .failed, got \(r)") }
+    }
+
+    func testOpenFoldersAddsDirectoriesToList() throws {
+        let m = makeQuickActionModel()
+        let d = try makeFolder("target")
+        m.openFolders([d])
+        XCTAssertTrue(m.folders.folders.contains(d.standardizedFileURL))
     }
 
     func testResetIconsResetsOnlyFoldersWithHistory() async throws {

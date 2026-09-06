@@ -641,19 +641,30 @@ final class AppModel: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    /// Quick Action の適用結果。呼び出し側 (QuickActionProvider) が前面化とアラートを判断する。
+    enum QuickApplyResult: Equatable {
+        case applied         // 1 つ以上のフォルダーに適用できた (静かに終了してよい)
+        case noPreset        // 直前のお気に入りが無い/解決できない/対象フォルダーが無い
+        case failed(String)  // お気に入りはあるが、描画に失敗 or 全フォルダーで失敗 (メッセージ付き)
+    }
+
     /// 直前のお気に入りを、UI 状態に触れず指定フォルダーへ静かに適用する。
-    /// お気に入りが無い/描画できないときは false (呼び出し側が前面化して知らせる)
-    func applyLastPreset(to urls: [URL]) async -> Bool {
+    func applyLastPreset(to urls: [URL]) async -> QuickApplyResult {
         let dirs = Self.directories(from: urls)
-        guard !dirs.isEmpty, let preset = lastAppliedPreset else { return false }
+        guard let preset = lastAppliedPreset, !dirs.isEmpty else { return .noPreset }
         guard let image = OverlayRenderer.render(preset.overlay, settings: preset.settings,
-                                                 side: IconComposer.iconSize.width, assets: assets) else { return false }
+                                                 side: IconComposer.iconSize.width, assets: assets) else {
+            return .failed(String(localized: "お気に入りの絵柄を作れませんでした。"))
+        }
         let started = dirs.filter { $0.startAccessingSecurityScopedResource() }
         defer { for u in started { u.stopAccessingSecurityScopedResource() } }
-        _ = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
-                                    settings: preset.settings, to: dirs)
+        let outcome = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
+                                              settings: preset.settings, to: dirs)
         reapAssets()
-        return true
+        if outcome.succeeded.isEmpty {
+            return .failed(outcome.summary ?? String(localized: "フォルダーにアイコンを適用できませんでした。"))
+        }
+        return .applied
     }
 
     /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)
