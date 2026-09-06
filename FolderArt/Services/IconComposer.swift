@@ -82,7 +82,10 @@ enum IconComposer {
     /// 表現が無い土台では 512px 一枚にフォールバック。
     /// ピクセル幅の Set ではなく個々の表現を走査するのは、512pt@2x (pixelsWide=1024) のような
     /// Retina 表現の論理サイズ (スケール) を保つため、また同じピクセル幅で論理サイズが異なる
-    /// 表現 (例: 512px@1x と 256pt@2x=512px) を取りこぼさないため (Codex 指摘)
+    /// 表現 (例: 512px@1x と 256pt@2x=512px) を取りこぼさないため (Codex 指摘)。
+    /// 各回の compose には base 全体ではなくその baseRep 1 枚だけを持つ NSImage を渡す。base を
+    /// そのまま渡すと、同じピクセル幅の表現が複数あるとき NSImage がどちらを描くか区別できず、
+    /// 別々の表現のはずが同じラスタになってしまう (Codex 指摘、PR review)
     static func composeMultiResolution(
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
@@ -95,7 +98,9 @@ enum IconComposer {
         }
         let out = NSImage(size: iconSize)
         for baseRep in reps {
-            guard let one = compose(overlay: overlayImage, settings: settings, base: base,
+            let repBase = NSImage(size: baseRep.size)
+            repBase.addRepresentation(baseRep)
+            guard let one = compose(overlay: overlayImage, settings: settings, base: repBase,
                                     fillsWhenClipped: fillsWhenClipped, side: CGFloat(baseRep.pixelsWide)),
                   let rep = one.representations.first else { continue }
             rep.size = baseRep.size   // 論理サイズ/スケールを土台の表現に合わせて保持 (512pt@2x 等を潰さない)

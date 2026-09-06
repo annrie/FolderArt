@@ -335,4 +335,41 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(logicalWidths, Set<CGFloat>([512, 256]))
         for rep in img.representations { XCTAssertEqual(rep.pixelsWide, 512) }
     }
+
+    // MARK: - 複数解像度: 各表現を自分自身のピクセルから合成する (Codex PR review)
+
+    /// 指定ピクセルサイズ・単色で塗った表現を作り、論理サイズを上書きする (異なる表現を色で見分けるテスト用)
+    private func makeColoredRep(px: Int, logical: NSSize, color: NSColor) -> NSBitmapImageRep {
+        let image = BitmapCanvas.draw(size: CGSize(width: CGFloat(px), height: CGFloat(px))) { size in
+            color.setFill()
+            NSRect(origin: .zero, size: size).fill()
+        }!
+        let rep = TestSupport.bitmap(of: image)
+        rep.size = logical
+        return rep
+    }
+
+    /// 土台が同じピクセル幅で論理サイズだけ異なる 2 表現 (赤 512px@1x, 青 512px@2x=論理256) を持つとき、
+    /// 合成結果の 2 つの表現はそれぞれ自分自身の土台表現の色から合成されているべき (どちらも同じ土台の
+    /// 色に潰れてしまうのは、compose に渡す base が常にフル NSImage のままで、NSImage が同じピクセル幅の
+    /// どちらの表現を描くか区別できていない証拠)
+    func testComposeMultiResolutionDrawsFromOwnRepresentationNotASharedOne() throws {
+        let base = NSImage(size: NSSize(width: 512, height: 512))
+        base.addRepresentation(makeColoredRep(px: 512, logical: NSSize(width: 512, height: 512), color: .red))
+        base.addRepresentation(makeColoredRep(px: 512, logical: NSSize(width: 256, height: 256), color: .blue))
+        // 中央にだけ小さく置く (角にオーバーレイがかからず、土台の色がそのまま見える)
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .green)
+
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(),
+                                                                    base: base, fillsWhenClipped: false))
+        XCTAssertEqual(img.representations.count, 2)
+        let cornerColors = try img.representations.map { rep -> NSColor in
+            let bitmap = try XCTUnwrap(rep as? NSBitmapImageRep)
+            return try XCTUnwrap(TestSupport.srgbColor(of: bitmap, x: 5, y: 5))
+        }
+        XCTAssertTrue(cornerColors.contains { $0.redComponent > 0.5 && $0.blueComponent < 0.5 },
+                     "赤い土台表現から合成された表現が無い (色: \(cornerColors))")
+        XCTAssertTrue(cornerColors.contains { $0.blueComponent > 0.5 && $0.redComponent < 0.5 },
+                     "青い土台表現から合成された表現が無い (色: \(cornerColors))")
+    }
 }
