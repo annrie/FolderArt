@@ -770,4 +770,50 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(m.lastAppliedPreset)          // 削除済み id は解決できない
     }
 
+    // MARK: - Quick Action
+
+    func testDirectoriesFiltersOutFilesAndMissing() throws {
+        let d1 = try makeFolder("d1"); let d2 = try makeFolder("d2")
+        let file = root.appendingPathComponent("f.txt"); try "x".data(using: .utf8)!.write(to: file)
+        let missing = root.appendingPathComponent("nope")
+        let result = AppModel.directories(from: [d1, file, d2, missing])
+        XCTAssertEqual(Set(result), Set([d1, d2].map { $0.standardizedFileURL }))
+    }
+
+    func testApplyLastPresetReturnsFalseWithoutLastPreset() async throws {
+        let m = makeQuickActionModel()
+        let d = try makeFolder("target")
+        let ok = await m.applyLastPreset(to: [d])
+        XCTAssertFalse(ok)
+    }
+
+    func testApplyLastPresetAppliesToGivenFoldersAndRecordsHistory() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let d = try makeFolder("target")
+        let ok = await m.applyLastPreset(to: [d])
+        XCTAssertTrue(ok)
+        XCTAssertTrue(m.history.tasks.contains { $0.folderPath == d.standardizedFileURL.path }) // 履歴に残る
+    }
+
+    func testResetIconsResetsOnlyFoldersWithHistory() async throws {
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let applied = try makeFolder("applied"); let untouched = try makeFolder("untouched")
+        _ = await m.applyLastPreset(to: [applied])
+        m.resetIcons(at: [applied, untouched])
+        XCTAssertFalse(m.history.tasks.contains { $0.folderPath == applied.standardizedFileURL.path })
+    }
+
+    private func makeQuickActionModel() -> AppModel {
+        AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                 presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                 assets: AssetStore(directory: root.appendingPathComponent("a")),
+                 userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                 lastPresetStore: LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json")),
+                 runsMaintenance: false)
+    }
+
 }

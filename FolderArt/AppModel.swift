@@ -621,4 +621,49 @@ final class AppModel: ObservableObject {
         if let id = overlay.imageAssetID { keep.insert(id) }
         _ = try? assets.reap(keeping: keep)
     }
+
+    // MARK: - Quick Action (Finder サービス)
+
+    /// URL 群のうち、実在するディレクトリだけを standardized で返す (ファイル・欠落は除外)
+    static func directories(from urls: [URL]) -> [URL] {
+        urls.compactMap { url in
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
+            return url.standardizedFileURL
+        }
+    }
+
+    /// フォルダーをリストに読み込んでアプリを前面化する (サービス「FolderArt で開く」)
+    func openFolders(_ urls: [URL]) {
+        let dirs = Self.directories(from: urls)
+        guard !dirs.isEmpty else { return }
+        folders.add(dirs)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// 直前のお気に入りを、UI 状態に触れず指定フォルダーへ静かに適用する。
+    /// お気に入りが無い/描画できないときは false (呼び出し側が前面化して知らせる)
+    func applyLastPreset(to urls: [URL]) async -> Bool {
+        let dirs = Self.directories(from: urls)
+        guard !dirs.isEmpty, let preset = lastAppliedPreset else { return false }
+        guard let image = OverlayRenderer.render(preset.overlay, settings: preset.settings,
+                                                 side: IconComposer.iconSize.width, assets: assets) else { return false }
+        let started = dirs.filter { $0.startAccessingSecurityScopedResource() }
+        defer { for u in started { u.stopAccessingSecurityScopedResource() } }
+        _ = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
+                                    settings: preset.settings, to: dirs)
+        reapAssets()
+        return true
+    }
+
+    /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)
+    func resetIcons(at urls: [URL]) {
+        for url in Self.directories(from: urls) where hasHistory(url) {
+            let started = url.startAccessingSecurityScopedResource()
+            defer { if started { url.stopAccessingSecurityScopedResource() } }
+            do { try coordinator.reset(folder: url) }
+            catch { errorMessage = error.localizedDescription }
+        }
+        reapAssets()
+    }
 }
