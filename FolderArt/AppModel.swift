@@ -1,6 +1,5 @@
 import AppKit
 import Combine
-import CryptoKit
 import SwiftUI
 import UniformTypeIdentifiers
 import os
@@ -360,14 +359,9 @@ final class AppModel: ObservableObject {
     /// (Task 開始の遅延で順序が入れ替わるのを防ぐ)
     private func performDictionaryReload(generation: Int) async {
         let url = userDictionaryURL
-        let loaded = await Task.detached(priority: .utility) { () -> (result: Result<SuggestionDictionary, Error>?, hash: Data?, contentHash: Data) in
-            let result = SuggestionDictionary.loadUser(at: url)
-            // 失敗したときだけ、同じ内容で二度アラートを出さないための指紋を取る
-            var hash: Data?
-            if case .failure(let error) = result { hash = Self.dictionaryErrorFingerprint(url: url, error: error) }
-            // 無変化の再読込を弾くための内容ハッシュは、成功/nil/失敗のいずれでも必ず取る
-            let contentHash = Self.dictionaryContentHash(url: url)
-            return (result, hash, contentHash)
+        // パース結果と内容ハッシュは同じ 1 回の読み取りから作る (TOCTOU 対策。SuggestionDictionary 側参照)
+        let loaded = await Task.detached(priority: .utility) {
+            SuggestionDictionary.loadUserSnapshot(at: url)
         }.value
         guard generation == dictionaryGeneration else { return }
         // ディレクトリ内の無関係な書き込みでも FileWatcher は発火する。内容が変わっていなければ
@@ -385,40 +379,14 @@ final class AppModel: ObservableObject {
             lastDictionaryErrorHash = nil
         case .failure(let error):
             suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
-            if loaded.hash != lastDictionaryErrorHash {
-                lastDictionaryErrorHash = loaded.hash
+            // 内容ハッシュはパース結果と同じ 1 回の読み取りから作っているので、そのまま
+            // 「壊れたファイルの中身が変わったか」の判定にも使える (別途指紋を取り直さない)
+            if loaded.contentHash != lastDictionaryErrorHash {
+                lastDictionaryErrorHash = loaded.contentHash
                 report(String(localized: "提案辞書を読めません: \(error.localizedDescription)"))
             }
         }
         refreshSuggestions(folders: folders.folders, selectedIDs: folders.selectedIDs, presets: presets.presets)
-    }
-
-    /// 壊れた辞書の指紋。上限以内で読めれば中身の SHA-256、超過や読めないときはサイズとエラー文から作る (必ず値を返す)。
-    /// detached タスクから呼べるよう nonisolated にする (メインアクター状態には触れない)
-    nonisolated static func dictionaryErrorFingerprint(url: URL, error: Error) -> Data {
-        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? -1
-        if size >= 0, size <= SuggestionDictionary.userMaxFileBytes, let data = try? Data(contentsOf: url) {
-            return Data(SHA256.hash(data: data))
-        }
-        return Data(SHA256.hash(data: Data("\(size):\(error.localizedDescription)".utf8)))
-    }
-
-    /// ユーザー辞書ファイルの内容ハッシュ。無変化の再読込をスキップするための指紋 (必ず値を返す)。
-    /// ファイルが無い状態も 1 状態として区別する。単に固定の文字列やパターンをセンチネルにするだけでは、
-    /// 実際のファイル内容がたまたまそれと一致した場合に衝突してしまう (「0 バイトの実在ファイル」や
-    /// 中身が偶然センチネル文字列そのものだったファイルで、実際に踏んだ回帰)。そのため各状態のハッシュ
-    /// 入力の先頭に区別用の 1 バイトタグを付け、状態ごとの入力空間を分離する
-    /// (先頭バイトが異なれば、以降がどんなファイル内容でも入力全体が一致することはない)。
-    /// detached タスクから呼べるよう nonisolated にする (メインアクター状態には触れない)
-    nonisolated static func dictionaryContentHash(url: URL) -> Data {
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            return Data(SHA256.hash(data: Data([0x00])))                          // ファイル無し
-        }
-        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? -1
-        if size >= 0, size <= SuggestionDictionary.userMaxFileBytes, let data = try? Data(contentsOf: url) {
-            return Data(SHA256.hash(data: Data([0x01]) + data))                   // 中身そのもの
-        }
-        return Data(SHA256.hash(data: Data([0x02]) + Data("oversize:\(size)".utf8)))  // 上限超過・読めない
     }
 
     /// 既に出ているアラート (起動時の保存データのエラーなど) があれば、その後ろに空行を挟んで連結する
