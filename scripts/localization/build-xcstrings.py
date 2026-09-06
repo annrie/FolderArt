@@ -71,7 +71,7 @@ LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 SPECIFIER = re.compile(r"%(?:\d+\$)?(?:lld|@|d|%)")
 
 # %lld/%@/%d/%% に限らない printf 型指定子全般 (%% は指定子ではないので対象外)
-FORMAT_SPEC = re.compile(r"%(?:\d+\$)?[-+ 0#]*\d*(?:\.\d+)?(?:ll|l|h|hh|q|z|t|j|L)?[@dioux XeEfFgGaAcspn%]")
+FORMAT_SPEC = re.compile(r"%(?:\d+\$)?[-+ 0#]*\d*(?:\.\d+)?(?:ll|l|h|hh|q|z|t|j|L)?[@diouxXeEfFgGaAcspn%]")
 
 
 def normalize_key(key):
@@ -152,7 +152,7 @@ def source_literals():
                         continue
                     # 行コメントに loc-ignore があれば、この行の日本語リテラルは UI 文言ではない
                     # (マッチング用のデータ定数など) とみなして読み飛ばす
-                    if re.search(r"//.*loc-ignore", line):
+                    if re.search(r"//\s*loc-ignore", line):
                         continue
                     code = re.split(r"\s//", line)[0]
                     for m in LITERAL.finditer(code):
