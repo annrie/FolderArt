@@ -695,16 +695,17 @@ final class AppModel: ObservableObject {
     /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)。
     /// 戻り値は「エラーが 1 件も無かったか」(呼び出し側の QuickActionProvider が静かに終了してよいか判断するため)。
     /// 内部に await が無く MainActor 上で中断されないため、適用中でなければそのまま最後まで実行してよい
-    /// (先頭で弾くだけで足りる)
+    /// (先頭で弾くだけで足りる)。複数フォルダーで失敗が重なっても最後の 1 件だけにならないよう、
+    /// 失敗はいったん集めて report() で 1 回にまとめて出す (起動エラー等の既存アラートも report() が保つ)
     @discardableResult
     func resetIcons(at urls: [URL]) -> Bool {
         guard !isApplying else {
-            errorMessage = String(localized: "FolderArt が処理中です。しばらくしてからお試しください。")
+            report(String(localized: "FolderArt が処理中です。しばらくしてからお試しください。"))
             return false
         }
         let dirs = Self.directories(from: urls)
         quickActionLog.info("resetIcons urls=\(urls.count) dirs=\(dirs.count)")
-        var succeeded = true
+        var failures: [String] = []
         for url in dirs {
             let has = hasHistory(url)
             quickActionLog.info("reset candidate \(url.path, privacy: .private) hasHistory=\(has)")
@@ -716,11 +717,14 @@ final class AppModel: ObservableObject {
                 quickActionLog.info("reset ok \(url.path, privacy: .private)")
             } catch {
                 quickActionLog.error("reset FAILED \(url.path, privacy: .private): \(error.localizedDescription, privacy: .public)")
-                errorMessage = error.localizedDescription
-                succeeded = false
+                failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
             }
         }
         reapAssets()
-        return succeeded
+        if !failures.isEmpty {
+            report(failures.joined(separator: "\n"))
+            return false
+        }
+        return true
     }
 }

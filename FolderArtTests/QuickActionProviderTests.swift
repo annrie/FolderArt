@@ -64,4 +64,39 @@ final class QuickActionProviderTests: XCTestCase {
 
         XCTAssertEqual(model.errorMessage, startupError)   // 上書きされていない
     }
+
+    /// .noPreset と同様、.failed (お気に入りはあるが描画に失敗) でも既存の起動エラーを上書きしないことを確認する
+    /// (Codex PR #6 r3)。AssetStore に無い assetID を参照するお気に入りで render を失敗させる
+    /// (AppModelTests.testApplyLastPresetFailsWhenRenderFails と同じ手法)
+    @MainActor
+    func testApplyLastPresetKeepsExistingErrorMessageOnFailure() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("QA_\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dir = root.appendingPathComponent("target")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let model = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                             presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                             assets: AssetStore(directory: root.appendingPathComponent("a")),
+                             userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                             lastPresetStore: LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json")),
+                             runsMaintenance: false)
+        let preset = try model.presets.add(name: "broken", overlay: .image(assetID: UUID()), settings: CompositionSettings())
+        model.applyPreset(preset)
+        let startupError = "既存の起動エラー (テスト用)"
+        model.errorMessage = startupError   // applyPreset の後に立てる (applyPreset 自体はここでは失敗しない)
+
+        let provider = QuickActionProvider(model: model)
+        let pb = NSPasteboard(name: .init("QATestApplyFailed_\(UUID())"))
+        pb.clearContents()
+        pb.writeObjects([dir as NSURL])
+
+        let finished = XCTestExpectation(description: "onShowWindow")
+        provider.onShowWindow = { finished.fulfill() }
+        provider.applyLastPreset(pb, userData: nil, error: nil)
+        await fulfillment(of: [finished], timeout: 2)
+
+        XCTAssertEqual(model.errorMessage, startupError)   // 上書きされていない
+    }
 }

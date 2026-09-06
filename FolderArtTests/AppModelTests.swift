@@ -910,6 +910,28 @@ final class AppModelTests: XCTestCase {
         XCTAssertNotNil(m.errorMessage)
     }
 
+    // 2 件以上の失敗が最後の 1 件で上書きされず、まとめて 1 回の errorMessage に出ることを確認 (Codex PR #6 r3)。
+    // history.json を (ファイルの代わりに) ディレクトリにして、両方のフォルダーで履歴の保存 (reset の後半) を失敗させる
+    // (ApplyCoordinatorTests.testHistorySaveFailureRollsBackThatFolder / round 6-7 と同じ手法)
+    func testResetIconsReportsAllFailuresTogether() async throws {
+        let historyURL = root.appendingPathComponent("h.json")
+        let m = makeQuickActionModel()
+        let preset = try m.presets.add(name: "s", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        let a = try makeFolder("a"), b = try makeFolder("b")
+        let r = await m.applyLastPreset(to: [a, b])
+        XCTAssertEqual(r, .applied)
+        XCTAssertEqual(m.history.tasks.count, 2)
+
+        try FileManager.default.removeItem(at: historyURL)
+        try FileManager.default.createDirectory(at: historyURL, withIntermediateDirectories: true)
+
+        XCTAssertFalse(m.resetIcons(at: [a, b]))
+        let lines = m.errorMessage?.components(separatedBy: "\n") ?? []
+        XCTAssertTrue(lines.contains { $0.hasPrefix("a:") }, m.errorMessage ?? "nil")
+        XCTAssertTrue(lines.contains { $0.hasPrefix("b:") }, m.errorMessage ?? "nil")
+    }
+
     private func makeQuickActionModel() -> AppModel {
         AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
                  presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),

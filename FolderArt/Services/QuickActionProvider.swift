@@ -52,7 +52,8 @@ final class QuickActionProvider: NSObject {
                 }
                 self.onShowWindow?()
             case .failed(let message):
-                self.model.errorMessage = message
+                // 起動エラー (壊れた保存データ等) が既にあれば、より根本的なそちらを見せる。無ければ失敗メッセージを見せる
+                if self.model.errorMessage == nil { self.model.errorMessage = message }
                 self.onShowWindow?()
             }
         }
