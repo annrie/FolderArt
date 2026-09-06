@@ -75,11 +75,13 @@ struct SuggestionEngine {
             let matching = entry.keys.filter { key in
                 let isLatin = key.unicodeScalars.allSatisfy { $0.isASCII }
                 if isLatin { return tokens.contains(key) }
-                // 非 Latin (日本語など): 1 書記素キーは誤爆しやすいので除外。
-                // stop-word はまるごと一致でない部分一致には効かせない (明示辞書はそのまま)
-                guard key.count >= 2, normalized.contains(key) else { return false }
-                if Self.stopWords.contains(key), !Self.isWholeToken(key, in: normalized) { return false }
-                return true
+                // 非 Latin (日本語・中国語・ハングル等): latinTokens で語に割れないので境界で判定する。
+                // まるごと一致 (フォルダ名そのもの、または空白/句読点で区切られた 1 語) なら、長さ 1 でも
+                // stop-word でも通す (ユーザー辞書の 1 文字キー "猫"/"★" を活かす)。
+                // 部分一致 (埋め込み) は誤爆しやすいので 1 書記素キーと stop-word を除外する。
+                guard normalized.contains(key) else { return false }
+                if Self.isWholeToken(key, in: normalized) { return true }
+                return key.count >= 2 && !Self.stopWords.contains(key)
             }
             if let best = matching.max(by: { ($0.count, -position(of: $0)) < ($1.count, -position(of: $1)) }) {
                 let isWhole = best == normalized || tokens.contains(where: { $0 == best }) || Self.isWholeToken(best, in: normalized)

@@ -264,4 +264,35 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertTrue(localEngine.suggest(for: "旅行資料", presets: []).isEmpty)
     }
 
+    // MARK: - Codex P2 (2巡目): ユーザー辞書の 1 文字キーはまるごと一致なら活きる
+
+    private func writeUserDict(_ json: String) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SuggestionEngineTests_\(UUID().uuidString).json")
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url
+    }
+
+    /// SuggestionDictionary.normalizedUser は同梱辞書と違い日本語キーの「2 文字以上」規則を課さない。
+    /// フォルダ名がまるごとそのキーなら、ユーザーが定義した 1 文字キー ("猫") も活きる
+    func testUserDictionarySingleCharKeyWholeMatchFires() throws {
+        let url = try writeUserDict(#"[{"keys": ["猫"], "emoji": "🐱"}]"#)
+        guard case .success(let userDict)? = SuggestionDictionary.loadUser(at: url) else {
+            return XCTFail("ユーザー辞書の読み込みに失敗した")
+        }
+        let localEngine = SuggestionEngine(dictionary: userDict, catalog: catalog)
+        let s = localEngine.suggest(for: "猫", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.emoji("🐱")])
+    }
+
+    /// 同じ 1 文字キーでも、区切りなく埋め込まれた部分一致 ("子猫") では誤爆を避けるため出さない
+    func testUserDictionarySingleCharKeyEmbeddedPartialSuppressed() throws {
+        let url = try writeUserDict(#"[{"keys": ["猫"], "emoji": "🐱"}]"#)
+        guard case .success(let userDict)? = SuggestionDictionary.loadUser(at: url) else {
+            return XCTFail("ユーザー辞書の読み込みに失敗した")
+        }
+        let localEngine = SuggestionEngine(dictionary: userDict, catalog: catalog)
+        XCTAssertTrue(localEngine.suggest(for: "子猫", presets: []).isEmpty)
+    }
+
 }
