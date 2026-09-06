@@ -8,14 +8,15 @@ struct LastPresetStore {
         store = CodableStore(fileURL: storageURL)
     }
 
-    var id: UUID? {
-        get { (try? store.load()) ?? nil }
-        nonmutating set {
-            if let value = newValue {
-                try? store.save(value)
-            } else if FileManager.default.fileExists(atPath: store.fileURL.path) {
-                try? FileManager.default.removeItem(at: store.fileURL)
-            }
+    /// 読めない/壊れているときは nil
+    var id: UUID? { (try? store.load()) ?? nil }
+
+    /// 保存/クリア (nil でクリア)。失敗は throws (呼び出し側で知らせる)
+    func save(_ newValue: UUID?) throws {
+        if let value = newValue {
+            try store.save(value)
+        } else if FileManager.default.fileExists(atPath: store.fileURL.path) {
+            try FileManager.default.removeItem(at: store.fileURL)
         }
     }
 }

@@ -786,6 +786,23 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(m.lastAppliedPreset)   // 解決結果も nil
     }
 
+    // LastPresetStore.save の失敗を握り潰さず errorMessage に出す (Codex PR #6)。
+    // 保存先を (ファイルの代わりに) ディレクトリにして書き込みを失敗させる
+    // (ApplyCoordinatorTests.testHistorySaveFailureRollsBackThatFolder と同じ手法)
+    func testApplyPresetSurfacesLastPresetSaveFailure() throws {
+        let lastPresetURL = root.appendingPathComponent("last-preset.json")
+        try FileManager.default.createDirectory(at: lastPresetURL, withIntermediateDirectories: true)
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: LastPresetStore(storageURL: lastPresetURL),
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertNotNil(m.errorMessage)
+    }
+
     // MARK: - Quick Action
 
     func testDirectoriesFiltersOutFilesAndMissing() throws {

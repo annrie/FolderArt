@@ -442,7 +442,7 @@ final class AppModel: ObservableObject {
     func applyPreset(_ preset: Preset) {
         guard !isApplying else { return }
         overlay.restore(overlay: preset.overlay, settings: preset.settings)
-        lastPresetStore.id = preset.id
+        do { try lastPresetStore.save(preset.id) } catch { errorMessage = error.localizedDescription }
     }
 
     /// 直前に使ったお気に入り (削除済み・未記録なら nil)
@@ -502,7 +502,7 @@ final class AppModel: ObservableObject {
     func removePreset(_ preset: Preset) {
         guard !isApplying else { return }
         do { try presets.remove(preset) } catch { errorMessage = error.localizedDescription }
-        if lastPresetStore.id == preset.id { lastPresetStore.id = nil }
+        if lastPresetStore.id == preset.id { try? lastPresetStore.save(nil) }
         reapAssets()
     }
 

@@ -11,6 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// ユーザーがウィンドウを出す前にサービスが呼ばれたら「起動専用」とみなす候補になる
     private var userOpenedWindow = false
+    /// showMainWindow が呼ばれたかどうかを同期的に記録する。reopen によるウィンドウ生成は非同期なので、
+    /// 「開く」やエラー表示の要求と、別の静かなサービスの終了判定が交錯すると、ウィンドウがまだ
+    /// できていない間に終了してしまいうる。要求した事実をここで先に記録して防ぐ
+    private var windowRequested = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = provider
@@ -37,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// reopen を送って生成させる (createsNewApplicationInstance = false で既存インスタンスを再利用、
     /// 二重起動しない)
     func showMainWindow() {
+        windowRequested = true   // 同期的に記録 (reopen は非同期なので、終了ガードとの競合を防ぐ)
         if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
             NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
@@ -51,10 +56,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 「FolderArt で開く」やユーザー操作でウィンドウが出ていれば終了しない。
-    /// 起動専用 (ウィンドウ未表示) なら静かに終了する。
+    /// 起動専用 (ウィンドウ未表示) なら静かに終了する。ただし起動時のエラー (壊れた保存データ等) が
+    /// あれば、コールド起動でも見せる場所が要るので終了せずウィンドウを出す
     private func terminateIfLaunchedForServiceOnly() {
-        guard !userOpenedWindow,
-              !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+        if userOpenedWindow || windowRequested { return }
+        if NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) { return }
+        if model.errorMessage != nil { showMainWindow(); return }
         NSApp.terminate(nil)
     }
 }
