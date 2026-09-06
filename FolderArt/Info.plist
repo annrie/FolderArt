@@ -62,7 +62,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>直前のお気に入りを適用</string>
+				<string>FolderArt で直前のお気に入りを適用</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>applyLastPreset</string>
@@ -79,7 +79,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>アイコンを元に戻す</string>
+				<string>FolderArt でアイコンを元に戻す</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>resetIcon</string>

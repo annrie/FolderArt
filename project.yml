@@ -56,12 +56,12 @@ targets:
             NSPortName: FolderArt
             NSSendFileTypes: [public.folder]
             NSRequiredContext: {}
-          - NSMenuItem: { default: "直前のお気に入りを適用" }
+          - NSMenuItem: { default: "FolderArt で直前のお気に入りを適用" }
             NSMessage: applyLastPreset
             NSPortName: FolderArt
             NSSendFileTypes: [public.folder]
             NSRequiredContext: {}
-          - NSMenuItem: { default: "アイコンを元に戻す" }
+          - NSMenuItem: { default: "FolderArt でアイコンを元に戻す" }
             NSMessage: resetIcon
             NSPortName: FolderArt
             NSSendFileTypes: [public.folder]
