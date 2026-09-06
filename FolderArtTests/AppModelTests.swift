@@ -770,6 +770,22 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(m.lastAppliedPreset)          // 削除済み id は解決できない
     }
 
+    func testRemovingLastAppliedPresetClearsPersistedID() throws {
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertEqual(store.id, preset.id)
+        m.removePreset(preset)
+        XCTAssertNil(store.id)              // 永続 id がクリアされる
+        XCTAssertNil(m.lastAppliedPreset)   // 解決結果も nil
+    }
+
     // MARK: - Quick Action
 
     func testDirectoriesFiltersOutFilesAndMissing() throws {

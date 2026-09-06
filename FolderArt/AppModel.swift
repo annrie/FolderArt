@@ -502,6 +502,7 @@ final class AppModel: ObservableObject {
     func removePreset(_ preset: Preset) {
         guard !isApplying else { return }
         do { try presets.remove(preset) } catch { errorMessage = error.localizedDescription }
+        if lastPresetStore.id == preset.id { lastPresetStore.id = nil }
         reapAssets()
     }
 
