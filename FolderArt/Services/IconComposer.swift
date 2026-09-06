@@ -77,30 +77,60 @@ enum IconComposer {
         }
     }
 
-    /// 標準フォルダーアイコンの各表現ごとに 1 枚ずつ合成し、複数表現の NSImage を返す。
-    /// overlay は各サイズへ高品質縮小され、土台は各サイズの native 表現を使うので小サイズでも鮮明。
-    /// 表現が無い土台では 512px 一枚にフォールバック。
-    /// ピクセル幅の Set ではなく個々の表現を走査するのは、512pt@2x (pixelsWide=1024) のような
-    /// Retina 表現の論理サイズ (スケール) を保つため、また同じピクセル幅で論理サイズが異なる
-    /// 表現 (例: 512px@1x と 256pt@2x=512px) を取りこぼさないため (Codex 指摘)。
-    /// 各回の compose には base 全体ではなくその baseRep 1 枚だけを持つ NSImage を渡す。base を
-    /// そのまま渡すと、同じピクセル幅の表現が複数あるとき NSImage がどちらを描くか区別できず、
-    /// 別々の表現のはずが同じラスタになってしまう (Codex 指摘、PR review)
+    /// 標準フォルダーアイコンの各表現ごとに 1 枚ずつ合成し、複数表現の NSImage を返す (事前描画済み overlay 画像版)。
+    /// overlay 画像は各サイズへ高品質縮小され、土台は各サイズの native 表現を使う。
+    /// 記号・絵文字・文字を各サイズで native に描き直したい場合は、Overlay 値を受け取るもう一方の overload を使う。
     static func composeMultiResolution(
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
         base: NSImage = standardFolderIcon,
         fillsWhenClipped: Bool
     ) -> NSImage? {
+        composeReps(base: base, settings: settings, fillsWhenClipped: fillsWhenClipped,
+                    overlayForSize: { _ in overlayImage })
+    }
+
+    /// 標準フォルダーアイコンの各表現ごとに、その表現のピクセルサイズで overlay を描き直して合成する (spec §V)。
+    /// 記号・絵文字・文字はサイズごとに native に描かれ、画像 (.image) は元画像から高品質縮小されるので、
+    /// 16/32px の小さい表現でも「512px を縮小したような甘さ」が出ない。
+    /// fillsWhenClipped は overlay の種類から導く (画像は敷き詰め、記号・絵文字・文字はサイズ指定どおり)。
+    static func composeMultiResolution(
+        overlay: Overlay,
+        settings: CompositionSettings,
+        assets: AssetStore,
+        base: NSImage = standardFolderIcon
+    ) -> NSImage? {
+        composeReps(base: base, settings: settings, fillsWhenClipped: overlay.fillsFolderWhenClipped,
+                    overlayForSize: { OverlayRenderer.render(overlay, settings: settings, side: $0, assets: assets) })
+    }
+
+    /// 土台の各表現ごとに 1 枚ずつ合成する共通処理。`overlayForSize` はその表現のピクセル幅を受け取り、
+    /// その回で使う overlay 画像を返す (事前描画済み画像をそのまま返す / 各サイズで描き直す のどちらでも良い)。
+    /// nil を返した表現はスキップし、1 つも合成できなければ nil を返す。
+    /// 表現が無い土台では従来どおり 512px 一枚にフォールバックする。
+    /// ピクセル幅の Set ではなく個々の表現を走査するのは、512pt@2x (pixelsWide=1024) のような
+    /// Retina 表現の論理サイズ (スケール) を保つため、また同じピクセル幅で論理サイズが異なる
+    /// 表現 (例: 512px@1x と 256pt@2x=512px) を取りこぼさないため (Codex 指摘)。
+    /// 各回の compose には base 全体ではなくその baseRep 1 枚だけを持つ NSImage を渡す。base を
+    /// そのまま渡すと、同じピクセル幅の表現が複数あるとき NSImage がどちらを描くか区別できず、
+    /// 別々の表現のはずが同じラスタになってしまう (Codex 指摘、PR review)
+    private static func composeReps(
+        base: NSImage,
+        settings: CompositionSettings,
+        fillsWhenClipped: Bool,
+        overlayForSize: (CGFloat) -> NSImage?
+    ) -> NSImage? {
         let reps = base.representations.filter { $0.pixelsWide > 0 }
         guard !reps.isEmpty else {
+            guard let overlayImage = overlayForSize(iconSize.width) else { return nil }
             return compose(overlay: overlayImage, settings: settings, base: base, fillsWhenClipped: fillsWhenClipped)
         }
         let out = NSImage(size: iconSize)
         for baseRep in reps {
             let repBase = NSImage(size: baseRep.size)
             repBase.addRepresentation(baseRep)
-            guard let one = compose(overlay: overlayImage, settings: settings, base: repBase,
+            guard let overlayImage = overlayForSize(CGFloat(baseRep.pixelsWide)),
+                  let one = compose(overlay: overlayImage, settings: settings, base: repBase,
                                     fillsWhenClipped: fillsWhenClipped, side: CGFloat(baseRep.pixelsWide)),
                   let rep = one.representations.first else { continue }
             rep.size = baseRep.size   // 論理サイズ/スケールを土台の表現に合わせて保持 (512pt@2x 等を潰さない)

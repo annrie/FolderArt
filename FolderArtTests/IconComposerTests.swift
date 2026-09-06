@@ -372,4 +372,66 @@ final class IconComposerTests: XCTestCase {
         XCTAssertTrue(cornerColors.contains { $0.blueComponent > 0.5 && $0.redComponent < 0.5 },
                      "青い土台表現から合成された表現が無い (色: \(cornerColors))")
     }
+
+    // MARK: - 複数解像度: overlay を各サイズで描き直す (spec §V, Codex P2)
+
+    /// 2 つのビットマップが (許容誤差内で) 全画素一致するか。片方が nil や寸法違いなら false
+    private func bitmapsMatch(_ a: NSBitmapImageRep, _ b: NSBitmapImageRep, tolerance: CGFloat = 0.02) -> Bool {
+        guard a.pixelsWide == b.pixelsWide, a.pixelsHigh == b.pixelsHigh else { return false }
+        for y in 0..<a.pixelsHigh {
+            for x in 0..<a.pixelsWide {
+                guard let ca = TestSupport.srgbColor(of: a, x: x, y: y),
+                      let cb = TestSupport.srgbColor(of: b, x: x, y: y) else { return false }
+                if abs(ca.redComponent - cb.redComponent) > tolerance
+                    || abs(ca.greenComponent - cb.greenComponent) > tolerance
+                    || abs(ca.blueComponent - cb.blueComponent) > tolerance
+                    || abs(ca.alphaComponent - cb.alphaComponent) > tolerance { return false }
+            }
+        }
+        return true
+    }
+
+    /// spec §V: Overlay を受け取る composeMultiResolution は、各表現のピクセルサイズで overlay を
+    /// 描き直す (512px を縮小したものではない)。32px 表現が「32px でネイティブに描いた合成」と一致し、
+    /// 「512px を縮小した合成」とは一致しないことで、縮小実装 (旧 NSImage 経路の挙動) を弾く RED テスト。
+    func testComposeMultiResolutionRendersSymbolNativelyPerSize() throws {
+        let overlay = Overlay.symbol(name: "star.fill")
+        var settings = CompositionSettings()
+        settings.clipToFolderShape = false   // 切り抜きの有無に依らず、素の合成そのものを比べる
+        settings.opacity = 1.0
+        // 記号は assets を使わないが、API 上必要なので空のストアを渡す
+        let assets = AssetStore(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("MultiResSymbol_\(UUID().uuidString)"))
+        let side = 32
+
+        // 内容を固定 (黒) した 32px 単一表現の土台。3 経路とも同じ内容にして合成を決定的にする
+        // (白 tint の記号が黒地で見えるよう黒にする。透明/白だと差が判定できない)
+        func blackBase() -> NSImage {
+            let img = NSImage(size: NSSize(width: side, height: side))
+            img.addRepresentation(makeColoredRep(px: side, logical: NSSize(width: side, height: side), color: .black))
+            return img
+        }
+
+        let multi = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: settings,
+                                                                      assets: assets, base: blackBase()))
+        let multi32 = try XCTUnwrap(multi.representations.first { $0.pixelsWide == side } as? NSBitmapImageRep)
+
+        // 期待: 32px でネイティブに描いた overlay を、同じ内容の 32px 土台に合成したもの
+        let nativeOverlay = try XCTUnwrap(OverlayRenderer.render(overlay, settings: settings,
+                                                                side: CGFloat(side), assets: assets))
+        let nativeImage = try XCTUnwrap(IconComposer.compose(overlay: nativeOverlay, settings: settings,
+                                                            base: blackBase(), fillsWhenClipped: false, side: CGFloat(side)))
+        let native32 = TestSupport.bitmap(of: nativeImage)
+
+        // 誤った実装なら一致してしまう: 512px で描いた overlay を 32px に縮小合成したもの
+        let overlay512 = try XCTUnwrap(OverlayRenderer.render(overlay, settings: settings, side: 512, assets: assets))
+        let downscaledImage = try XCTUnwrap(IconComposer.compose(overlay: overlay512, settings: settings,
+                                                                base: blackBase(), fillsWhenClipped: false, side: CGFloat(side)))
+        let downscaled32 = TestSupport.bitmap(of: downscaledImage)
+
+        XCTAssertTrue(bitmapsMatch(multi32, native32),
+                      "32px 表現がネイティブ 32px 合成と一致しない (各サイズで描き直していない)")
+        XCTAssertFalse(bitmapsMatch(native32, downscaled32),
+                       "ネイティブ 32px と 512px 縮小が区別できない = このテストが縮小実装を弾けていない")
+    }
 }
