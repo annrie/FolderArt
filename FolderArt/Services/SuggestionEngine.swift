@@ -78,11 +78,11 @@ struct SuggestionEngine {
                 // 非 Latin (日本語など): 1 書記素キーは誤爆しやすいので除外。
                 // stop-word はまるごと一致でない部分一致には効かせない (明示辞書はそのまま)
                 guard key.count >= 2, normalized.contains(key) else { return false }
-                if Self.stopWords.contains(key), key != normalized { return false }
+                if Self.stopWords.contains(key), !Self.isWholeToken(key, in: normalized) { return false }
                 return true
             }
             if let best = matching.max(by: { ($0.count, -position(of: $0)) < ($1.count, -position(of: $1)) }) {
-                let isWhole = best == normalized || tokens.contains(where: { $0 == best })
+                let isWhole = best == normalized || tokens.contains(where: { $0 == best }) || Self.isWholeToken(best, in: normalized)
                 hits.append((best, position(of: best), entry, isWhole))
             }
         }
@@ -161,6 +161,24 @@ struct SuggestionEngine {
         }
         if !current.isEmpty { out.append(current) }
         return out
+    }
+
+    /// key がフォルダ名の中で「まるごと 1 語」として現れるか (前後が文字列端か英数字以外=空白/句読点)。
+    /// 非 Latin (日本語・中国語など) は latinTokens で語に割れないので、境界で判定する。
+    static func isWholeToken(_ key: String, in text: String) -> Bool {
+        guard !key.isEmpty else { return false }
+        var searchStart = text.startIndex
+        while let r = text.range(of: key, range: searchStart..<text.endIndex) {
+            let beforeOK = r.lowerBound == text.startIndex || {
+                let c = text[text.index(before: r.lowerBound)]; return !(c.isLetter || c.isNumber)
+            }()
+            let afterOK = r.upperBound == text.endIndex || {
+                let c = text[r.upperBound]; return !(c.isLetter || c.isNumber)
+            }()
+            if beforeOK && afterOK { return true }
+            searchStart = r.upperBound   // 埋め込み出現の次を探す (旅行写真 は写真の前が letter で false、他所に境界出現があれば拾う)
+        }
+        return false
     }
 
     static func isYear(_ token: String) -> Bool {

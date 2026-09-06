@@ -228,4 +228,40 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertEqual(s.map(\.kind), [.symbol("music.note"), .emoji("🎵")])
     }
 
+    // MARK: - Codex P2: 非 Latin も境界でまるごと一致を認識する
+
+    /// 「写真 2026」では区切られた「写真」がまるごと一致として、埋め込みの長い部分一致 (別項目) より symbol 枠を取る
+    func testNonLatinWholeTokenOutranksLongerEmbeddedPartial() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["写真"], symbol: "photo.fill", emoji: nil),
+            // 実運用にはない語だが、「写真」の前後の空白をまたいで埋め込みで一致する長いキーを人工的に作り、
+            // 「まるごと一致でない部分一致」が「区切られたまるごと一致」に競り勝ってしまう不具合を再現する
+            SuggestionEntry(keys: ["真 20"], symbol: "star.fill", emoji: nil),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        let s = localEngine.suggest(for: "写真 2026", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
+    }
+
+    /// 「資料 2026」は区切られたまるごと一致なので、stop-word でも資料/material の項目が出る
+    func testStopWordWholeTokenStillMatchesInDictionary() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: "📚"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        let s = localEngine.suggest(for: "資料 2026", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.symbol("books.vertical.fill"), .emoji("📚"), .text("2026")])
+    }
+
+    /// 「旅行資料」のように区切りなく埋め込まれた stop-word キーは、まるごと一致でないので従来どおり出ない
+    func testStopWordEmbeddedPartialStillSuppressedInDictionary() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: "📚"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        XCTAssertTrue(localEngine.suggest(for: "旅行資料", presets: []).isEmpty)
+    }
+
 }
