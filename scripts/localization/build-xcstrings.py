@@ -5,6 +5,11 @@
     python3 scripts/localization/build-xcstrings.py --check  # ソースの文言との突き合わせ (欠けがあれば exit 1)
     python3 scripts/localization/build-xcstrings.py --stringsdata <DerivedData>  # コンパイラ抽出のキーとの厳密照合 (scripts/localization/check-compiled.sh 参照)
 
+--check はソースの Swift リテラルを正規表現で拾うだけで、Swift 補間 (\\(expr)) はすべて
+素の "%" に正規化される (コンパイラが推論する %lld / %@ などの型情報を持たない)。そのため
+--check 側の指定子「型」不一致検出は事実上働かない。型不一致を検出できるのは
+コンパイル済みの --stringsdata 照合だけ。
+
 strings.json の形: {"キー": ["ja", "en", "de", "es", "fr", "ko", "pt-BR", "zh-Hant"], ...}
 値に "one||other" と書くと単数・複数の variation になる。"\n" は改行。
 キーは Swift の補間から抽出される形 (%lld / %@ / %%) で書く。
@@ -170,13 +175,16 @@ def check():
     missing = {lit: where for lit, where in literals.items() if lit not in keys}
     used = {normalize_key(k) for k in table if normalize_key(k) in literals}
     unused = sorted(k for k in table if normalize_key(k) not in literals)
-    report_specifier_mismatches(missing, unused)
+    # 注意: normalize_key/normalize_literal はどちらも指定子を素の "%" に潰すため、
+    # ここでの mismatch 検出は骨格が一致する組の「並び」しか見ておらず、型 (%lld/%@ 等) の
+    # 取り違えは検出できない。型不一致は --stringsdata (check_compiled) でのみ検出可能。
+    mismatch = report_specifier_mismatches(missing, unused)
     for lit, where in sorted(missing.items()):
         print(f"missing: {lit!r}  ({', '.join(where)})")
     for k in unused:
         print(f"unused (info): {k!r}")
     print(f"missing: {len(missing)}, unused: {len(unused)}, used: {len(used)}")
-    sys.exit(1 if missing else 0)
+    sys.exit(1 if missing or mismatch else 0)
 
 
 def compiled_keys(root):
@@ -211,13 +219,13 @@ def check_compiled(root):
     table = load("strings.json")
     missing = sorted(keys - set(table))
     unused = sorted(set(table) - keys)
-    report_specifier_mismatches(missing, unused)
+    mismatch = report_specifier_mismatches(missing, unused)
     for k in missing:
         print(f"missing: {k!r}")
     for k in unused:
         print(f"unused (info): {k!r}")
     print(f"stringsdata files: {files}, compiled keys: {len(keys)}, missing: {len(missing)}, unused: {len(unused)}")
-    sys.exit(1 if missing else 0)
+    sys.exit(1 if missing or mismatch else 0)
 
 
 if __name__ == "__main__":
