@@ -624,6 +624,10 @@ final class AppModel: ObservableObject {
 
     // MARK: - Quick Action (Finder サービス)
 
+    /// サービス起動・サンドボックス・コールド起動固有の不具合を実機で追うための診断ログ。
+    /// QuickActionProvider (subsystem "com.example.FolderArt", category "quickaction") と同じ組で見る
+    private let quickActionLog = Logger(subsystem: "com.example.FolderArt", category: "quickaction")
+
     /// URL 群のうち、実在するディレクトリだけを standardized で返す (ファイル・欠落は除外)。
     /// 純関数で AppModel の状態に触れないため nonisolated (QuickActionProvider の nonisolated な
     /// static コンテキストから同期で呼べるようにする)
@@ -653,15 +657,21 @@ final class AppModel: ObservableObject {
     /// 直前のお気に入りを、UI 状態に触れず指定フォルダーへ静かに適用する。
     func applyLastPreset(to urls: [URL]) async -> QuickApplyResult {
         let dirs = Self.directories(from: urls)
-        guard let preset = lastAppliedPreset, !dirs.isEmpty else { return .noPreset }
+        let preset = lastAppliedPreset
+        guard let preset, !dirs.isEmpty else {
+            quickActionLog.info("applyLastPreset urls=\(urls.count) dirs=\(dirs.count) hasPreset=\(preset != nil)")
+            return .noPreset
+        }
         guard let image = OverlayRenderer.render(preset.overlay, settings: preset.settings,
                                                  side: IconComposer.iconSize.width, assets: assets) else {
+            quickActionLog.error("applyLastPreset render FAILED")
             return .failed(String(localized: "お気に入りの絵柄を作れませんでした。"))
         }
         let started = dirs.filter { $0.startAccessingSecurityScopedResource() }
         defer { for u in started { u.stopAccessingSecurityScopedResource() } }
         let outcome = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
                                               settings: preset.settings, to: dirs)
+        quickActionLog.info("applyLastPreset outcome succeeded=\(outcome.succeeded.count) failed=\(outcome.failed.count)")
         reapAssets()
         if outcome.succeeded.isEmpty {
             return .failed(outcome.summary ?? String(localized: "フォルダーにアイコンを適用できませんでした。"))
@@ -673,12 +683,23 @@ final class AppModel: ObservableObject {
     /// 戻り値は「エラーが 1 件も無かったか」(呼び出し側の QuickActionProvider が静かに終了してよいか判断するため)
     @discardableResult
     func resetIcons(at urls: [URL]) -> Bool {
+        let dirs = Self.directories(from: urls)
+        quickActionLog.info("resetIcons urls=\(urls.count) dirs=\(dirs.count)")
         var succeeded = true
-        for url in Self.directories(from: urls) where hasHistory(url) {
+        for url in dirs {
+            let has = hasHistory(url)
+            quickActionLog.info("reset candidate \(url.path, privacy: .public) hasHistory=\(has)")
+            guard has else { continue }
             let started = url.startAccessingSecurityScopedResource()
             defer { if started { url.stopAccessingSecurityScopedResource() } }
-            do { try coordinator.reset(folder: url) }
-            catch { errorMessage = error.localizedDescription; succeeded = false }
+            do {
+                try coordinator.reset(folder: url)
+                quickActionLog.info("reset ok \(url.path, privacy: .public)")
+            } catch {
+                quickActionLog.error("reset FAILED \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                errorMessage = error.localizedDescription
+                succeeded = false
+            }
         }
         reapAssets()
         return succeeded
