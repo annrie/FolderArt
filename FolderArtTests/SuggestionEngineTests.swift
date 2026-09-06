@@ -208,4 +208,24 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
     }
 
+    // MARK: - S4: 提案辞書の他言語キー
+
+    /// 同梱辞書のドイツ語キー ("rechnungen") がフォルダ名まるごと一致で 請求書/invoice の項目を引く
+    func testGermanKeyMatchesBundledInvoiceEntry() {
+        let bundled = SuggestionDictionary.load(bundle: Bundle(for: SuggestionEngineTests.self))
+        let bundledCatalog = SymbolCatalog(names: ["doc.text.fill"], searchTerms: [:])
+        let bundledEngine = SuggestionEngine(dictionary: bundled, catalog: bundledCatalog)
+        let s = bundledEngine.suggest(for: "Rechnungen", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.symbol("doc.text.fill"), .emoji("🧾")])
+    }
+
+    /// 同梱辞書の繁體中文キー ("音樂") が 音楽/music の項目を引く (2 文字以上の部分一致)
+    func testTraditionalChineseKeyMatchesBundledMusicEntry() {
+        let bundled = SuggestionDictionary.load(bundle: Bundle(for: SuggestionEngineTests.self))
+        let bundledCatalog = SymbolCatalog(names: ["music.note"], searchTerms: [:])
+        let bundledEngine = SuggestionEngine(dictionary: bundled, catalog: bundledCatalog)
+        let s = bundledEngine.suggest(for: "音樂", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.symbol("music.note"), .emoji("🎵")])
+    }
+
 }
