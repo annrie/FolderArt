@@ -216,7 +216,7 @@ git commit -m "feat: ✨ 直前に使ったお気に入りを永続化する (Qu
 
 **Interfaces:**
 - Consumes: `ApplyCoordinator.apply(overlayImage:overlay:settings:to:progress:) async -> ApplyOutcome`、`ApplyCoordinator.reset(folder:) throws`、`OverlayRenderer.render(_:settings:side:assets:) -> NSImage?`、`IconComposer.iconSize`、`FolderSelection.add(_:)`、`lastAppliedPreset`、`hasHistory(_:)` (既存 private)。
-- Produces: `AppModel.openFolders(_:)`、`AppModel.applyLastPreset(to:) async -> Bool`、`AppModel.resetIcons(at:)`、`static AppModel.directories(from:) -> [URL]`。
+- Produces: `AppModel.openFolders(_:)`、`AppModel.applyLastPreset(to:) async -> QuickApplyResult`、`AppModel.resetIcons(at:)`、`static AppModel.directories(from:) -> [URL]`。
 
 - [ ] **Step 1: テストを書く**
 
@@ -297,19 +297,31 @@ func openFolders(_ urls: [URL]) {
     NSApp.activate(ignoringOtherApps: true)
 }
 
+/// Quick Action の適用結果。呼び出し側 (QuickActionProvider) が前面化とアラートを判断する。
+/// (Ruling 1: 全フォルダー失敗 = サンドボックス書き込み拒否を沈黙させないため 3 値にする)
+enum QuickApplyResult: Equatable {
+    case applied         // 1 つ以上のフォルダーに適用できた (静かに終了してよい)
+    case noPreset        // 直前のお気に入りが無い/解決できない/対象フォルダーが無い
+    case failed(String)  // お気に入りはあるが、描画に失敗 or 全フォルダーで失敗 (メッセージ付き)
+}
+
 /// 直前のお気に入りを、UI 状態に触れず指定フォルダーへ静かに適用する。
-/// お気に入りが無い/描画できないときは false (呼び出し側が前面化して知らせる)
-func applyLastPreset(to urls: [URL]) async -> Bool {
+func applyLastPreset(to urls: [URL]) async -> QuickApplyResult {
     let dirs = Self.directories(from: urls)
-    guard !dirs.isEmpty, let preset = lastAppliedPreset else { return false }
+    guard let preset = lastAppliedPreset, !dirs.isEmpty else { return .noPreset }
     guard let image = OverlayRenderer.render(preset.overlay, settings: preset.settings,
-                                             side: IconComposer.iconSize.width, assets: assets) else { return false }
+                                             side: IconComposer.iconSize.width, assets: assets) else {
+        return .failed(String(localized: "お気に入りの絵柄を作れませんでした。"))
+    }
     let started = dirs.filter { $0.startAccessingSecurityScopedResource() }
     defer { for u in started { u.stopAccessingSecurityScopedResource() } }
-    _ = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
-                                settings: preset.settings, to: dirs)
+    let outcome = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
+                                          settings: preset.settings, to: dirs)
     reapAssets()
-    return true
+    if outcome.succeeded.isEmpty {
+        return .failed(outcome.summary ?? String(localized: "フォルダーにアイコンを適用できませんでした。"))
+    }
+    return .applied
 }
 
 /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)
@@ -416,9 +428,14 @@ final class QuickActionProvider: NSObject {
                                error: AutoreleasingUnsafeMutablePointer<NSString>?) {
         let urls = Self.folderURLs(from: pboard)
         Task { @MainActor in
-            let ok = await self.model.applyLastPreset(to: urls)
-            if !ok {
+            switch await self.model.applyLastPreset(to: urls) {
+            case .applied:
+                break // 静かに成功 (合図は Finder のアイコン変化)。onSilentServiceFinished で静かに終了しうる
+            case .noPreset:
                 self.model.errorMessage = String(localized: "まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。")
+                NSApp.activate(ignoringOtherApps: true)
+            case .failed(let message):
+                self.model.errorMessage = message
                 NSApp.activate(ignoringOtherApps: true)
             }
             self.onSilentServiceFinished?()
@@ -561,7 +578,7 @@ Release ビルド → `~/アプリケーション/FolderArt.app` に置いて 1 
 
 - [ ] **Step 1: エラー文言を strings.json に追加**
 
-キー「まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。」を 8 言語で追加 (Task 3 の QuickActionProvider が使う文言と一致させる)。`build-xcstrings.py` で再生成、`--check` で missing 0。
+次の 3 キーを 8 言語で追加 (Task 2/3 が String(localized:) で使う文言と byte 一致させる): 「まだお気に入りを使っていません。まず FolderArt でお気に入りを適用してください。」「お気に入りの絵柄を作れませんでした。」「フォルダーにアイコンを適用できませんでした。」。`build-xcstrings.py` で再生成、`--check` で missing 0。
 
 - [ ] **Step 2: サービス表示名の 8 言語化**
 
@@ -593,6 +610,6 @@ git commit -m "chore: 🔖 1.6.0 に更新し README (クイックアクショ�
 ## Self-Review (計画者チェック)
 
 - **spec カバレッジ:** §3 の 3 サービス → Task 2/3。§5 last-used preset → Task 1。§6 起動と静かな終了 → Task 3 (AppDelegate)。§7 サンドボックス検証 → Task 3 Step 10。§8 エラー文言 → Task 3/4。§8 README → Task 4。
-- **型整合:** `applyLastPreset(to:) async -> Bool`、`resetIcons(at:)`、`directories(from:) -> [URL]`、`OverlayRenderer.render(_:settings:side:assets:)`、`coordinator.apply(overlayImage:overlay:settings:to:)`、`coordinator.reset(folder:)` は実コードと一致確認済み。
+- **型整合:** `applyLastPreset(to:) async -> QuickApplyResult`、`resetIcons(at:)`、`directories(from:) -> [URL]`、`OverlayRenderer.render(_:settings:side:assets:)`、`coordinator.apply(overlayImage:overlay:settings:to:)`、`coordinator.reset(folder:)` は実コードと一致確認済み。
 - **プレースホルダなし:** 各 Step に実コード/実コマンドあり。
 - **リスク:** サービス経由の書き込み可否は Task 3 Step 10 で実機確認。不可ならフォローアップ Task で「適用/戻す」を「開く」に倒すフォールバックを実装する (spec §7)。
