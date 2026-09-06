@@ -290,4 +290,49 @@ final class IconComposerTests: XCTestCase {
             XCTAssertLessThanOrEqual(rect.maxY, side, "side=\(side): maxY がキャンバス外")
         }
     }
+
+    // MARK: - 複数解像度: Retina スケール保持 (Codex round 6)
+
+    /// pixelsWide/pixelsHigh と論理サイズ (size) が異なる (= Retina) 表現を土台に持たせたテスト用画像を作る
+    private func makeBaseImage(_ specs: [(px: Int, logical: NSSize)]) -> NSImage {
+        let image = NSImage(size: specs.first?.logical ?? .zero)
+        for spec in specs {
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: spec.px, pixelsHigh: spec.px,
+                                             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { continue }
+            rep.size = spec.logical
+            image.addRepresentation(rep)
+        }
+        return image
+    }
+
+    /// 土台に 512pt@2x (pixelsWide=1024, 論理サイズ 512×512) の表現があるとき、合成後もその論理サイズ
+    /// (スケール) を保つべき。ピクセル幅だけで集約すると論理サイズが 1024×1024 (1x 扱い) になってしまい、
+    /// Retina 用の表現が失われる
+    func testComposeMultiResolutionPreservesRetinaScale() throws {
+        let base = makeBaseImage([(px: 1024, logical: NSSize(width: 512, height: 512)),
+                                  (px: 512, logical: NSSize(width: 512, height: 512))])
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(),
+                                                                    base: base, fillsWhenClipped: false))
+        let retinaRep = try XCTUnwrap(img.representations.first { $0.pixelsWide == 1024 })
+        XCTAssertEqual(retinaRep.size, NSSize(width: 512, height: 512))
+        XCTAssertEqual(retinaRep.pixelsWide / Int(retinaRep.size.width), 2)
+    }
+
+    /// 同じピクセル幅でも論理サイズ (スケール) が異なる 2 つの土台表現 (例: 512px@1x と 256pt@2x=512px) は、
+    /// どちらも合成結果に残るべき (ピクセル幅だけの Set にすると片方が失われてしまう)
+    func testComposeMultiResolutionKeepsRepsWithSamePixelWidthButDifferentScale() throws {
+        let base = makeBaseImage([(px: 512, logical: NSSize(width: 512, height: 512)),   // 1x
+                                  (px: 512, logical: NSSize(width: 256, height: 256))])  // 2x
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(),
+                                                                    base: base, fillsWhenClipped: false))
+        XCTAssertEqual(img.representations.count, 2)
+        let logicalWidths = Set(img.representations.map { $0.size.width })
+        XCTAssertEqual(logicalWidths, Set<CGFloat>([512, 256]))
+        for rep in img.representations { XCTAssertEqual(rep.pixelsWide, 512) }
+    }
 }

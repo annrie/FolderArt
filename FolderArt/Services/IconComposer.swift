@@ -77,24 +77,28 @@ enum IconComposer {
         }
     }
 
-    /// 標準フォルダーアイコンの各表現ピクセルサイズごとに 1 枚ずつ合成し、複数表現の NSImage を返す。
+    /// 標準フォルダーアイコンの各表現ごとに 1 枚ずつ合成し、複数表現の NSImage を返す。
     /// overlay は各サイズへ高品質縮小され、土台は各サイズの native 表現を使うので小サイズでも鮮明。
     /// 表現が無い土台では 512px 一枚にフォールバック。
+    /// ピクセル幅の Set ではなく個々の表現を走査するのは、512pt@2x (pixelsWide=1024) のような
+    /// Retina 表現の論理サイズ (スケール) を保つため、また同じピクセル幅で論理サイズが異なる
+    /// 表現 (例: 512px@1x と 256pt@2x=512px) を取りこぼさないため (Codex 指摘)
     static func composeMultiResolution(
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
         base: NSImage = standardFolderIcon,
         fillsWhenClipped: Bool
     ) -> NSImage? {
-        let sizes = Set(base.representations.map { $0.pixelsWide }).filter { $0 > 0 }
-        guard !sizes.isEmpty else {
+        let reps = base.representations.filter { $0.pixelsWide > 0 }
+        guard !reps.isEmpty else {
             return compose(overlay: overlayImage, settings: settings, base: base, fillsWhenClipped: fillsWhenClipped)
         }
         let out = NSImage(size: iconSize)
-        for px in sizes.sorted() {
+        for baseRep in reps {
             guard let one = compose(overlay: overlayImage, settings: settings, base: base,
-                                    fillsWhenClipped: fillsWhenClipped, side: CGFloat(px)),
+                                    fillsWhenClipped: fillsWhenClipped, side: CGFloat(baseRep.pixelsWide)),
                   let rep = one.representations.first else { continue }
+            rep.size = baseRep.size   // 論理サイズ/スケールを土台の表現に合わせて保持 (512pt@2x 等を潰さない)
             out.addRepresentation(rep)
         }
         return out.representations.isEmpty ? nil : out
