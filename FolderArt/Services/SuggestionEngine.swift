@@ -5,6 +5,14 @@ struct SuggestionEngine {
     let dictionary: SuggestionDictionary
     let catalog: SymbolCatalog
 
+    /// 誤検出しやすい一般語。曖昧な SF Symbols 検索 (第3層) と、辞書の非 Latin 部分一致
+    /// (まるごと一致でないもの) では候補にしない。辞書に明示キーとして入っている語には効かせない
+    static let stopWords: Set<String> = [
+        "new", "old", "my", "the", "and", "for", "temp", "tmp", "misc", "other",
+        "data", "file", "files", "folder", "backup", "download", "downloads",
+        "work", "test", "project", "その他", "新規", "一時", "資料",
+    ]
+
     init(dictionary: SuggestionDictionary, catalog: SymbolCatalog) {
         self.dictionary = dictionary
         self.catalog = catalog
@@ -62,17 +70,28 @@ struct SuggestionEngine {
         func position(of key: String) -> Int {
             normalized.range(of: key).map { normalized.distance(from: normalized.startIndex, to: $0.lowerBound) } ?? Int.max
         }
-        var hits: [(key: String, position: Int, entry: SuggestionEntry)] = []
+        var hits: [(key: String, position: Int, entry: SuggestionEntry, isWholeMatch: Bool)] = []
         for entry in dictionary.entries {
             let matching = entry.keys.filter { key in
                 let isLatin = key.unicodeScalars.allSatisfy { $0.isASCII }
-                return isLatin ? tokens.contains(key) : normalized.contains(key)
+                if isLatin { return tokens.contains(key) }
+                // 非 Latin (日本語など): 1 書記素キーは誤爆しやすいので除外。
+                // stop-word はまるごと一致でない部分一致には効かせない (明示辞書はそのまま)
+                guard key.count >= 2, normalized.contains(key) else { return false }
+                if Self.stopWords.contains(key), key != normalized { return false }
+                return true
             }
             if let best = matching.max(by: { ($0.count, -position(of: $0)) < ($1.count, -position(of: $1)) }) {
-                hits.append((best, position(of: best), entry))
+                let isWhole = best == normalized || tokens.contains(where: { $0 == best })
+                hits.append((best, position(of: best), entry, isWhole))
             }
         }
-        hits.sort { ($0.key.count, -$0.position) > ($1.key.count, -$1.position) }
+        // まるごと一致 → キーが長い → フォルダ名の先に出た順、の優先度で並べる
+        hits.sort {
+            let l = ($0.isWholeMatch ? 1 : 0, $0.key.count, -$0.position)
+            let r = ($1.isWholeMatch ? 1 : 0, $1.key.count, -$1.position)
+            return l > r
+        }
         for hit in hits {
             if symbol == nil, let name = hit.entry.symbol, catalog.contains(name) {
                 symbol = Suggestion(kind: .symbol(name), reason: String(localized: "「\(hit.key)」に一致"))
@@ -83,14 +102,14 @@ struct SuggestionEngine {
             if symbol != nil && emoji != nil { break }
         }
 
-        // 3. SF Symbols の検索語 (辞書に無い英単語)
+        // 3. SF Symbols の検索語 (辞書に無い英単語)。曖昧な検索語一致は 4 文字以上・stop-word 以外のみ
         if symbol == nil {
             for token in tokens where token.count >= 3 {
                 if catalog.contains(token) {
                     symbol = Suggestion(kind: .symbol(token), reason: String(localized: "記号名「\(token)」"))
                     break
                 }
-                if let name = catalog.names(forTerm: token).first {
+                if token.count >= 4, !Self.stopWords.contains(token), let name = catalog.names(forTerm: token).first {
                     symbol = Suggestion(kind: .symbol(name), reason: String(localized: "検索語「\(token)」に一致"))
                     break
                 }

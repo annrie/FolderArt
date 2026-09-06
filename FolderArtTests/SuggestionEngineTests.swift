@@ -170,4 +170,42 @@ final class SuggestionEngineTests: XCTestCase {
         }
     }
 
+    // MARK: - S1: 誤検出減
+
+    /// 1 書記素の日本語辞書キーは部分一致しない (「動画」の「画」だけでは当たらない)
+    func testSingleCharJapaneseKeyDoesNotMatch() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["画"], symbol: "photo.fill", emoji: nil),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        XCTAssertTrue(localEngine.suggest(for: "動画一覧", presets: []).isEmpty)
+    }
+
+    /// SF Symbols の曖昧な検索語一致 (names(forTerm:)) は 4 文字以上のトークンのみ。3 文字では経路に入らない
+    func testFuzzySymbolSearchRequiresFourChars() {
+        let localCatalog = SymbolCatalog(names: ["job.fill"], searchTerms: ["job.fill": ["abc"]])
+        let localEngine = SuggestionEngine(dictionary: .empty, catalog: localCatalog)
+        XCTAssertTrue(localEngine.suggest(for: "abc", presets: []).isEmpty)
+    }
+
+    /// stop-word ("work") 単独では曖昧な SF Symbols 検索に乗らない
+    func testStopWordNotFuzzyMatched() {
+        let localCatalog = SymbolCatalog(names: ["briefcase.fill"], searchTerms: ["briefcase.fill": ["work"]])
+        let localEngine = SuggestionEngine(dictionary: .empty, catalog: localCatalog)
+        XCTAssertTrue(localEngine.suggest(for: "work", presets: []).isEmpty)
+    }
+
+    // MARK: - S2: ランク改善
+
+    /// 「photo」という語まるごとの一致が、より長い別キー (アルバム整理) の部分一致より symbol 枠を取る
+    func testWholeNameMatchRanksFirst() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["photo"], symbol: "photo.fill", emoji: nil),
+            SuggestionEntry(keys: ["アルバム整理"], symbol: "star.fill", emoji: nil),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        let s = localEngine.suggest(for: "写真アルバム整理 photo", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
+    }
+
 }
