@@ -764,6 +764,23 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.dictionaryRebuildCount, countWhenAbsent + 1)   // スキップされていない
     }
 
+    /// 回帰テスト: 中身がたまたま文字列 "absent" と一致する実在ファイルでも、
+    /// 「ファイル無し」センチネルと衝突せず再読込がスキップされないこと
+    /// (センチネルの文字列だけでは実データの空間と分離できていなかった)
+    func testReloadDetectsFileWhoseContentIsLiterallyAbsentSentinel() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        await m.reloadUserDictionary()              // ファイルが無い状態に地ならし
+        XCTAssertNil(m.errorMessage)
+        let countWhenAbsent = m.dictionaryRebuildCount
+        try "absent".write(to: user, atomically: true, encoding: .utf8)   // 中身が偶然 "absent"
+        await m.reloadUserDictionary()
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        XCTAssertEqual(m.dictionaryRebuildCount, countWhenAbsent + 1)   // スキップされていない
+    }
+
     func testWatcherReloadsUserDictionaryAutomatically() async throws {
         let user = root.appendingPathComponent("suggestions-user.json")
         let m = makeDictionaryModel(userDictionary: user)
