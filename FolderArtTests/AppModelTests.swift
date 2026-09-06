@@ -740,4 +740,34 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(m.errorMessage?.contains("\n\n") ?? false)      // 空行で連結
     }
 
+    // MARK: - 直前のお気に入り
+
+    func testApplyPresetRecordsLastAppliedPreset() throws {
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        XCTAssertEqual(m.lastAppliedPreset?.id, preset.id)
+        XCTAssertEqual(store.id, preset.id) // 永続化された
+    }
+
+    func testLastAppliedPresetIsNilWhenDeleted() throws {
+        let store = LastPresetStore(storageURL: root.appendingPathComponent("last-preset.json"))
+        let m = AppModel(history: HistoryStore(storageURL: root.appendingPathComponent("h.json")),
+                         presets: PresetStore(storageURL: root.appendingPathComponent("p.json")),
+                         assets: AssetStore(directory: root.appendingPathComponent("a")),
+                         userDictionaryURL: root.appendingPathComponent("dict/suggestions-user.json"),
+                         lastPresetStore: store,
+                         runsMaintenance: false)
+        let preset = try m.presets.add(name: "青", overlay: .symbol(name: "star.fill"), settings: CompositionSettings())
+        m.applyPreset(preset)
+        try m.presets.remove(preset)
+        XCTAssertNil(m.lastAppliedPreset)          // 削除済み id は解決できない
+    }
+
 }

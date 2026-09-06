@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     let history: HistoryStore
     let presets: PresetStore
     let assets: AssetStore
+    private let lastPresetStore: LastPresetStore
     private let coordinator: ApplyCoordinator
 
     @Published var errorMessage: String?
@@ -57,10 +58,12 @@ final class AppModel: ObservableObject {
          catalog: SymbolCatalog = SymbolCatalog.shared,
          userDictionaryURL: URL = HistoryStore.appSupportDirectory.appendingPathComponent(SuggestionDictionary.userFileName),
          contentScanner: @escaping ContentScannerFunction = { ContentScanner.scan($0) },
+         lastPresetStore: LastPresetStore = LastPresetStore(),
          runsMaintenance: Bool = true) {
         self.history = history
         self.presets = presets
         self.assets = assets
+        self.lastPresetStore = lastPresetStore
         self.bundledDictionary = bundledDictionary
         self.catalog = catalog
         self.userDictionaryURL = userDictionaryURL
@@ -439,6 +442,13 @@ final class AppModel: ObservableObject {
     func applyPreset(_ preset: Preset) {
         guard !isApplying else { return }
         overlay.restore(overlay: preset.overlay, settings: preset.settings)
+        lastPresetStore.id = preset.id
+    }
+
+    /// 直前に使ったお気に入り (削除済み・未記録なら nil)
+    var lastAppliedPreset: Preset? {
+        guard let id = lastPresetStore.id else { return nil }
+        return presets.presets.first { $0.id == id }
     }
 
     /// 履歴の行を現在の入力に戻す (旧形式は不可)。フォルダがまだあればリストに足す。

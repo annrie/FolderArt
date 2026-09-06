@@ -28,6 +28,7 @@
 		29FD92412658A0AA5D3D7C7F /* BookmarkManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1413684D8590492917E00AF /* BookmarkManagerTests.swift */; };
 		2A0776B44C0B36A28BC3924A /* PresetStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */; };
 		2BA8F98E2BBFB00329FB9AB9 /* PackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FDD32B97DE03E4B82E9256 /* PackTests.swift */; };
+		3252BAF0CEB72FA397EBE2D7 /* LastPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D6EED7B501BC8FBA5AD4F2C /* LastPresetStore.swift */; };
 		34092BB7148AA90FC10466B7 /* PresetExportSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C82F08D69468EF68F240D88 /* PresetExportSelectionTests.swift */; };
 		3C1DB18EEEF2C54CC1A7B134 /* PresetImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBFC640AD6929557A5A8836B /* PresetImporterTests.swift */; };
 		41E18E2B109179ED24A22461 /* PackReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CB486E8BF2EC081D719C26 /* PackReader.swift */; };
@@ -52,6 +53,7 @@
 		758533C8B9E56E860E22A01F /* PresetExportSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF1247683809B36ADF3509F /* PresetExportSelection.swift */; };
 		7606511DB9E310ED197C4AFD /* AssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD35A03399A8B8D6D621A34 /* AssetStore.swift */; };
 		7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044DE538A5614FC88683B7C0 /* FolderIconManager.swift */; };
+		80DB1CF08AA9BCE3E956AD1D /* LastPresetStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BEAECD5BDACCE1BDCB5A2B3 /* LastPresetStoreTests.swift */; };
 		904C581F16020CE21261E00E /* Pack.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F3C060DF945BE5D432A72 /* Pack.swift */; };
 		93CADD822960CA739C001168 /* ApplyCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
@@ -122,6 +124,7 @@
 		3A6EA12B08DE66E4FDAEA8E2 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		3AB94FB8D6D12BBEB82689E8 /* SuggestionEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngineTests.swift; sourceTree = "<group>"; };
 		3C896FE93D4736373D7AA1BF /* SuggestionDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionDictionary.swift; sourceTree = "<group>"; };
+		3D6EED7B501BC8FBA5AD4F2C /* LastPresetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPresetStore.swift; sourceTree = "<group>"; };
 		4110F76F80F389FC528E43DD /* OverlayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayTests.swift; sourceTree = "<group>"; };
 		443675269CBE370462363D0D /* BookmarkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManager.swift; sourceTree = "<group>"; };
 		4C0555F275B99E4B244FC7B4 /* BitmapCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BitmapCanvas.swift; sourceTree = "<group>"; };
@@ -150,6 +153,7 @@
 		96E7E61697579BBEC2656D90 /* SuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngine.swift; sourceTree = "<group>"; };
 		98D0652D0329BED1EAE76CEF /* SuggestionStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionStripView.swift; sourceTree = "<group>"; };
 		9BB9B14DECF02FBF3A2E5EBB /* IconTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTask.swift; sourceTree = "<group>"; };
+		9BEAECD5BDACCE1BDCB5A2B3 /* LastPresetStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPresetStoreTests.swift; sourceTree = "<group>"; };
 		9C82F08D69468EF68F240D88 /* PresetExportSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetExportSelectionTests.swift; sourceTree = "<group>"; };
 		A110DF5C661C36A69FAE2B1E /* ContentScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentScannerTests.swift; sourceTree = "<group>"; };
 		A1413684D8590492917E00AF /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
@@ -272,6 +276,7 @@
 				D27276A44F5727DA9071A647 /* IconComposerTests.swift */,
 				1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */,
 				7D74CC522553B95B6B570425 /* LanguageSettingTests.swift */,
+				9BEAECD5BDACCE1BDCB5A2B3 /* LastPresetStoreTests.swift */,
 				930F33A9B29E40DF4B899371 /* LocalizationTests.swift */,
 				F93D854D4BE08BA90FAF3C91 /* MaintenanceSweepTests.swift */,
 				5EE02AEBFB478CDE088F1DEB /* OverlayRendererTests.swift */,
@@ -347,6 +352,7 @@
 				EBD35A03399A8B8D6D621A34 /* AssetStore.swift */,
 				B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */,
 				502339979955DC1D1A8FEBD5 /* HistoryStore.swift */,
+				3D6EED7B501BC8FBA5AD4F2C /* LastPresetStore.swift */,
 				0162ABB3B341663030FD890F /* PresetStore.swift */,
 			);
 			path = Stores;
@@ -467,6 +473,7 @@
 				22D94A204DAEA9EDC95B885E /* IconComposerTests.swift in Sources */,
 				742E3A1DF583F4C388AF033F /* IconTaskTests.swift in Sources */,
 				49ADDF1191160084A9EF22E2 /* LanguageSettingTests.swift in Sources */,
+				80DB1CF08AA9BCE3E956AD1D /* LastPresetStoreTests.swift in Sources */,
 				D8FD37B7849DDC80350E9C63 /* LocalizationTests.swift in Sources */,
 				D2B921E9EE891F3E86E24E69 /* MaintenanceSweepTests.swift in Sources */,
 				10051CC54025B0D4438C48DF /* OverlayRendererTests.swift in Sources */,
@@ -511,6 +518,7 @@
 				13D14D7EA7FBA6DD82D95109 /* HistoryView.swift in Sources */,
 				FC1CA54974A6975956A585DE /* IconComposer.swift in Sources */,
 				16B841691F974ADAFC692A31 /* IconTask.swift in Sources */,
+				3252BAF0CEB72FA397EBE2D7 /* LastPresetStore.swift in Sources */,
 				EB122DD5941E87901BDD373E /* MaintenanceSweep.swift in Sources */,
 				DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */,
 				F7D6459F55FCCA1C2478C13F /* OverlayPickerView.swift in Sources */,
