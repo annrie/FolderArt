@@ -22,6 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TARGETS = [
     ("strings.json", "FolderArt/Resources/Localizable.xcstrings"),
     ("infoplist.json", "FolderArt/Resources/InfoPlist.xcstrings"),
+    ("servicesmenu.json", "FolderArt/Resources/ServicesMenu.xcstrings"),
 ]
 
 
