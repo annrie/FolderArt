@@ -253,4 +253,23 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(rect.minY, -88, accuracy: 0.001)
         XCTAssertEqual(rect.maxY, 512, accuracy: 0.001)
     }
+
+    // MARK: - 複数解像度 (第6段階)
+
+    func testComposeAtCustomSideProducesThatPixelSize() {
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+        let img = IconComposer.compose(overlay: overlay, settings: CompositionSettings(), fillsWhenClipped: false, side: 32)
+        let rep = try! XCTUnwrap(img?.representations.first)
+        XCTAssertEqual(rep.pixelsWide, 32); XCTAssertEqual(rep.pixelsHigh, 32)
+    }
+
+    func testComposeMultiResolutionHasBaseRepSizes() throws {
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(), fillsWhenClipped: false))
+        let sizes = Set(img.representations.map { $0.pixelsWide })
+        let baseSizes = Set(IconComposer.standardFolderIcon.representations.map { $0.pixelsWide })
+        XCTAssertFalse(sizes.isEmpty)
+        XCTAssertEqual(sizes, baseSizes)   // 土台の表現サイズ集合と一致
+        for rep in img.representations { XCTAssertEqual(rep.pixelsWide, rep.pixelsHigh) }
+    }
 }

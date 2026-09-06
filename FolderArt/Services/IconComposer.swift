@@ -2,6 +2,8 @@ import AppKit
 import CoreGraphics
 import UniformTypeIdentifiers
 
+/// 基準サイズは 512px (iconSize)。アイコン適用時は composeMultiResolution が土台の各表現サイズで描くので、
+/// 小さいサイズでも縮小によるぼやけが出ない。
 enum IconComposer {
     static let iconSize = CGSize(width: 512, height: 512)
 
@@ -50,9 +52,10 @@ enum IconComposer {
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
         base: NSImage = standardFolderIcon,
-        fillsWhenClipped: Bool
+        fillsWhenClipped: Bool,
+        side: CGFloat = iconSize.width
     ) -> NSImage? {
-        let size = iconSize
+        let size = CGSize(width: side, height: side)
         let overlayRect = calculateRect(for: overlayImage.size, in: size, settings: settings,
                                         fillsWhenClipped: fillsWhenClipped)
 
@@ -72,6 +75,29 @@ enum IconComposer {
                                   operation: .sourceOver, fraction: settings.opacity)
             }
         }
+    }
+
+    /// 標準フォルダーアイコンの各表現ピクセルサイズごとに 1 枚ずつ合成し、複数表現の NSImage を返す。
+    /// overlay は各サイズへ高品質縮小され、土台は各サイズの native 表現を使うので小サイズでも鮮明。
+    /// 表現が無い土台では 512px 一枚にフォールバック。
+    static func composeMultiResolution(
+        overlay overlayImage: NSImage,
+        settings: CompositionSettings,
+        base: NSImage = standardFolderIcon,
+        fillsWhenClipped: Bool
+    ) -> NSImage? {
+        let sizes = Set(base.representations.map { $0.pixelsWide }).filter { $0 > 0 }
+        guard !sizes.isEmpty else {
+            return compose(overlay: overlayImage, settings: settings, base: base, fillsWhenClipped: fillsWhenClipped)
+        }
+        let out = NSImage(size: iconSize)
+        for px in sizes.sorted() {
+            guard let one = compose(overlay: overlayImage, settings: settings, base: base,
+                                    fillsWhenClipped: fillsWhenClipped, side: CGFloat(px)),
+                  let rep = one.representations.first else { continue }
+            out.addRepresentation(rep)
+        }
+        return out.representations.isEmpty ? nil : out
     }
 
     /// オーバーレイを土台アイコンのアルファ形状で切り抜く (destinationIn)
