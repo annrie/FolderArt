@@ -712,6 +712,40 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: user, encoding: .utf8), "[]")
     }
 
+    /// FileWatcher はディレクトリ内の無関係な書き込みでも発火する。内容が同じなら再読込しても
+    /// 提案エンジンを作り直さない (再計算の無駄を止める)
+    func testReloadSkipsWhenDictionaryContentUnchanged() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        // init の初回読み込み (辞書ファイルなし) との競合を解消してから基準を取る
+        await m.reloadUserDictionary()
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()          // 内容が変わったので作り直す
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+        let countAfterFirstLoad = m.dictionaryRebuildCount
+        await m.reloadUserDictionary()          // 内容は同じ (無関係な書き込みを模した再読込)
+        XCTAssertEqual(m.dictionaryRebuildCount, countAfterFirstLoad)
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+    }
+
+    /// 内容が変われば従来どおり作り直される
+    func testReloadRebuildsWhenDictionaryContentChanged() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        await m.reloadUserDictionary()
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+        let countAfterFirstLoad = m.dictionaryRebuildCount
+        try #"[{"keys": ["xyzzy"], "symbol": "moon.fill", "emoji": "🌙"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()          // 内容が変わったので作り直す
+        XCTAssertEqual(m.dictionaryRebuildCount, countAfterFirstLoad + 1)
+        XCTAssertTrue(hasSymbol("moon.fill", in: m))
+        XCTAssertFalse(hasSymbol("star.fill", in: m))
+    }
+
     func testWatcherReloadsUserDictionaryAutomatically() async throws {
         let user = root.appendingPathComponent("suggestions-user.json")
         let m = makeDictionaryModel(userDictionary: user)
