@@ -69,6 +69,14 @@ final class ContentScannerTests: XCTestCase {
         XCTAssertNil(ContentKind.classify(type: nil, isDirectory: false, isPackage: false))
     }
 
+    func testClassifyEbookFontModel() throws {
+        XCTAssertEqual(ContentKind.classify(type: .epub, isDirectory: false, isPackage: false), .ebook)
+        XCTAssertEqual(ContentKind.classify(type: .font, isDirectory: false, isPackage: false), .font)
+        let model = UTType("public.3d-content")
+        try XCTSkipIf(model == nil, "public.3d-content is not available on this system")
+        XCTAssertEqual(ContentKind.classify(type: model, isDirectory: false, isPackage: false), .model)
+    }
+
     func testDominantPrefersEarlierKindOnTie() {
         XCTAssertEqual(ContentSummary.dominant(of: [.image: 2, .document: 2]), .image)
         XCTAssertEqual(ContentSummary.dominant(of: [.document: 3, .audio: 2]), .document)
@@ -132,6 +140,23 @@ final class ContentScannerTests: XCTestCase {
         summary = try XCTUnwrap(ContentScanner.scan(root, maxImageBytes: 10))
         XCTAssertEqual(summary.dominant, .image)
         XCTAssertNil(summary.representative)
+    }
+
+    func testTinyImagesGiveNoRepresentative() throws {
+        try png("tiny1.png", size: CGSize(width: 32, height: 32))
+        try png("tiny2.png", size: CGSize(width: 48, height: 40))
+        let summary = try XCTUnwrap(ContentScanner.scan(root))
+        XCTAssertEqual(summary.counts[.image], 2)   // 種類の数には入る
+        XCTAssertEqual(summary.dominant, .image)
+        XCTAssertNil(summary.representative)          // 長辺 < 64px は代表にしない
+    }
+
+    func testImageAtLeast64pxBecomesRepresentative() throws {
+        try png("big.png", size: CGSize(width: 64, height: 64))
+        let summary = try XCTUnwrap(ContentScanner.scan(root))
+        XCTAssertEqual(summary.dominant, .image)
+        let rep = try XCTUnwrap(summary.representative)
+        XCTAssertEqual(rep.url.lastPathComponent, "big.png")
     }
 
     func testLimitStopsEnumeration() throws {
