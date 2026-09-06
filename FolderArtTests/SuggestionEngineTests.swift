@@ -295,4 +295,20 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertTrue(localEngine.suggest(for: "子猫", presets: []).isEmpty)
     }
 
+    // MARK: - Codex P2 (3巡目): 項目内のキー選択もまるごと一致を優先する
+
+    /// 項目内に「写真」(まるごと) と「旅行写真」(「旅行写真集」に埋め込みの部分一致) の両方が一致する場合、
+    /// 最長というだけで「旅行写真」を採用すると項目全体がまるごと一致扱いされなくなり、
+    /// 別項目 (資料、まるごと一致) に symbol 枠を奪われてしまう。「写真」を採用してまるごと一致を保つべき
+    func testEntryPicksWholeTokenKeyOverLongerEmbeddedPartial() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["写真", "旅行写真"], symbol: "photo.fill", emoji: nil),
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: nil),
+        ])
+        let localCatalog = SymbolCatalog(names: ["photo.fill", "books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        let s = localEngine.suggest(for: "写真 旅行写真集 資料", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
+    }
+
 }

@@ -70,6 +70,9 @@ struct SuggestionEngine {
         func position(of key: String) -> Int {
             normalized.range(of: key).map { normalized.distance(from: normalized.startIndex, to: $0.lowerBound) } ?? Int.max
         }
+        func isWhole(_ key: String) -> Bool {
+            key == normalized || tokens.contains(key) || Self.isWholeToken(key, in: normalized)
+        }
         var hits: [(key: String, position: Int, entry: SuggestionEntry, isWholeMatch: Bool)] = []
         for entry in dictionary.entries {
             let matching = entry.keys.filter { key in
@@ -83,9 +86,12 @@ struct SuggestionEngine {
                 if Self.isWholeToken(key, in: normalized) { return true }
                 return key.count >= 2 && !Self.stopWords.contains(key)
             }
-            if let best = matching.max(by: { ($0.count, -position(of: $0)) < ($1.count, -position(of: $1)) }) {
-                let isWhole = best == normalized || tokens.contains(where: { $0 == best }) || Self.isWholeToken(best, in: normalized)
-                hits.append((best, position(of: best), entry, isWhole))
+            // まるごと一致のキーを、長いだけの埋め込み部分一致より優先して採用する
+            // (そうしないと項目全体がまるごと一致扱いされなくなる)
+            if let best = matching.max(by: {
+                (isWhole($0) ? 1 : 0, $0.count, -position(of: $0)) < (isWhole($1) ? 1 : 0, $1.count, -position(of: $1))
+            }) {
+                hits.append((best, position(of: best), entry, isWhole(best)))
             }
         }
         // まるごと一致 → キーが長い → フォルダ名の先に出た順、の優先度で並べる
