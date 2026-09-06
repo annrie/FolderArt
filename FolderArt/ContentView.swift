@@ -150,8 +150,13 @@ struct ContentView: View {
 
             Button { Task { await model.apply() } } label: {
                 Label(model.applyButtonTitle, systemImage: "checkmark.circle.fill")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
             }
             .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            // 既定アクセントが淡く描画される環境 (macOS 15.7 等) でも白文字が読めるよう、濃い青地を明示する
+            .tint(.blue)
             .disabled(!model.canApply)
             .keyboardShortcut(.defaultAction)
         }
