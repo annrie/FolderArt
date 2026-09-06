@@ -404,11 +404,16 @@ final class AppModel: ObservableObject {
     }
 
     /// ユーザー辞書ファイルの内容ハッシュ。無変化の再読込をスキップするための指紋 (必ず値を返す)。
-    /// ファイルが無い状態も 1 状態として区別する (空データの SHA-256 を固定センチネルにする)。
+    /// ファイルが無い状態も 1 状態として区別する。センチネルは実際のファイル内容 (空データを含む)
+    /// のハッシュと衝突しない値にする必要がある — 例えば「全選択して削除して保存」で 0 バイトの
+    /// 実在ファイルになった場合、空データの SHA-256 をセンチネルにすると同じハッシュになってしまい、
+    /// 「ファイル無し→0 バイトファイル」という変化なのに再読込がスキップされ、壊れたファイルの
+    /// アラートが握りつぶされる (実際に踏んだ回帰)。そのため実データの空間に絶対に現れない
+    /// 文字列 ("absent") をハッシュ元にする
     /// detached タスクから呼べるよう nonisolated にする (メインアクター状態には触れない)
     nonisolated static func dictionaryContentHash(url: URL) -> Data {
         guard FileManager.default.fileExists(atPath: url.path) else {
-            return Data(SHA256.hash(data: Data()))
+            return Data(SHA256.hash(data: Data("absent".utf8)))
         }
         let size = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? -1
         if size >= 0, size <= SuggestionDictionary.userMaxFileBytes, let data = try? Data(contentsOf: url) {

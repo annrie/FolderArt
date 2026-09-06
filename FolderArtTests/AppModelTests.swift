@@ -746,6 +746,24 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(hasSymbol("star.fill", in: m))
     }
 
+    /// 回帰テスト: 「辞書ファイルが無い」→「0 バイトの実在ファイル」という遷移
+    /// (全選択して削除して保存、のような操作) で内容ハッシュが衝突し、壊れたファイルの
+    /// アラートが握りつぶされないこと (再読込がスキップされず switch 文まで届くこと) を確認する
+    func testReloadDetectsTransitionFromAbsentToEmptyFile() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        // ファイルが無い状態に地ならしする (init の初回読み込みとの競合解消も兼ねる)
+        await m.reloadUserDictionary()
+        XCTAssertNil(m.errorMessage)
+        let countWhenAbsent = m.dictionaryRebuildCount
+        try Data().write(to: user)              // 0 バイトの実在ファイルを作る
+        await m.reloadUserDictionary()
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        XCTAssertEqual(m.dictionaryRebuildCount, countWhenAbsent + 1)   // スキップされていない
+    }
+
     func testWatcherReloadsUserDictionaryAutomatically() async throws {
         let user = root.appendingPathComponent("suggestions-user.json")
         let m = makeDictionaryModel(userDictionary: user)
