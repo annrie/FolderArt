@@ -19,4 +19,16 @@ final class QuickActionProviderTests: XCTestCase {
         pb.clearContents()
         XCTAssertTrue(QuickActionProvider.folderURLs(from: pb).isEmpty)
     }
+
+    func testFolderURLsExcludesNonDirectories() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("QA_\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("f.txt")
+        try "x".data(using: .utf8)!.write(to: file)
+        let pb = NSPasteboard(name: .init("QATestFile_\(UUID())"))
+        pb.clearContents()
+        pb.writeObjects([file as NSURL])
+        XCTAssertTrue(QuickActionProvider.folderURLs(from: pb).isEmpty)
+    }
 }

@@ -624,8 +624,10 @@ final class AppModel: ObservableObject {
 
     // MARK: - Quick Action (Finder サービス)
 
-    /// URL 群のうち、実在するディレクトリだけを standardized で返す (ファイル・欠落は除外)
-    static func directories(from urls: [URL]) -> [URL] {
+    /// URL 群のうち、実在するディレクトリだけを standardized で返す (ファイル・欠落は除外)。
+    /// 純関数で AppModel の状態に触れないため nonisolated (QuickActionProvider の nonisolated な
+    /// static コンテキストから同期で呼べるようにする)
+    nonisolated static func directories(from urls: [URL]) -> [URL] {
         urls.compactMap { url in
             var isDir: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
@@ -667,14 +669,18 @@ final class AppModel: ObservableObject {
         return .applied
     }
 
-    /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)
-    func resetIcons(at urls: [URL]) {
+    /// FolderArt が付けたアイコンだけを元に戻す (サービス「アイコンを元に戻す」)。
+    /// 戻り値は「エラーが 1 件も無かったか」(呼び出し側の QuickActionProvider が静かに終了してよいか判断するため)
+    @discardableResult
+    func resetIcons(at urls: [URL]) -> Bool {
+        var succeeded = true
         for url in Self.directories(from: urls) where hasHistory(url) {
             let started = url.startAccessingSecurityScopedResource()
             defer { if started { url.stopAccessingSecurityScopedResource() } }
             do { try coordinator.reset(folder: url) }
-            catch { errorMessage = error.localizedDescription }
+            catch { errorMessage = error.localizedDescription; succeeded = false }
         }
         reapAssets()
+        return succeeded
     }
 }

@@ -17,14 +17,14 @@ final class LastPresetStoreTests: XCTestCase {
 
     func testRoundTripsAcrossInstances() {
         let id = UUID()
-        var a = LastPresetStore(storageURL: url())
+        let a = LastPresetStore(storageURL: url())
         a.id = id
         let b = LastPresetStore(storageURL: url())
         XCTAssertEqual(b.id, id)
     }
 
     func testSettingNilClearsIt() {
-        var a = LastPresetStore(storageURL: url())
+        let a = LastPresetStore(storageURL: url())
         a.id = UUID()
         a.id = nil
         XCTAssertNil(LastPresetStore(storageURL: url()).id)

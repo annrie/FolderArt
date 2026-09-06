@@ -829,7 +829,7 @@ final class AppModelTests: XCTestCase {
         m.applyPreset(preset)
         let applied = try makeFolder("applied"); let untouched = try makeFolder("untouched")
         _ = await m.applyLastPreset(to: [applied])
-        m.resetIcons(at: [applied, untouched])
+        XCTAssertTrue(m.resetIcons(at: [applied, untouched]))
         XCTAssertFalse(m.history.tasks.contains { $0.folderPath == applied.standardizedFileURL.path })
     }
 

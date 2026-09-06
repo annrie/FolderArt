@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = provider
         provider.onSilentServiceFinished = { [weak self] in self?.terminateIfLaunchedForServiceOnly() }
+        provider.onOpenRequested = { [weak self] in self?.showMainWindow() }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
@@ -22,6 +23,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) {
             userOpenedWindow = true
         }
+    }
+
+    /// Dock アイコンクリックなどでウィンドウが無ければ前面化する (標準の Reopen ハンドラ)
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { showMainWindow() }
+        return true
+    }
+
+    /// サービス「FolderArt で開く」で起動された場合、SwiftUI の Window は生成されていても
+    /// 前面に出ないことがある。明示的に前面化する
+    func showMainWindow() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.windows.first(where: { $0.canBecomeMain })?.makeKeyAndOrderFront(nil)
     }
 
     /// 「FolderArt で開く」やユーザー操作でウィンドウが出ていれば終了しない。
