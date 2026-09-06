@@ -170,4 +170,210 @@ final class SuggestionEngineTests: XCTestCase {
         }
     }
 
+    // MARK: - S1: 誤検出減
+
+    /// 1 書記素の日本語辞書キーは部分一致しない (「動画」の「画」だけでは当たらない)
+    func testSingleCharJapaneseKeyDoesNotMatch() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["画"], symbol: "photo.fill", emoji: nil),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        XCTAssertTrue(localEngine.suggest(for: "動画一覧", presets: []).isEmpty)
+    }
+
+    /// SF Symbols の曖昧な検索語一致 (names(forTerm:)) は 4 文字以上のトークンのみ。3 文字では経路に入らない
+    func testFuzzySymbolSearchRequiresFourChars() {
+        let localCatalog = SymbolCatalog(names: ["job.fill"], searchTerms: ["job.fill": ["abc"]])
+        let localEngine = SuggestionEngine(dictionary: .empty, catalog: localCatalog)
+        XCTAssertTrue(localEngine.suggest(for: "abc", presets: []).isEmpty)
+    }
+
+    /// stop-word ("work") 単独では曖昧な SF Symbols 検索に乗らない
+    func testStopWordNotFuzzyMatched() {
+        let localCatalog = SymbolCatalog(names: ["briefcase.fill"], searchTerms: ["briefcase.fill": ["work"]])
+        let localEngine = SuggestionEngine(dictionary: .empty, catalog: localCatalog)
+        XCTAssertTrue(localEngine.suggest(for: "work", presets: []).isEmpty)
+    }
+
+    // MARK: - S2: ランク改善
+
+    /// 「photo」という語まるごとの一致が、より長い別キー (アルバム整理) の部分一致より symbol 枠を取る
+    func testWholeNameMatchRanksFirst() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["photo"], symbol: "photo.fill", emoji: nil),
+            SuggestionEntry(keys: ["アルバム整理"], symbol: "star.fill", emoji: nil),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        let s = localEngine.suggest(for: "写真アルバム整理 photo", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
+    }
+
+    // MARK: - S4: 提案辞書の他言語キー
+
+    /// 同梱辞書のドイツ語キー ("rechnungen") がフォルダ名まるごと一致で 請求書/invoice の項目を引く
+    func testGermanKeyMatchesBundledInvoiceEntry() {
+        let bundled = SuggestionDictionary.load(bundle: Bundle(for: SuggestionEngineTests.self))
+        let bundledCatalog = SymbolCatalog(names: ["doc.text.fill"], searchTerms: [:])
+        let bundledEngine = SuggestionEngine(dictionary: bundled, catalog: bundledCatalog)
+        let s = bundledEngine.suggest(for: "Rechnungen", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.symbol("doc.text.fill"), .emoji("🧾")])
+    }
+
+    /// 同梱辞書の繁體中文キー ("音樂") が 音楽/music の項目を引く (2 文字以上の部分一致)
+    func testTraditionalChineseKeyMatchesBundledMusicEntry() {
+        let bundled = SuggestionDictionary.load(bundle: Bundle(for: SuggestionEngineTests.self))
+        let bundledCatalog = SymbolCatalog(names: ["music.note"], searchTerms: [:])
+        let bundledEngine = SuggestionEngine(dictionary: bundled, catalog: bundledCatalog)
+        let s = bundledEngine.suggest(for: "音樂", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.symbol("music.note"), .emoji("🎵")])
+    }
+
+    // MARK: - Codex P2: 非 Latin も境界でまるごと一致を認識する
+
+    /// 「写真 2026」では区切られた「写真」がまるごと一致として、埋め込みの長い部分一致 (別項目) より symbol 枠を取る
+    func testNonLatinWholeTokenOutranksLongerEmbeddedPartial() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["写真"], symbol: "photo.fill", emoji: nil),
+            // 実運用にはない語だが、「写真」の前後の空白をまたいで埋め込みで一致する長いキーを人工的に作り、
+            // 「まるごと一致でない部分一致」が「区切られたまるごと一致」に競り勝ってしまう不具合を再現する
+            SuggestionEntry(keys: ["真 20"], symbol: "star.fill", emoji: nil),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        let s = localEngine.suggest(for: "写真 2026", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
+    }
+
+    /// 「資料 2026」は区切られたまるごと一致なので、stop-word でも資料/material の項目が出る
+    func testStopWordWholeTokenStillMatchesInDictionary() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: "📚"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        let s = localEngine.suggest(for: "資料 2026", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.symbol("books.vertical.fill"), .emoji("📚"), .text("2026")])
+    }
+
+    /// 「旅行資料」のように区切りなく埋め込まれた stop-word キーは、まるごと一致でないので従来どおり出ない
+    func testStopWordEmbeddedPartialStillSuppressedInDictionary() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: "📚"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        XCTAssertTrue(localEngine.suggest(for: "旅行資料", presets: []).isEmpty)
+    }
+
+    // MARK: - Codex P2 (2巡目): ユーザー辞書の 1 文字キーはまるごと一致なら活きる
+
+    private func writeUserDict(_ json: String) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SuggestionEngineTests_\(UUID().uuidString).json")
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url
+    }
+
+    /// SuggestionDictionary.normalizedUser は同梱辞書と違い日本語キーの「2 文字以上」規則を課さない。
+    /// フォルダ名がまるごとそのキーなら、ユーザーが定義した 1 文字キー ("猫") も活きる
+    func testUserDictionarySingleCharKeyWholeMatchFires() throws {
+        let url = try writeUserDict(#"[{"keys": ["猫"], "emoji": "🐱"}]"#)
+        guard case .success(let userDict)? = SuggestionDictionary.loadUser(at: url) else {
+            return XCTFail("ユーザー辞書の読み込みに失敗した")
+        }
+        let localEngine = SuggestionEngine(dictionary: userDict, catalog: catalog)
+        let s = localEngine.suggest(for: "猫", presets: [])
+        XCTAssertEqual(s.map(\.kind), [.emoji("🐱")])
+    }
+
+    /// 同じ 1 文字キーでも、区切りなく埋め込まれた部分一致 ("子猫") では誤爆を避けるため出さない
+    func testUserDictionarySingleCharKeyEmbeddedPartialSuppressed() throws {
+        let url = try writeUserDict(#"[{"keys": ["猫"], "emoji": "🐱"}]"#)
+        guard case .success(let userDict)? = SuggestionDictionary.loadUser(at: url) else {
+            return XCTFail("ユーザー辞書の読み込みに失敗した")
+        }
+        let localEngine = SuggestionEngine(dictionary: userDict, catalog: catalog)
+        XCTAssertTrue(localEngine.suggest(for: "子猫", presets: []).isEmpty)
+    }
+
+    // MARK: - Codex P2 (3巡目): 項目内のキー選択もまるごと一致を優先する
+
+    /// 項目内に「写真」(まるごと) と「旅行写真」(「旅行写真集」に埋め込みの部分一致) の両方が一致する場合、
+    /// 最長というだけで「旅行写真」を採用すると項目全体がまるごと一致扱いされなくなり、
+    /// 別項目 (資料、まるごと一致) に symbol 枠を奪われてしまう。「写真」を採用してまるごと一致を保つべき
+    func testEntryPicksWholeTokenKeyOverLongerEmbeddedPartial() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["写真", "旅行写真"], symbol: "photo.fill", emoji: nil),
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: nil),
+        ])
+        let localCatalog = SymbolCatalog(names: ["photo.fill", "books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        let s = localEngine.suggest(for: "写真 旅行写真集 資料", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("photo.fill"))
+    }
+
+    // MARK: - PR-3: アクセント付き Latin キーはトークン一致のみ (部分一致で誤爆しない)
+
+    /// アクセント付き Latin キー ("météo") は、区切られたまるごと一致では引くが、
+    /// 別語の一部 ("météorites") には substring では当たらない。
+    /// 同梱辞書の weather 項目は keys に "météo" を含む (cloud.sun.fill / 🌤️)
+    func testAccentedLatinKeyMatchesWholeTokenNotEmbedded() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["météo"], symbol: "cloud.sun.fill", emoji: "🌤️"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["cloud.sun.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        // まるごと一致: 天気の提案 (記号・絵文字) が出る
+        // (accented 語は latinTokens で断片化し第4層が短コード text を足しうるので、weather 項目の有無で判定する)
+        let whole = localEngine.suggest(for: "Photos météo", presets: []).map(\.kind)
+        XCTAssertTrue(whole.contains(.symbol("cloud.sun.fill")), "\(whole)")
+        XCTAssertTrue(whole.contains(.emoji("🌤️")), "\(whole)")
+        // 別語の一部 (隕石): weather 項目は substring では当たらない (再設計前は誤爆していた)
+        let embedded = localEngine.suggest(for: "météorites", presets: []).map(\.kind)
+        XCTAssertFalse(embedded.contains(.symbol("cloud.sun.fill")), "\(embedded)")
+        XCTAssertFalse(embedded.contains(.emoji("🌤️")), "\(embedded)")
+    }
+
+    /// ASCII キー ("photo") も区切られたまるごと一致のみで、より長い別語 ("photography") には当たらない
+    func testASCIIKeyMatchesWholeTokenNotLongerWord() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["photo"], symbol: "photo.fill", emoji: "📷"),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        XCTAssertEqual(localEngine.suggest(for: "photo 2026", presets: []).first?.kind, .symbol("photo.fill"))
+        XCTAssertTrue(localEngine.suggest(for: "photography", presets: []).isEmpty)
+    }
+
+    // MARK: - PR-2: まるごと一致の位置は「区切られた出現」で測る
+
+    /// 先に埋め込み出現 (旅行写真集 の 写真、index 2) があり、後ろに区切られたまるごと出現 (末尾の 写真) がある場合、
+    /// まるごと一致の位置を末尾の出現で測るべき。埋め込み位置 (2) で測ると、
+    /// 同じくまるごと一致の 資料 (index 5) より不当に「先」扱いされ symbol 枠を奪ってしまう。
+    /// 資料 (先に区切られて出る) が 写真 (後ろで区切られて出る) より先に来ること
+    func testWholeTokenPositionUsesQualifyingOccurrence() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["写真"], symbol: "photo.fill", emoji: "📷"),
+            SuggestionEntry(keys: ["資料"], symbol: "books.vertical.fill", emoji: "📚"),
+        ])
+        let localCatalog = SymbolCatalog(names: ["photo.fill", "books.vertical.fill"], searchTerms: [:])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: localCatalog)
+        let s = localEngine.suggest(for: "旅行写真集 資料 写真", presets: [])
+        XCTAssertEqual(s.first?.kind, .symbol("books.vertical.fill"))
+    }
+
+    // MARK: - Codex PR-4: 自己重複するキーの重なった出現でのまるごと一致
+
+    /// 自己重複するキー "a-a" は、フォルダ名 "xa-a-a" では先頭の埋め込み出現 (前が 'x' で境界でない) の後、
+    /// それに重なる末尾の位置でだけ区切られたまるごと 1 語になる。重複走査を upperBound へ飛ばすと
+    /// この重なった出現を取りこぼし、"a-a" はハイフン込みで全 Latin (=部分一致不可) なので提案が完全に消える。
+    /// index(after: lowerBound) で 1 文字ずつ進めれば重なった出現も拾える (再設計前は空だった → RED)。
+    func testSelfOverlappingKeyWholeMatchAtOverlappingOccurrence() {
+        let localDict = SuggestionDictionary(entries: [
+            SuggestionEntry(keys: ["a-a"], symbol: nil, emoji: "🅰️"),
+        ])
+        let localEngine = SuggestionEngine(dictionary: localDict, catalog: catalog)
+        // "xa" が第4層の短コード規則で .text("XA") を副次的に足しうるので、辞書の emoji の有無で判定する
+        let s = localEngine.suggest(for: "xa-a-a", presets: []).map(\.kind)
+        XCTAssertTrue(s.contains(.emoji("🅰️")), "\(s)")
+    }
+
 }

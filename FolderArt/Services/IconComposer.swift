@@ -2,6 +2,8 @@ import AppKit
 import CoreGraphics
 import UniformTypeIdentifiers
 
+/// 基準サイズは 512px (iconSize)。アイコン適用時は composeMultiResolution が土台の各表現サイズで描くので、
+/// 小さいサイズでも縮小によるぼやけが出ない。
 enum IconComposer {
     static let iconSize = CGSize(width: 512, height: 512)
 
@@ -50,9 +52,10 @@ enum IconComposer {
         overlay overlayImage: NSImage,
         settings: CompositionSettings,
         base: NSImage = standardFolderIcon,
-        fillsWhenClipped: Bool
+        fillsWhenClipped: Bool,
+        side: CGFloat = iconSize.width
     ) -> NSImage? {
-        let size = iconSize
+        let size = CGSize(width: side, height: side)
         let overlayRect = calculateRect(for: overlayImage.size, in: size, settings: settings,
                                         fillsWhenClipped: fillsWhenClipped)
 
@@ -72,6 +75,38 @@ enum IconComposer {
                                   operation: .sourceOver, fraction: settings.opacity)
             }
         }
+    }
+
+    /// 標準フォルダーアイコンの各表現ごとに 1 枚ずつ合成し、複数表現の NSImage を返す。
+    /// overlay は各サイズへ高品質縮小され、土台は各サイズの native 表現を使うので小サイズでも鮮明。
+    /// 表現が無い土台では 512px 一枚にフォールバック。
+    /// ピクセル幅の Set ではなく個々の表現を走査するのは、512pt@2x (pixelsWide=1024) のような
+    /// Retina 表現の論理サイズ (スケール) を保つため、また同じピクセル幅で論理サイズが異なる
+    /// 表現 (例: 512px@1x と 256pt@2x=512px) を取りこぼさないため (Codex 指摘)。
+    /// 各回の compose には base 全体ではなくその baseRep 1 枚だけを持つ NSImage を渡す。base を
+    /// そのまま渡すと、同じピクセル幅の表現が複数あるとき NSImage がどちらを描くか区別できず、
+    /// 別々の表現のはずが同じラスタになってしまう (Codex 指摘、PR review)
+    static func composeMultiResolution(
+        overlay overlayImage: NSImage,
+        settings: CompositionSettings,
+        base: NSImage = standardFolderIcon,
+        fillsWhenClipped: Bool
+    ) -> NSImage? {
+        let reps = base.representations.filter { $0.pixelsWide > 0 }
+        guard !reps.isEmpty else {
+            return compose(overlay: overlayImage, settings: settings, base: base, fillsWhenClipped: fillsWhenClipped)
+        }
+        let out = NSImage(size: iconSize)
+        for baseRep in reps {
+            let repBase = NSImage(size: baseRep.size)
+            repBase.addRepresentation(baseRep)
+            guard let one = compose(overlay: overlayImage, settings: settings, base: repBase,
+                                    fillsWhenClipped: fillsWhenClipped, side: CGFloat(baseRep.pixelsWide)),
+                  let rep = one.representations.first else { continue }
+            rep.size = baseRep.size   // 論理サイズ/スケールを土台の表現に合わせて保持 (512pt@2x 等を潰さない)
+            out.addRepresentation(rep)
+        }
+        return out.representations.isEmpty ? nil : out
     }
 
     /// オーバーレイを土台アイコンのアルファ形状で切り抜く (destinationIn)
@@ -142,7 +177,10 @@ enum IconComposer {
                 customHeight = badgeMax
                 customWidth  = badgeMax * aspectRatio
             }
-            let padding: CGFloat = 20
+            // 512px 基準で校正した 20px のパディングを、各サイズへ比例させる。固定 20px のままだと
+            // 複数解像度合成 (composeMultiResolution) が side=16 等の小さい表現を作るとき
+            // パディングがキャンバスをはみ出し、バッジが画面外に出てしまう (Codex 指摘)
+            let padding = containerSize.width * (20.0 / iconSize.width)
             let x = containerSize.width  - customWidth  - padding
             let yShift = containerSize.height * settings.verticalOffset
             return NSRect(x: x, y: padding + yShift, width: customWidth, height: customHeight)

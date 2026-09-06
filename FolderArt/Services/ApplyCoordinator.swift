@@ -50,9 +50,9 @@ final class ApplyCoordinator {
         to folders: [URL],
         progress: @escaping (Int, Int) -> Void = { _, _ in }
     ) async -> ApplyOutcome {
-        // 合成は 1 回だけ (512px 1 枚なのでメインで同期的に描いて問題ない)
-        guard let icon = IconComposer.compose(overlay: overlayImage, settings: settings,
-                                              fillsWhenClipped: overlay.fillsFolderWhenClipped) else {
+        // 合成は 1 回だけ (メインで同期的に描いて問題ない)。土台の各表現サイズごとに合成し、複数解像度で保存する
+        guard let icon = IconComposer.composeMultiResolution(overlay: overlayImage, settings: settings,
+                                                              fillsWhenClipped: overlay.fillsFolderWhenClipped) else {
             let failures = folders.map { ApplyFailure(folder: $0, reason: ApplyError.composeFailed.localizedDescription) }
             return ApplyOutcome(succeeded: [], failed: failures)
         }

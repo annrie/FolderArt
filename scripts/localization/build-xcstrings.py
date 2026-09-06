@@ -5,6 +5,11 @@
     python3 scripts/localization/build-xcstrings.py --check  # ソースの文言との突き合わせ (欠けがあれば exit 1)
     python3 scripts/localization/build-xcstrings.py --stringsdata <DerivedData>  # コンパイラ抽出のキーとの厳密照合 (scripts/localization/check-compiled.sh 参照)
 
+--check はソースの Swift リテラルを正規表現で拾うだけで、Swift 補間 (\\(expr)) はすべて
+素の "%" に正規化される (コンパイラが推論する %lld / %@ などの型情報を持たない)。そのため
+--check 側の指定子「型」不一致検出は事実上働かない。型不一致を検出できるのは
+コンパイル済みの --stringsdata 照合だけ。
+
 strings.json の形: {"キー": ["ja", "en", "de", "es", "fr", "ko", "pt-BR", "zh-Hant"], ...}
 値に "one||other" と書くと単数・複数の variation になる。"\n" は改行。
 キーは Swift の補間から抽出される形 (%lld / %@ / %%) で書く。
@@ -22,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TARGETS = [
     ("strings.json", "FolderArt/Resources/Localizable.xcstrings"),
     ("infoplist.json", "FolderArt/Resources/InfoPlist.xcstrings"),
+    ("servicesmenu.json", "FolderArt/Resources/ServicesMenu.xcstrings"),
 ]
 
 
@@ -70,9 +76,37 @@ JAPANESE = re.compile(r"[぀-ヿ一-鿿]")
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 SPECIFIER = re.compile(r"%(?:\d+\$)?(?:lld|@|d|%)")
 
+# %lld/%@/%d/%% に限らない printf 型指定子全般 (%% は指定子ではないので対象外)
+FORMAT_SPEC = re.compile(r"%(?:\d+\$)?[-+ 0#]*\d*(?:\.\d+)?(?:ll|l|h|hh|q|z|t|j|L)?[@diouxXeEfFgGaAcspn%]")
+
 
 def normalize_key(key):
     return SPECIFIER.sub("%", key)
+
+
+def specifiers(key):
+    """key に含まれる指定子の並び (型記号)。%% は指定子として数えない"""
+    return FORMAT_SPEC.findall(key.replace("%%", ""))
+
+
+def spec_skeleton(key):
+    """指定子を取り除いた「骨格」。%% (エスケープされた % 記号) は指定子ではないので温存する"""
+    return FORMAT_SPEC.sub("%", key.replace("%%", "\0")).replace("\0", "%%")
+
+
+def report_specifier_mismatches(missing_keys, other_keys):
+    """missing 側のキーと other 側のキーで、骨格 (指定子を除いた文字列) は同じだが指定子の並びが違う組を報告する。
+    1件でも報告した (=不一致がある) 場合 True を返す"""
+    others_by_skeleton = {}
+    for k in other_keys:
+        others_by_skeleton.setdefault(spec_skeleton(k), []).append(k)
+    found = False
+    for mk in sorted(missing_keys):
+        for ok in others_by_skeleton.get(spec_skeleton(mk), []):
+            if specifiers(mk) != specifiers(ok):
+                print(f"specifier mismatch: {mk!r} vs {ok!r}")
+                found = True
+    return found
 
 
 def normalize_literal(lit):
@@ -122,6 +156,10 @@ def source_literals():
                     code = line.strip()
                     if code.startswith("//"):
                         continue
+                    # 行コメントに loc-ignore があれば、この行の日本語リテラルは UI 文言ではない
+                    # (マッチング用のデータ定数など) とみなして読み飛ばす
+                    if re.search(r"//\s*loc-ignore", line):
+                        continue
                     code = re.split(r"\s//", line)[0]
                     for m in LITERAL.finditer(code):
                         lit = m.group(1)
@@ -137,12 +175,16 @@ def check():
     missing = {lit: where for lit, where in literals.items() if lit not in keys}
     used = {normalize_key(k) for k in table if normalize_key(k) in literals}
     unused = sorted(k for k in table if normalize_key(k) not in literals)
+    # 注意: normalize_key/normalize_literal はどちらも指定子を素の "%" に潰すため、
+    # ここでの mismatch 検出は骨格が一致する組の「並び」しか見ておらず、型 (%lld/%@ 等) の
+    # 取り違えは検出できない。型不一致は --stringsdata (check_compiled) でのみ検出可能。
+    mismatch = report_specifier_mismatches(missing, unused)
     for lit, where in sorted(missing.items()):
         print(f"missing: {lit!r}  ({', '.join(where)})")
     for k in unused:
         print(f"unused (info): {k!r}")
     print(f"missing: {len(missing)}, unused: {len(unused)}, used: {len(used)}")
-    sys.exit(1 if missing else 0)
+    sys.exit(1 if missing or mismatch else 0)
 
 
 def compiled_keys(root):
@@ -177,12 +219,13 @@ def check_compiled(root):
     table = load("strings.json")
     missing = sorted(keys - set(table))
     unused = sorted(set(table) - keys)
+    mismatch = report_specifier_mismatches(missing, unused)
     for k in missing:
         print(f"missing: {k!r}")
     for k in unused:
         print(f"unused (info): {k!r}")
     print(f"stringsdata files: {files}, compiled keys: {len(keys)}, missing: {len(missing)}, unused: {len(unused)}")
-    sys.exit(1 if missing else 0)
+    sys.exit(1 if missing or mismatch else 0)
 
 
 if __name__ == "__main__":

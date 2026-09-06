@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 /// フォルダ直下のファイルの種類。判定と多数派の同数の優先順はこの列挙順
 enum ContentKind: CaseIterable, Hashable, Sendable {
-    case image, video, audio, pdf, presentation, spreadsheet, code, document, archive, app, folder
+    case image, video, audio, pdf, presentation, spreadsheet, ebook, font, model, code, document, archive, app, folder
 
     /// 辞書 (suggestions.json) の代表キー。folder はチップを出さないので nil
     var dictionaryKey: String? {
@@ -15,6 +15,9 @@ enum ContentKind: CaseIterable, Hashable, Sendable {
         case .pdf:          return "pdf"
         case .presentation: return "presentation"
         case .spreadsheet:  return "spreadsheet"
+        case .ebook:        return "ebook"
+        case .font:         return "font"
+        case .model:        return "model"
         case .code:         return "code"
         case .document:     return "document"
         case .archive:      return "zip"
@@ -32,6 +35,9 @@ enum ContentKind: CaseIterable, Hashable, Sendable {
         case .pdf:          return String(localized: "中身の多くが PDF (\(count) 件)")
         case .presentation: return String(localized: "中身の多くがプレゼン (\(count) 件)")
         case .spreadsheet:  return String(localized: "中身の多くが表計算 (\(count) 件)")
+        case .ebook:        return String(localized: "中身の多くが電子書籍 (\(count) 件)")
+        case .font:         return String(localized: "中身の多くがフォント (\(count) 件)")
+        case .model:        return String(localized: "中身の多くが 3D モデル (\(count) 件)")
         case .code:         return String(localized: "中身の多くがコード (\(count) 件)")
         case .document:     return String(localized: "中身の多くが書類 (\(count) 件)")
         case .archive:      return String(localized: "中身の多くが圧縮ファイル (\(count) 件)")
@@ -52,10 +58,26 @@ enum ContentKind: CaseIterable, Hashable, Sendable {
         if type.conforms(to: .pdf) { return .pdf }
         if type.conforms(to: .presentation) { return .presentation }
         if type.conforms(to: .spreadsheet) { return .spreadsheet }
+        // 電子書籍・フォント・3D は圧縮 (zip) や compositeContent にも準拠しうるので、archive / document より先に見る
+        if type.conforms(to: .epub)
+            || conforms(type, toIdentifier: "org.idpf.epub-container")
+            || conforms(type, toIdentifier: "com.amazon.ebook")
+            || conforms(type, toIdentifier: "com.amazon.mobi8-ebook") { return .ebook }
+        if type.conforms(to: .font) { return .font }
+        if conforms(type, toIdentifier: "public.3d-content")
+            || conforms(type, toIdentifier: "com.pixar.universal-scene-description")
+            || conforms(type, toIdentifier: "com.pixar.universal-scene-description-mobile")
+            || conforms(type, toIdentifier: "com.apple.scenekit.scene") { return .model }
         if type.conforms(to: .sourceCode) { return .code }
         if type.conforms(to: .text) || type.conforms(to: .compositeContent) { return .document }
         if type.conforms(to: .archive) || type.conforms(to: .diskImage) { return .archive }
         return nil
+    }
+
+    /// 識別子から UTType を作れないとき (この macOS に無い型など) は false を返す。誤って別の型を拾わないよう force-unwrap しない
+    private static func conforms(_ type: UTType, toIdentifier identifier: String) -> Bool {
+        guard let target = UTType(identifier) else { return false }
+        return type.conforms(to: target)
     }
 }
 
@@ -93,6 +115,8 @@ struct ContentSummary: Equatable, Sendable {
 enum ContentScanner {
     static let entryLimit = 1000
     static let maxImageBytes = 20 * 1024 * 1024
+    /// 代表画像にする最小の長辺 (px)。これ未満はアイコン素材やサムネイルとみなして代表にしない
+    static let minRepresentativePixel = 64
     /// 代表画像にする形式 (画像パネルで選べるものと同じ)
     static let representableTypes: [UTType] = [.png, .jpeg, .heic, .gif, .webP, .tiff]
     /// Finder のカスタムアイコンの実体。隠し属性が付いていないことがあるので名前で除外する
@@ -132,7 +156,8 @@ enum ContentScanner {
             guard kind == .image,
                   let type = values.contentType, representableTypes.contains(where: { type.conforms(to: $0) }),
                   (values.fileSize ?? Int.max) <= maxImageBytes,
-                  let date = values.contentModificationDate else { continue }
+                  let date = values.contentModificationDate,
+                  (pixelLongSide(of: url) ?? 0) >= minRepresentativePixel else { continue }
             // 更新日時が新しいもの。同時刻は名前の昇順で先のもの
             if let current = best {
                 if date > current.date || (date == current.date && url.lastPathComponent < current.url.lastPathComponent) {
@@ -150,6 +175,16 @@ enum ContentScanner {
             representative = RepresentativeImage(url: best.url, modificationDate: best.date, thumbnailPNG: png)
         }
         return ContentSummary(counts: counts, dominant: dominant, representative: representative)
+    }
+
+    /// 画像を復号せずにピクセルの長辺だけをメタデータから読む (読めなければ nil)。極小画像を代表から外すのに使う
+    static func pixelLongSide(of url: URL) -> Int? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = props[kCGImagePropertyPixelWidth] as? Int,
+              let height = props[kCGImagePropertyPixelHeight] as? Int else { return nil }
+        return max(width, height)
     }
 
     /// 画像全体を復号せず、長辺 maxPixel 以下のサムネイルを PNG で返す。EXIF の向きを反映し、キャッシュは残さない

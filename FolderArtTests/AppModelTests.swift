@@ -712,6 +712,75 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: user, encoding: .utf8), "[]")
     }
 
+    /// FileWatcher はディレクトリ内の無関係な書き込みでも発火する。内容が同じなら再読込しても
+    /// 提案エンジンを作り直さない (再計算の無駄を止める)
+    func testReloadSkipsWhenDictionaryContentUnchanged() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        // init の初回読み込み (辞書ファイルなし) との競合を解消してから基準を取る
+        await m.reloadUserDictionary()
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()          // 内容が変わったので作り直す
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+        let countAfterFirstLoad = m.dictionaryRebuildCount
+        await m.reloadUserDictionary()          // 内容は同じ (無関係な書き込みを模した再読込)
+        XCTAssertEqual(m.dictionaryRebuildCount, countAfterFirstLoad)
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+    }
+
+    /// 内容が変われば従来どおり作り直される
+    func testReloadRebuildsWhenDictionaryContentChanged() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        await m.reloadUserDictionary()
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+        let countAfterFirstLoad = m.dictionaryRebuildCount
+        try #"[{"keys": ["xyzzy"], "symbol": "moon.fill", "emoji": "🌙"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.reloadUserDictionary()          // 内容が変わったので作り直す
+        XCTAssertEqual(m.dictionaryRebuildCount, countAfterFirstLoad + 1)
+        XCTAssertTrue(hasSymbol("moon.fill", in: m))
+        XCTAssertFalse(hasSymbol("star.fill", in: m))
+    }
+
+    /// 回帰テスト: 「辞書ファイルが無い」→「0 バイトの実在ファイル」という遷移
+    /// (全選択して削除して保存、のような操作) で内容ハッシュが衝突し、壊れたファイルの
+    /// アラートが握りつぶされないこと (再読込がスキップされず switch 文まで届くこと) を確認する
+    func testReloadDetectsTransitionFromAbsentToEmptyFile() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        // ファイルが無い状態に地ならしする (init の初回読み込みとの競合解消も兼ねる)
+        await m.reloadUserDictionary()
+        XCTAssertNil(m.errorMessage)
+        let countWhenAbsent = m.dictionaryRebuildCount
+        try Data().write(to: user)              // 0 バイトの実在ファイルを作る
+        await m.reloadUserDictionary()
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        XCTAssertEqual(m.dictionaryRebuildCount, countWhenAbsent + 1)   // スキップされていない
+    }
+
+    /// 回帰テスト: 中身がたまたま文字列 "absent" と一致する実在ファイルでも、
+    /// 「ファイル無し」センチネルと衝突せず再読込がスキップされないこと
+    /// (センチネルの文字列だけでは実データの空間と分離できていなかった)
+    func testReloadDetectsFileWhoseContentIsLiterallyAbsentSentinel() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        await m.reloadUserDictionary()              // ファイルが無い状態に地ならし
+        XCTAssertNil(m.errorMessage)
+        let countWhenAbsent = m.dictionaryRebuildCount
+        try "absent".write(to: user, atomically: true, encoding: .utf8)   // 中身が偶然 "absent"
+        await m.reloadUserDictionary()
+        let prefix = String(localized: "提案辞書を読めません: \("")")
+        XCTAssertTrue(m.errorMessage?.hasPrefix(prefix) ?? false, m.errorMessage ?? "nil")
+        XCTAssertEqual(m.dictionaryRebuildCount, countWhenAbsent + 1)   // スキップされていない
+    }
+
     func testWatcherReloadsUserDictionaryAutomatically() async throws {
         let user = root.appendingPathComponent("suggestions-user.json")
         let m = makeDictionaryModel(userDictionary: user)

@@ -54,6 +54,7 @@
 		748E6A17C8A9EAA6720E60CA /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 100D0D5442BFC1DAC1F9D160 /* Localizable.xcstrings */; };
 		758533C8B9E56E860E22A01F /* PresetExportSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF1247683809B36ADF3509F /* PresetExportSelection.swift */; };
 		7606511DB9E310ED197C4AFD /* AssetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD35A03399A8B8D6D621A34 /* AssetStore.swift */; };
+		7B78B2FA966750A0338D326F /* ServicesMenu.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1828457CE526336266B6B64D /* ServicesMenu.xcstrings */; };
 		7DD6BEA6B745099082DE7B7C /* FolderIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044DE538A5614FC88683B7C0 /* FolderIconManager.swift */; };
 		80DB1CF08AA9BCE3E956AD1D /* LastPresetStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BEAECD5BDACCE1BDCB5A2B3 /* LastPresetStoreTests.swift */; };
 		904C581F16020CE21261E00E /* Pack.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F3C060DF945BE5D432A72 /* Pack.swift */; };
@@ -114,6 +115,7 @@
 		09A2D6D7F0354394BC163CA8 /* SymbolCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolCatalog.swift; sourceTree = "<group>"; };
 		100D0D5442BFC1DAC1F9D160 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		14655BB80BEA4FC7C2C3D286 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
+		1828457CE526336266B6B64D /* ServicesMenu.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ServicesMenu.xcstrings; sourceTree = "<group>"; };
 		1946BB2EC721EA592675228F /* OverlayRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRenderer.swift; sourceTree = "<group>"; };
 		19A6E7CA2E739A11F5E1D1AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderSelectionTests.swift; sourceTree = "<group>"; };
@@ -309,6 +311,7 @@
 				3A6EA12B08DE66E4FDAEA8E2 /* InfoPlist.xcstrings */,
 				100D0D5442BFC1DAC1F9D160 /* Localizable.xcstrings */,
 				F0C60917E085AAACA1DE062B /* restricted-symbols.txt */,
+				1828457CE526336266B6B64D /* ServicesMenu.xcstrings */,
 				79612AA7493837023B727FF2 /* suggestions.json */,
 			);
 			path = Resources;
@@ -452,6 +455,7 @@
 				17A6C0A14B4FF845B273461F /* AppIcon.icns in Resources */,
 				F0BE85950691A7731FCC0566 /* InfoPlist.xcstrings in Resources */,
 				748E6A17C8A9EAA6720E60CA /* Localizable.xcstrings in Resources */,
+				7B78B2FA966750A0338D326F /* ServicesMenu.xcstrings in Resources */,
 				228C204E5BCD2D05C84838C2 /* restricted-symbols.txt in Resources */,
 				BCC884BEC8309F2426275ECB /* suggestions.json in Resources */,
 			);
@@ -590,7 +594,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FolderArt/FolderArt.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = FolderArt/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -598,7 +602,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 1.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
@@ -629,7 +633,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FolderArt/FolderArt.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = FolderArt/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -637,7 +641,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 1.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;

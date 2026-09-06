@@ -1,6 +1,5 @@
 import AppKit
 import Combine
-import CryptoKit
 import SwiftUI
 import UniformTypeIdentifiers
 import os
@@ -34,6 +33,12 @@ final class AppModel: ObservableObject {
     private var dictionaryGeneration = 0
     /// 直近に失敗したユーザー辞書の内容の SHA-256。同じ内容では二度アラートを出さない
     private var lastDictionaryErrorHash: Data?
+    /// 直近に読み込んだユーザー辞書ファイルの内容ハッシュ。無変化の再読込 (無関係な書き込みでの通知) を防ぐ
+    /// (ファイルが無い状態も 1 状態として区別するため、値は必ず入る。nil は「まだ 1 度も読んでいない」だけを表す)
+    private var lastLoadedDictionaryHash: Data?
+    /// テスト用: 提案エンジンを実際に作り直した回数。無変化スキップでは増えない
+    /// (SuggestionEngine は struct で毎回新しいインスタンスに置き換わるため === では識別できない)
+    private(set) var dictionaryRebuildCount = 0
     /// 中身の走査 (テストで差し替える)。メインの外で呼ばれる
     typealias ContentScannerFunction = @Sendable (URL) -> ContentSummary?
     private let scanContents: ContentScannerFunction
@@ -354,14 +359,16 @@ final class AppModel: ObservableObject {
     /// (Task 開始の遅延で順序が入れ替わるのを防ぐ)
     private func performDictionaryReload(generation: Int) async {
         let url = userDictionaryURL
-        let loaded = await Task.detached(priority: .utility) { () -> (result: Result<SuggestionDictionary, Error>?, hash: Data?) in
-            let result = SuggestionDictionary.loadUser(at: url)
-            // 失敗したときだけ、同じ内容で二度アラートを出さないための指紋を取る
-            var hash: Data?
-            if case .failure(let error) = result { hash = Self.dictionaryErrorFingerprint(url: url, error: error) }
-            return (result, hash)
+        // パース結果と内容ハッシュは同じ 1 回の読み取りから作る (TOCTOU 対策。SuggestionDictionary 側参照)
+        let loaded = await Task.detached(priority: .utility) {
+            SuggestionDictionary.loadUserSnapshot(at: url)
         }.value
         guard generation == dictionaryGeneration else { return }
+        // ディレクトリ内の無関係な書き込みでも FileWatcher は発火する。内容が変わっていなければ
+        // 提案エンジンを作り直さず、提案の再計算もしない
+        guard loaded.contentHash != lastLoadedDictionaryHash else { return }
+        lastLoadedDictionaryHash = loaded.contentHash
+        dictionaryRebuildCount += 1
 
         switch loaded.result {
         case nil:
@@ -372,22 +379,14 @@ final class AppModel: ObservableObject {
             lastDictionaryErrorHash = nil
         case .failure(let error):
             suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
-            if loaded.hash != lastDictionaryErrorHash {
-                lastDictionaryErrorHash = loaded.hash
+            // 内容ハッシュはパース結果と同じ 1 回の読み取りから作っているので、そのまま
+            // 「壊れたファイルの中身が変わったか」の判定にも使える (別途指紋を取り直さない)
+            if loaded.contentHash != lastDictionaryErrorHash {
+                lastDictionaryErrorHash = loaded.contentHash
                 report(String(localized: "提案辞書を読めません: \(error.localizedDescription)"))
             }
         }
         refreshSuggestions(folders: folders.folders, selectedIDs: folders.selectedIDs, presets: presets.presets)
-    }
-
-    /// 壊れた辞書の指紋。上限以内で読めれば中身の SHA-256、超過や読めないときはサイズとエラー文から作る (必ず値を返す)。
-    /// detached タスクから呼べるよう nonisolated にする (メインアクター状態には触れない)
-    nonisolated static func dictionaryErrorFingerprint(url: URL, error: Error) -> Data {
-        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? -1
-        if size >= 0, size <= SuggestionDictionary.userMaxFileBytes, let data = try? Data(contentsOf: url) {
-            return Data(SHA256.hash(data: data))
-        }
-        return Data(SHA256.hash(data: Data("\(size):\(error.localizedDescription)".utf8)))
     }
 
     /// 既に出ているアラート (起動時の保存データのエラーなど) があれば、その後ろに空行を挟んで連結する
