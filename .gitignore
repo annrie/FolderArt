@@ -4,3 +4,7 @@
 
 # Derived data from local smoke checks
 build/
+
+# Python bytecode cache from the localization scripts
+__pycache__/
+*.pyc
