@@ -31,8 +31,6 @@ final class AppModel: ObservableObject {
     private var dictionaryWatcher: FileWatcher?
     /// 読み込みの世代。監視の通知が重なっても最後の 1 回の結果だけ採る
     private var dictionaryGeneration = 0
-    /// 直近に失敗したユーザー辞書の内容の SHA-256。同じ内容では二度アラートを出さない
-    private var lastDictionaryErrorHash: Data?
     /// 直近に読み込んだユーザー辞書ファイルの内容ハッシュ。無変化の再読込 (無関係な書き込みでの通知) を防ぐ
     /// (ファイルが無い状態も 1 状態として区別するため、値は必ず入る。nil は「まだ 1 度も読んでいない」だけを表す)
     private var lastLoadedDictionaryHash: Data?
@@ -371,21 +369,17 @@ final class AppModel: ObservableObject {
         lastLoadedDictionaryHash = loaded.contentHash
         dictionaryRebuildCount += 1
 
+        // ここに来るのは内容ハッシュが変わった時だけ (上の無変化スキップ)。よって壊れたファイルの
+        // 二重アラート防止は内容ハッシュのスキップが兼ねており、別途の指紋 (旧 lastDictionaryErrorHash) は不要。
+        // 同じ壊れ内容の再通知はスキップされ、内容が変わった時だけ 1 回知らせる。
         switch loaded.result {
         case nil:
             suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
-            lastDictionaryErrorHash = nil
         case .success(let user):
             suggestionEngine = SuggestionEngine(dictionary: .merging(user: user, bundled: bundledDictionary), catalog: catalog)
-            lastDictionaryErrorHash = nil
         case .failure(let error):
             suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
-            // 内容ハッシュはパース結果と同じ 1 回の読み取りから作っているので、そのまま
-            // 「壊れたファイルの中身が変わったか」の判定にも使える (別途指紋を取り直さない)
-            if loaded.contentHash != lastDictionaryErrorHash {
-                lastDictionaryErrorHash = loaded.contentHash
-                report(String(localized: "提案辞書を読めません: \(error.localizedDescription)"))
-            }
+            report(String(localized: "提案辞書を読めません: \(error.localizedDescription)"))
         }
         refreshSuggestions(folders: folders.folders, selectedIDs: folders.selectedIDs, presets: presets.presets)
     }

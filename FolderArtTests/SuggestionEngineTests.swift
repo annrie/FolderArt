@@ -376,4 +376,44 @@ final class SuggestionEngineTests: XCTestCase {
         XCTAssertTrue(s.contains(.emoji("🅰️")), "\(s)")
     }
 
+    // MARK: - 第7段階 ①: 短コード規則は「名前まるごとの ASCII 短コード」に限る
+
+    private func hasText(_ name: String) -> Bool {
+        let engine = SuggestionEngine(dictionary: .empty,
+                                      catalog: SymbolCatalog(names: [], searchTerms: [:]))
+        return engine.suggest(for: name, presets: []).map(\.kind)
+            .contains { if case .text = $0 { return true }; return false }
+    }
+
+    private func textValue(_ name: String) -> String? {
+        let engine = SuggestionEngine(dictionary: .empty,
+                                      catalog: SymbolCatalog(names: [], searchTerms: [:]))
+        for kind in engine.suggest(for: name, presets: []).map(\.kind) {
+            if case .text(let v) = kind { return v }
+        }
+        return nil
+    }
+
+    /// アクセント付き・他言語の短い語や断片、および他字種に隣接した短コードは .text を出さない。
+    /// 断片抑制を堅牢にするため、短コードの境界は「letter でない文字」に限る (字種分類はしない)。
+    /// そのため CJK 等に貼り付いた短コード ("資料Q3" 等) も意図的に拾わない。
+    func testAccentedOrForeignShortNamesEmitNoShortCodeText() {
+        for name in ["météo", "à faire", "où", "sí", "fé", "sənəd", "до", "café",
+                     "hawaiʻi", "資料Q3", "各々Q3", "v2案件"] {
+            XCTAssertFalse(hasText(name), "\(name) で短コード text が出た")
+        }
+    }
+
+    /// 区切り (空白・記号・端) で区切られたまるごとの ASCII 短コードは .text を出す。年はどの位置でも出す。
+    func testWholeTokenAsciiShortCodeAndYearStillEmitText() {
+        XCTAssertEqual(textValue("A"), "A")
+        XCTAssertEqual(textValue("v2"), "V2")
+        XCTAssertEqual(textValue("Q3 reports"), "Q3")      // 区切られたまるごとの短コード (前置)
+        XCTAssertEqual(textValue("project v2"), "V2")      // 末尾のまるごと短コードも拾う
+        XCTAssertEqual(textValue("sənəd Q3 S"), "Q3")      // 断片 "s" は拾わず、順序どおり最初の正しいコード
+        XCTAssertEqual(textValue("2024"), "2024")
+        XCTAssertEqual(textValue("backup 2024"), "2024")   // 年は名前の途中でも拾う
+        XCTAssertNil(textValue("photos"))                  // 長い語は短コードでない
+    }
+
 }

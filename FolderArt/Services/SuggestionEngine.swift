@@ -135,13 +135,26 @@ struct SuggestionEngine {
             }
         }
 
-        // 4. 規則: 4 桁の数字、2 文字以内の英数字 → 文字
-        for token in tokens {
-            if Self.isYear(token) || Self.isShortCode(token) {
-                let value = Self.isShortCode(token) ? token.uppercased() : token
+        // 4. 規則: フォルダ名を左から走査し、4 桁の数字は年として、区切られたまるごとの 2 文字以内 ASCII
+        //    英数字は短いコードとして、最初に当たったものを文字にする。各 ASCII 英数字の run を「その場の
+        //    前後の文字」で判定するので、他字種の語が断片化したかけら ("sənəd"→"s") は拾わず、同じ値の
+        //    まるごとコードが後ろにあっても最初の正しい出現を選ぶ ("sənəd Q3 S"→"Q3")。
+        let chars = Array(normalized)
+        var i = 0
+        while i < chars.count, text == nil {
+            guard chars[i].isLetter || chars[i].isNumber, chars[i].isASCII else { i += 1; continue }
+            var j = i
+            while j < chars.count, chars[j].isLetter || chars[j].isNumber, chars[j].isASCII { j += 1 }
+            let token = String(chars[i..<j])
+            if Self.isYear(token) {
+                text = Suggestion(kind: .text(token), reason: String(localized: "フォルダ名の「\(token)」"))
+            } else if Self.isShortCode(token),
+                      Self.isShortCodeBoundary(i > 0 ? chars[i - 1] : nil),
+                      Self.isShortCodeBoundary(j < chars.count ? chars[j] : nil) {
+                let value = token.uppercased()
                 text = Suggestion(kind: .text(value), reason: String(localized: "フォルダ名の「\(value)」"))
-                break
             }
+            i = j
         }
 
         return (symbol, emoji, text)
@@ -231,4 +244,17 @@ struct SuggestionEngine {
     static func isShortCode(_ token: String) -> Bool {
         (1...2).contains(token.count) && token.allSatisfy { $0.isLetter || $0.isNumber }
     }
+
+    /// 短コードの境界か: 文字列端、または文字 (letter) でない文字 (空白・句読点・記号など)。
+    /// 「どの字種が語の区切りか」(CJK は区切り・ラテンは語の一部) は Unicode Script が要るが
+    /// Swift 標準ではそれを堅牢に判定できず、範囲・一般カテゴリでの近似は必ず取りこぼす
+    /// (々 U+3005、アゼルバイジャン ə、ハワイ語 ʻ U+02BB 等)。そこで字種分類はやめ、
+    /// 「前後が letter でないこと」だけを境界とする。これでアクセント付き・他言語の断片
+    /// ("sənəd"→"s"、"Hawaiʻi"→"i"、"météo"→"m") を確実に抑える。CJK 等に隣接した短コード
+    /// ("資料Q3" の Q3) は拾わなくなるが、区切り (空白・記号) やまるごとの短コードは従来どおり。
+    static func isShortCodeBoundary(_ ch: Character?) -> Bool {
+        guard let ch else { return true }   // 文字列端
+        return !ch.isLetter
+    }
+
 }
