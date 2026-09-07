@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// 「語 → 記号名・絵文字」の 1 項目。keys は小文字、日本語は 2 文字以上。
@@ -90,6 +91,16 @@ extension SuggestionDictionary {
             let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
             if let size = attributes[.size] as? Int, size > userMaxFileBytes { throw UserDictionaryError.tooLarge(size) }
             let data = try Data(contentsOf: url)
+            return loadUser(from: data)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    /// 読み込み済みのバイト列からユーザー辞書を組み立てる (loadUser(at:) がファイルを読んだ後にする処理そのもの)。
+    /// ファイル I/O を含まないので呼び出し側がどう読んだか (1 度の読み取りかどうか) を問わない
+    static func loadUser(from data: Data) -> Result<SuggestionDictionary, Error> {
+        do {
             guard data.count <= userMaxFileBytes else { throw UserDictionaryError.tooLarge(data.count) }
             let raw: [SuggestionEntry]
             do {
@@ -100,6 +111,38 @@ extension SuggestionDictionary {
             return .success(try normalizedUser(raw))
         } catch {
             return .failure(error)
+        }
+    }
+
+    /// ユーザー辞書ファイルを 1 度だけ読み、パース結果と内容ハッシュを同じ読み取り結果から作る。
+    /// 読み込みとハッシュ計算を別々にファイルを読むと、その間にファイルが書き換わった場合
+    /// (TOCTOU) に「パース結果は旧内容、ハッシュは新内容」というズレたスナップショットになり得る。
+    /// AppModel の無変化スキップはこのハッシュで判定するため、パース結果と必ず同じ内容を指す必要がある。
+    /// 内容ハッシュは無変化スキップ用の指紋 (必ず値を返す)。状態ごと (無し/中身/上限超過・読めない) に
+    /// 先頭 1 バイトのタグを付けて入力空間を分離するため、実際のファイル内容とセンチネルが
+    /// 衝突することはない。メインの外から呼んでよい (ファイル I/O)
+    static func loadUserSnapshot(at url: URL) -> (result: Result<SuggestionDictionary, Error>?, contentHash: Data) {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return (nil, Data(SHA256.hash(data: Data([0x00]))))                     // ファイル無し
+        }
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            if let size = attributes[.size] as? Int, size > userMaxFileBytes {
+                let contentHash = Data(SHA256.hash(data: Data([0x02]) + Data("oversize:\(size)".utf8)))
+                return (.failure(UserDictionaryError.tooLarge(size)), contentHash)
+            }
+            let data = try Data(contentsOf: url)
+            guard data.count <= userMaxFileBytes else {
+                let contentHash = Data(SHA256.hash(data: Data([0x02]) + Data("oversize:\(data.count)".utf8)))
+                return (.failure(UserDictionaryError.tooLarge(data.count)), contentHash)
+            }
+            let contentHash = Data(SHA256.hash(data: Data([0x01]) + data))          // 中身そのもの (パース結果と同じ data から)
+            return (loadUser(from: data), contentHash)
+        } catch {
+            // スタットか読み込みが失敗 (権限など)。分かればサイズも指紋に混ぜる
+            let size = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? -1
+            let contentHash = Data(SHA256.hash(data: Data([0x02]) + Data("oversize:\(size)".utf8)))
+            return (.failure(error), contentHash)
         }
     }
 

@@ -33,14 +33,15 @@ A macOS app that changes folder icons by compositing a custom image onto the sta
 - 文字のフォントと太さ: macOS 同梱の 8 種のフォントと 6 段階の太さ (太さは記号にも効く) — Font and weight for text: eight fonts bundled with macOS and six weights (weight also applies to symbols)
 - お気に入り: 見た目 (オーバーレイ + 設定) を保存し 1 クリックで復元 — Presets: save a look and restore it in one click
 - 複数フォルダへの一括適用、行を選べば一部だけに再適用 — Batch apply to many folders; select rows to re-apply to a subset
-- フォルダ名と中身からの自動提案: 記号・絵文字・文字・お気に入りの候補をタブの上に最大 4 つ表示。直下のファイルの種類 (画像・動画・書類など) に合う記号・絵文字と、画像が多ければ代表画像 — Suggestions from the folder name and contents: up to four symbol / emoji / text / preset candidates above the tabs, plus a symbol / emoji for the dominant file kind and a representative image when images dominate。自分の辞書 (`suggestions-user.json`) で語を足せる — add your own words with a user dictionary
+- フォルダ名と中身からの自動提案: 記号・絵文字・文字・お気に入りの候補をタブの上に最大 4 つ表示。直下のファイルの種類 (画像・動画・書類・電子書籍・フォント・3D モデルなど) に合う記号・絵文字と、画像が多ければ代表画像。誤検出を抑え、名前まるごと一致を優先し、辞書は 8 言語のキーに対応 — Suggestions from the folder name and contents: up to four symbol / emoji / text / preset candidates above the tabs, plus a symbol / emoji for the dominant file kind (images, videos, documents, e-books, fonts, 3D models, and more) and a representative image when images dominate; tuned to reduce false positives, prefer whole-name matches, and match dictionary keys in all eight languages。自分の辞書 (`suggestions-user.json`) で語を足せる — add your own words with a user dictionary
 - お気に入りパック (`.folderartpack`): お気に入りを 1 ファイルで書き出し・読み込み、ダブルクリックで取り込み — Preset packs (`.folderartpack`): export and import all presets as one file; double-click to import。一部だけの書き出しも可 — partial export from the … menu
 - プレビューに hover で拡大表示と 16/32/64/128px の実寸 — Hover the preview to enlarge it and see 16/32/64/128px renderings
 - ドラッグ&ドロップ (複数フォルダ、ウィンドウ任意位置への画像) — Drag & drop (multiple folders, images anywhere in the window)
 - 位置・サイズ・不透明度・上下位置・フォルダ形切り抜き — Position, size, opacity, vertical offset, clip to folder shape
+- 複数解像度でアイコンを合成し、小さな表示 (16/32px など) でも鮮明 — Icons are composited at multiple resolutions, staying crisp even at small sizes (16/32px, etc.)
 - バックアップ、リセット、履歴 — Backup, reset, history
 - 8 言語対応 (日本語・英語・ドイツ語・スペイン語・フランス語・韓国語・ポルトガル語 (ブラジル)・繁体字中国語) と「表示 > 言語」メニュー — Eight languages (Japanese, English, German, Spanish, French, Korean, Brazilian Portuguese, Traditional Chinese) and a View > Language menu
-- Finder の右クリックからクイックアクション (FolderArt で開く / FolderArt で直前のお気に入りを適用 / FolderArt でアイコンを元に戻す) — Finder right-click Quick Actions (Open in FolderArt / Apply Last Preset in FolderArt / Reset Icon in FolderArt)
+- Finder の右クリックからクイックアクション (FolderArt で開く / FolderArt で直前のお気に入りを適用 / FolderArt でアイコンを元に戻す)、表示名は 8 言語に対応 — Finder right-click Quick Actions (Open in FolderArt / Apply Last Preset in FolderArt / Reset Icon in FolderArt), with names localized into eight languages
 
 > **Note:** SF Symbols は macOS の実行時 API で描画しており、画像ファイルは同梱していません。Apple 製品や機能を表す制限付き記号は選択肢から除外しています。
 > SF Symbols are rendered via macOS's runtime API, so no image files are bundled with the app. Restricted symbols that represent Apple products or features are excluded from the picker.
@@ -142,8 +143,8 @@ Right-click a folder in the Finder to find these three items in the services men
 - **FolderArt でアイコンを元に戻す** — FolderArt が付けたアイコンだけを、開かずに元に戻す
   Reset Icon in FolderArt: resets icons FolderArt applied, without opening FolderArt
 
-3 つとも表示名が「FolderArt で〜」で始まるのは、右クリックのクイックアクション欄はアプリ別にまとまらず平坦に並ぶため、どのアプリの機能かひと目で分かるようにするためです。
-All three names start with "… in FolderArt" because the right-click Quick Actions list is flat (not grouped by app), so the name alone shows which app a given action belongs to.
+3 つとも表示名が「FolderArt で〜」で始まるのは、右クリックのクイックアクション欄はアプリ別にまとまらず平坦に並ぶため、どのアプリの機能かひと目で分かるようにするためです。表示名は `ServicesMenu.strings` により 8 言語にローカライズされ、アプリの言語に追従します。
+All three names start with "… in FolderArt" because the right-click Quick Actions list is flat (not grouped by app), so the name alone shows which app a given action belongs to. The names are localized into eight languages via `ServicesMenu.strings` and follow the app's language.
 
 「FolderArt で直前のお気に入りを適用」と「FolderArt でアイコンを元に戻す」は静かに実行され、Finder 上でアイコンが変わることが完了の合図です (エラー時のみ FolderArt が前面に出てメッセージを出します)。「FolderArt で開く」は常にアプリを前面化します。
 "Apply Last Preset in FolderArt" and "Reset Icon in FolderArt" run silently — the changed folder icon in the Finder is the confirmation (FolderArt only comes forward to show a message if something fails). "Open in FolderArt" always brings the app forward.
@@ -211,12 +212,14 @@ FolderArt/
 └── Resources/
     ├── InfoPlist.xcstrings     # 書類の種類名 (8 言語、生成物)
     ├── Localizable.xcstrings   # UI の文言 (8 言語、生成物)
+    ├── ServicesMenu.xcstrings  # クイックアクション名 (8 言語、生成物 → 各 .lproj/ServicesMenu.strings)
     ├── restricted-symbols.txt  # 制限付き記号の同梱 fallback
     └── suggestions.json        # 提案辞書（語 → 記号・絵文字）
 scripts/localization/
 ├── strings.json                # 文言の元 (キー → 8 言語)
 ├── infoplist.json              # InfoPlist 用の文言
-├── build-xcstrings.py          # .xcstrings の生成と、ソースとの突き合わせ (--check / --stringsdata)
+├── servicesmenu.json           # クイックアクション名の文言
+├── build-xcstrings.py          # .xcstrings の生成と、ソースとの突き合わせ (--check / --stringsdata、指定子の型不一致検出つき)
 └── check-compiled.sh           # コンパイラ抽出のキーとの厳密照合
 ```
 

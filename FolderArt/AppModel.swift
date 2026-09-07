@@ -1,6 +1,5 @@
 import AppKit
 import Combine
-import CryptoKit
 import SwiftUI
 import UniformTypeIdentifiers
 import os
@@ -34,6 +33,12 @@ final class AppModel: ObservableObject {
     private var dictionaryGeneration = 0
     /// 直近に失敗したユーザー辞書の内容の SHA-256。同じ内容では二度アラートを出さない
     private var lastDictionaryErrorHash: Data?
+    /// 直近に読み込んだユーザー辞書ファイルの内容ハッシュ。無変化の再読込 (無関係な書き込みでの通知) を防ぐ
+    /// (ファイルが無い状態も 1 状態として区別するため、値は必ず入る。nil は「まだ 1 度も読んでいない」だけを表す)
+    private var lastLoadedDictionaryHash: Data?
+    /// テスト用: 提案エンジンを実際に作り直した回数。無変化スキップでは増えない
+    /// (SuggestionEngine は struct で毎回新しいインスタンスに置き換わるため === では識別できない)
+    private(set) var dictionaryRebuildCount = 0
     /// 中身の走査 (テストで差し替える)。メインの外で呼ばれる
     typealias ContentScannerFunction = @Sendable (URL) -> ContentSummary?
     private let scanContents: ContentScannerFunction
@@ -157,10 +162,11 @@ final class AppModel: ObservableObject {
         // 連打などで二重に呼ばれても 1 バッチしか走らせない (途中の yield で交錯すると
         // 先に終わった方が isApplying を下ろし、残りのバッチ中にリスト操作が解禁されてしまう)
         guard !isApplying else { return }
-        // デバウンス待ちで overlayImage が古いままだと、適用と履歴で違うオーバーレイになりうる。
-        // 同期描画済みなら updatePreviewNow() は何もしない (lastRendered* ガードで冪等)。
+        // アイコンは overlay の値 (デバウンス無しで常に最新) から合成側が各サイズで描き直すので、
+        // デバウンス待ちの overlayImage (プレビュー用) には依存しない。updatePreviewNow() は
+        // 画面のプレビューを最新に保つためだけに呼ぶ (同期描画済みなら冪等)。
         overlay.updatePreviewNow()
-        guard let overlayValue = overlay.overlay, let image = overlay.overlayImage else { return }
+        guard let overlayValue = overlay.overlay else { return }
         let targets = folders.targets
         guard !targets.isEmpty else { return }
         isApplying = true
@@ -168,7 +174,7 @@ final class AppModel: ObservableObject {
         defer { isApplying = false; progress = nil }
 
         let outcome = await coordinator.apply(
-            overlayImage: image, overlay: overlayValue, settings: overlay.settings,
+            overlay: overlayValue, settings: overlay.settings, assets: assets,
             to: targets, progress: { [weak self] done, total in self?.progress = (done, total) })
         // 全件成功なら静かに終わる (既に出ているアラートを消さない)
         if let summary = outcome.summary { errorMessage = summary }
@@ -354,14 +360,16 @@ final class AppModel: ObservableObject {
     /// (Task 開始の遅延で順序が入れ替わるのを防ぐ)
     private func performDictionaryReload(generation: Int) async {
         let url = userDictionaryURL
-        let loaded = await Task.detached(priority: .utility) { () -> (result: Result<SuggestionDictionary, Error>?, hash: Data?) in
-            let result = SuggestionDictionary.loadUser(at: url)
-            // 失敗したときだけ、同じ内容で二度アラートを出さないための指紋を取る
-            var hash: Data?
-            if case .failure(let error) = result { hash = Self.dictionaryErrorFingerprint(url: url, error: error) }
-            return (result, hash)
+        // パース結果と内容ハッシュは同じ 1 回の読み取りから作る (TOCTOU 対策。SuggestionDictionary 側参照)
+        let loaded = await Task.detached(priority: .utility) {
+            SuggestionDictionary.loadUserSnapshot(at: url)
         }.value
         guard generation == dictionaryGeneration else { return }
+        // ディレクトリ内の無関係な書き込みでも FileWatcher は発火する。内容が変わっていなければ
+        // 提案エンジンを作り直さず、提案の再計算もしない
+        guard loaded.contentHash != lastLoadedDictionaryHash else { return }
+        lastLoadedDictionaryHash = loaded.contentHash
+        dictionaryRebuildCount += 1
 
         switch loaded.result {
         case nil:
@@ -372,22 +380,14 @@ final class AppModel: ObservableObject {
             lastDictionaryErrorHash = nil
         case .failure(let error):
             suggestionEngine = SuggestionEngine(dictionary: bundledDictionary, catalog: catalog)
-            if loaded.hash != lastDictionaryErrorHash {
-                lastDictionaryErrorHash = loaded.hash
+            // 内容ハッシュはパース結果と同じ 1 回の読み取りから作っているので、そのまま
+            // 「壊れたファイルの中身が変わったか」の判定にも使える (別途指紋を取り直さない)
+            if loaded.contentHash != lastDictionaryErrorHash {
+                lastDictionaryErrorHash = loaded.contentHash
                 report(String(localized: "提案辞書を読めません: \(error.localizedDescription)"))
             }
         }
         refreshSuggestions(folders: folders.folders, selectedIDs: folders.selectedIDs, presets: presets.presets)
-    }
-
-    /// 壊れた辞書の指紋。上限以内で読めれば中身の SHA-256、超過や読めないときはサイズとエラー文から作る (必ず値を返す)。
-    /// detached タスクから呼べるよう nonisolated にする (メインアクター状態には触れない)
-    nonisolated static func dictionaryErrorFingerprint(url: URL, error: Error) -> Data {
-        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? -1
-        if size >= 0, size <= SuggestionDictionary.userMaxFileBytes, let data = try? Data(contentsOf: url) {
-            return Data(SHA256.hash(data: data))
-        }
-        return Data(SHA256.hash(data: Data("\(size):\(error.localizedDescription)".utf8)))
     }
 
     /// 既に出ているアラート (起動時の保存データのエラーなど) があれば、その後ろに空行を挟んで連結する
@@ -671,17 +671,15 @@ final class AppModel: ObservableObject {
             quickActionLog.info("applyLastPreset urls=\(urls.count) dirs=\(dirs.count) hasPreset=\(preset != nil)")
             return .noPreset
         }
-        guard let image = OverlayRenderer.render(preset.overlay, settings: preset.settings,
-                                                 side: IconComposer.iconSize.width, assets: assets) else {
-            quickActionLog.error("applyLastPreset render FAILED")
-            return .failed(String(localized: "お気に入りの絵柄を作れませんでした。"))
-        }
         isApplying = true
         defer { isApplying = false }
         let started = dirs.filter { $0.startAccessingSecurityScopedResource() }
         defer { for u in started { u.stopAccessingSecurityScopedResource() } }
-        let outcome = await coordinator.apply(overlayImage: image, overlay: preset.overlay,
-                                              settings: preset.settings, to: dirs)
+        // アイコンは合成側が preset の overlay から各サイズで描き直す。描けない overlay
+        // (例: 参照先の無い .image) は composeMultiResolution が nil を返し、apply が全フォルダーを
+        // composeFailed で失敗させるので、下の failed 判定で .failed になる (描画不可 → 失敗を維持)。
+        let outcome = await coordinator.apply(overlay: preset.overlay, settings: preset.settings,
+                                              assets: assets, to: dirs)
         quickActionLog.info("applyLastPreset outcome succeeded=\(outcome.succeeded.count) failed=\(outcome.failed.count)")
         // reapAssets() は isApplying 中は何もしないので、defer の実行を待たずここで明示的に倒しておく (apply() と同じ手当て)
         isApplying = false

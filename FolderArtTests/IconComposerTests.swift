@@ -253,4 +253,185 @@ final class IconComposerTests: XCTestCase {
         XCTAssertEqual(rect.minY, -88, accuracy: 0.001)
         XCTAssertEqual(rect.maxY, 512, accuracy: 0.001)
     }
+
+    // MARK: - 複数解像度 (第6段階)
+
+    func testComposeAtCustomSideProducesThatPixelSize() {
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+        let img = IconComposer.compose(overlay: overlay, settings: CompositionSettings(), fillsWhenClipped: false, side: 32)
+        let rep = try! XCTUnwrap(img?.representations.first)
+        XCTAssertEqual(rep.pixelsWide, 32); XCTAssertEqual(rep.pixelsHigh, 32)
+    }
+
+    func testComposeMultiResolutionHasBaseRepSizes() throws {
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(), fillsWhenClipped: false))
+        let sizes = Set(img.representations.map { $0.pixelsWide })
+        let baseSizes = Set(IconComposer.standardFolderIcon.representations.map { $0.pixelsWide })
+        XCTAssertFalse(sizes.isEmpty)
+        XCTAssertEqual(sizes, baseSizes)   // 土台の表現サイズ集合と一致
+        for rep in img.representations { XCTAssertEqual(rep.pixelsWide, rep.pixelsHigh) }
+    }
+
+    /// Codex 指摘: バッジ配置の固定 20px パディングは 512px 基準で校正されており、複数解像度化で
+    /// side=16 等の小さい表現サイズを合成するとパディングがキャンバスをはみ出し、バッジが画面外に出てしまう。
+    /// パディングをキャンバスサイズへ比例させることで、どのサイズでもキャンバス内に収まるべき
+    func testBadgeStaysOnCanvasAtSmallRepresentationSizes() {
+        let settings = CompositionSettings(position: .badge, scale: 0.6, opacity: 1.0, verticalOffset: 0)
+        let imageSize = CGSize(width: 100, height: 100)
+
+        for side: CGFloat in [16, 32] {
+            let containerSize = CGSize(width: side, height: side)
+            let rect = IconComposer.calculateRect(for: imageSize, in: containerSize,
+                                                  settings: settings, fillsWhenClipped: true)
+            XCTAssertGreaterThanOrEqual(rect.minX, 0, "side=\(side): minX がキャンバス外")
+            XCTAssertGreaterThanOrEqual(rect.minY, 0, "side=\(side): minY がキャンバス外")
+            XCTAssertLessThanOrEqual(rect.maxX, side, "side=\(side): maxX がキャンバス外")
+            XCTAssertLessThanOrEqual(rect.maxY, side, "side=\(side): maxY がキャンバス外")
+        }
+    }
+
+    // MARK: - 複数解像度: Retina スケール保持 (Codex round 6)
+
+    /// pixelsWide/pixelsHigh と論理サイズ (size) が異なる (= Retina) 表現を土台に持たせたテスト用画像を作る
+    private func makeBaseImage(_ specs: [(px: Int, logical: NSSize)]) -> NSImage {
+        let image = NSImage(size: specs.first?.logical ?? .zero)
+        for spec in specs {
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: spec.px, pixelsHigh: spec.px,
+                                             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { continue }
+            rep.size = spec.logical
+            image.addRepresentation(rep)
+        }
+        return image
+    }
+
+    /// 土台に 512pt@2x (pixelsWide=1024, 論理サイズ 512×512) の表現があるとき、合成後もその論理サイズ
+    /// (スケール) を保つべき。ピクセル幅だけで集約すると論理サイズが 1024×1024 (1x 扱い) になってしまい、
+    /// Retina 用の表現が失われる
+    func testComposeMultiResolutionPreservesRetinaScale() throws {
+        let base = makeBaseImage([(px: 1024, logical: NSSize(width: 512, height: 512)),
+                                  (px: 512, logical: NSSize(width: 512, height: 512))])
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(),
+                                                                    base: base, fillsWhenClipped: false))
+        let retinaRep = try XCTUnwrap(img.representations.first { $0.pixelsWide == 1024 })
+        XCTAssertEqual(retinaRep.size, NSSize(width: 512, height: 512))
+        XCTAssertEqual(retinaRep.pixelsWide / Int(retinaRep.size.width), 2)
+    }
+
+    /// 同じピクセル幅でも論理サイズ (スケール) が異なる 2 つの土台表現 (例: 512px@1x と 256pt@2x=512px) は、
+    /// どちらも合成結果に残るべき (ピクセル幅だけの Set にすると片方が失われてしまう)
+    func testComposeMultiResolutionKeepsRepsWithSamePixelWidthButDifferentScale() throws {
+        let base = makeBaseImage([(px: 512, logical: NSSize(width: 512, height: 512)),   // 1x
+                                  (px: 512, logical: NSSize(width: 256, height: 256))])  // 2x
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .red)
+
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(),
+                                                                    base: base, fillsWhenClipped: false))
+        XCTAssertEqual(img.representations.count, 2)
+        let logicalWidths = Set(img.representations.map { $0.size.width })
+        XCTAssertEqual(logicalWidths, Set<CGFloat>([512, 256]))
+        for rep in img.representations { XCTAssertEqual(rep.pixelsWide, 512) }
+    }
+
+    // MARK: - 複数解像度: 各表現を自分自身のピクセルから合成する (Codex PR review)
+
+    /// 指定ピクセルサイズ・単色で塗った表現を作り、論理サイズを上書きする (異なる表現を色で見分けるテスト用)
+    private func makeColoredRep(px: Int, logical: NSSize, color: NSColor) -> NSBitmapImageRep {
+        let image = BitmapCanvas.draw(size: CGSize(width: CGFloat(px), height: CGFloat(px))) { size in
+            color.setFill()
+            NSRect(origin: .zero, size: size).fill()
+        }!
+        let rep = TestSupport.bitmap(of: image)
+        rep.size = logical
+        return rep
+    }
+
+    /// 土台が同じピクセル幅で論理サイズだけ異なる 2 表現 (赤 512px@1x, 青 512px@2x=論理256) を持つとき、
+    /// 合成結果の 2 つの表現はそれぞれ自分自身の土台表現の色から合成されているべき (どちらも同じ土台の
+    /// 色に潰れてしまうのは、compose に渡す base が常にフル NSImage のままで、NSImage が同じピクセル幅の
+    /// どちらの表現を描くか区別できていない証拠)
+    func testComposeMultiResolutionDrawsFromOwnRepresentationNotASharedOne() throws {
+        let base = NSImage(size: NSSize(width: 512, height: 512))
+        base.addRepresentation(makeColoredRep(px: 512, logical: NSSize(width: 512, height: 512), color: .red))
+        base.addRepresentation(makeColoredRep(px: 512, logical: NSSize(width: 256, height: 256), color: .blue))
+        // 中央にだけ小さく置く (角にオーバーレイがかからず、土台の色がそのまま見える)
+        let overlay = TestSupport.makeSolidImage(size: CGSize(width: 100, height: 100), color: .green)
+
+        let img = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: CompositionSettings(),
+                                                                    base: base, fillsWhenClipped: false))
+        XCTAssertEqual(img.representations.count, 2)
+        let cornerColors = try img.representations.map { rep -> NSColor in
+            let bitmap = try XCTUnwrap(rep as? NSBitmapImageRep)
+            return try XCTUnwrap(TestSupport.srgbColor(of: bitmap, x: 5, y: 5))
+        }
+        XCTAssertTrue(cornerColors.contains { $0.redComponent > 0.5 && $0.blueComponent < 0.5 },
+                     "赤い土台表現から合成された表現が無い (色: \(cornerColors))")
+        XCTAssertTrue(cornerColors.contains { $0.blueComponent > 0.5 && $0.redComponent < 0.5 },
+                     "青い土台表現から合成された表現が無い (色: \(cornerColors))")
+    }
+
+    // MARK: - 複数解像度: overlay を各サイズで描き直す (spec §V, Codex P2)
+
+    /// 2 つのビットマップが (許容誤差内で) 全画素一致するか。片方が nil や寸法違いなら false
+    private func bitmapsMatch(_ a: NSBitmapImageRep, _ b: NSBitmapImageRep, tolerance: CGFloat = 0.02) -> Bool {
+        guard a.pixelsWide == b.pixelsWide, a.pixelsHigh == b.pixelsHigh else { return false }
+        for y in 0..<a.pixelsHigh {
+            for x in 0..<a.pixelsWide {
+                guard let ca = TestSupport.srgbColor(of: a, x: x, y: y),
+                      let cb = TestSupport.srgbColor(of: b, x: x, y: y) else { return false }
+                if abs(ca.redComponent - cb.redComponent) > tolerance
+                    || abs(ca.greenComponent - cb.greenComponent) > tolerance
+                    || abs(ca.blueComponent - cb.blueComponent) > tolerance
+                    || abs(ca.alphaComponent - cb.alphaComponent) > tolerance { return false }
+            }
+        }
+        return true
+    }
+
+    /// spec §V: Overlay を受け取る composeMultiResolution は、各表現のピクセルサイズで overlay を
+    /// 描き直す (512px を縮小したものではない)。32px 表現が「32px でネイティブに描いた合成」と一致し、
+    /// 「512px を縮小した合成」とは一致しないことで、縮小実装 (旧 NSImage 経路の挙動) を弾く RED テスト。
+    func testComposeMultiResolutionRendersSymbolNativelyPerSize() throws {
+        let overlay = Overlay.symbol(name: "star.fill")
+        var settings = CompositionSettings()
+        settings.clipToFolderShape = false   // 切り抜きの有無に依らず、素の合成そのものを比べる
+        settings.opacity = 1.0
+        // 記号は assets を使わないが、API 上必要なので空のストアを渡す
+        let assets = AssetStore(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("MultiResSymbol_\(UUID().uuidString)"))
+        let side = 32
+
+        // 内容を固定 (黒) した 32px 単一表現の土台。3 経路とも同じ内容にして合成を決定的にする
+        // (白 tint の記号が黒地で見えるよう黒にする。透明/白だと差が判定できない)
+        func blackBase() -> NSImage {
+            let img = NSImage(size: NSSize(width: side, height: side))
+            img.addRepresentation(makeColoredRep(px: side, logical: NSSize(width: side, height: side), color: .black))
+            return img
+        }
+
+        let multi = try XCTUnwrap(IconComposer.composeMultiResolution(overlay: overlay, settings: settings,
+                                                                      assets: assets, base: blackBase()))
+        let multi32 = try XCTUnwrap(multi.representations.first { $0.pixelsWide == side } as? NSBitmapImageRep)
+
+        // 期待: 32px でネイティブに描いた overlay を、同じ内容の 32px 土台に合成したもの
+        let nativeOverlay = try XCTUnwrap(OverlayRenderer.render(overlay, settings: settings,
+                                                                side: CGFloat(side), assets: assets))
+        let nativeImage = try XCTUnwrap(IconComposer.compose(overlay: nativeOverlay, settings: settings,
+                                                            base: blackBase(), fillsWhenClipped: false, side: CGFloat(side)))
+        let native32 = TestSupport.bitmap(of: nativeImage)
+
+        // 誤った実装なら一致してしまう: 512px で描いた overlay を 32px に縮小合成したもの
+        let overlay512 = try XCTUnwrap(OverlayRenderer.render(overlay, settings: settings, side: 512, assets: assets))
+        let downscaledImage = try XCTUnwrap(IconComposer.compose(overlay: overlay512, settings: settings,
+                                                                base: blackBase(), fillsWhenClipped: false, side: CGFloat(side)))
+        let downscaled32 = TestSupport.bitmap(of: downscaledImage)
+
+        XCTAssertTrue(bitmapsMatch(multi32, native32),
+                      "32px 表現がネイティブ 32px 合成と一致しない (各サイズで描き直していない)")
+        XCTAssertFalse(bitmapsMatch(native32, downscaled32),
+                       "ネイティブ 32px と 512px 縮小が区別できない = このテストが縮小実装を弾けていない")
+    }
 }

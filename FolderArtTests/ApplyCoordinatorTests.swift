@@ -10,6 +10,7 @@ final class ApplyCoordinatorTests: XCTestCase {
     private var coordinator: ApplyCoordinator!
     private var iconManager: FolderIconManager!
     private var overlayImage: NSImage!
+    private var assets: AssetStore!
 
     override func setUp() async throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("ApplyTests_\(UUID().uuidString)")
@@ -19,6 +20,8 @@ final class ApplyCoordinatorTests: XCTestCase {
         // 本物の Application Support を汚さないよう、バックアップ先はテンポラリに逃がす
         iconManager = FolderIconManager(backupDirectory: root.appendingPathComponent("backups"))
         coordinator = ApplyCoordinator(history: history, iconManager: iconManager)
+        assets = AssetStore(directory: root.appendingPathComponent("assets"))
+        // 手動アイコン用の素材 (apply の overlay ではなく manual.applyIcon で使う)
         overlayImage = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
     }
     override func tearDown() async throws {
@@ -40,7 +43,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         var progress: [(Int, Int)] = []
 
         let outcome = await coordinator.apply(
-            overlayImage: overlayImage, overlay: .text("x"), settings: CompositionSettings(),
+            overlay: .text("x"), settings: CompositionSettings(), assets: assets,
             to: [a, missing, b], progress: { progress.append(($0, $1)) })
 
         XCTAssertEqual(outcome.succeeded.map(\.lastPathComponent), ["A", "B"])
@@ -55,26 +58,26 @@ final class ApplyCoordinatorTests: XCTestCase {
 
     func testReapplyReplacesHistoryRow() async throws {
         let a = try folder("A")
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
-                                    settings: CompositionSettings(), to: [a])
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("1"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
+        _ = await coordinator.apply(overlay: .text("2"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         XCTAssertEqual(history.tasks.count, 1)
         XCTAssertEqual(history.tasks.first?.overlay, .text("2"))
     }
 
     func testAllSuccessHasNoSummary() async throws {
         let a = try folder("A")
-        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .emoji("🎵"),
-                                              settings: CompositionSettings(), to: [a])
+        let outcome = await coordinator.apply(overlay: .emoji("🎵"),
+                                              settings: CompositionSettings(), assets: assets, to: [a])
         XCTAssertNil(outcome.summary)
         XCTAssertTrue(outcome.failed.isEmpty)
     }
 
     func testResetRemovesIconAndHistory() async throws {
         let a = try folder("A")
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("1"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         let task = try XCTUnwrap(history.task(forFolderPath: a.standardizedFileURL.path))
         try coordinator.reset(task)
         XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
@@ -100,8 +103,8 @@ final class ApplyCoordinatorTests: XCTestCase {
     /// (それは元々ある挙動)。resetIcon の失敗を確かめるには reset(folder:) を使う。
     func testResetFolderThrowsAndKeepsHistoryWhenFolderIsGone() async throws {
         let a = try folder("A")
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("1"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         try FileManager.default.removeItem(at: a)
 
         XCTAssertThrowsError(try coordinator.reset(folder: a))
@@ -118,8 +121,8 @@ final class ApplyCoordinatorTests: XCTestCase {
 
         // 手でアイコン A (赤) を設定 → 適用 → リセット
         try manual.applyIcon(red, to: a)
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("1"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         let backupDir = iconManager.backupFolder(for: a, fileID: FileIdentity.make(for: a))   // 鍵は同一性 (fileID)
         XCTAssertTrue(FileManager.default.fileExists(atPath: backupDir.path))
 
@@ -128,8 +131,8 @@ final class ApplyCoordinatorTests: XCTestCase {
 
         // 手でアイコン B (青) を設定 → 再適用したら B が新しい「元のアイコン」になる
         try manual.applyIcon(blue, to: a)
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("2"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         let backup = try XCTUnwrap(NSImage(contentsOf: backupDir.appendingPathComponent("original.png")))
         XCTAssertTrue(TestSupport.contains(color: .blue, in: backup))
         XCTAssertFalse(TestSupport.contains(color: .red, in: backup))
@@ -140,10 +143,10 @@ final class ApplyCoordinatorTests: XCTestCase {
     /// リセットで標準アイコンではなく前回の見た目に戻ってしまう
     func testReapplyWithoutOriginalIconNeverBacksUp() async throws {
         let a = try folder("A")
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
-                                    settings: CompositionSettings(), to: [a])
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("1"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
+        _ = await coordinator.apply(overlay: .text("2"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
 
         let task = try XCTUnwrap(history.task(forFolderPath: a.standardizedFileURL.path))
         XCTAssertNil(task.backupPath)
@@ -161,10 +164,10 @@ final class ApplyCoordinatorTests: XCTestCase {
         let red = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red)
         try manual.applyIcon(red, to: a)
 
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
-                                    settings: CompositionSettings(), to: [a])
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("1"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
+        _ = await coordinator.apply(overlay: .text("2"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
 
         let task = try XCTUnwrap(history.task(forFolderPath: a.standardizedFileURL.path))
         let backupPath = try XCTUnwrap(task.backupPath)
@@ -187,8 +190,8 @@ final class ApplyCoordinatorTests: XCTestCase {
         let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
         let c = ApplyCoordinator(history: lockedHistory, iconManager: iconManager)
 
-        let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                    settings: CompositionSettings(), to: [a])
+        let outcome = await c.apply(overlay: .text("x"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         XCTAssertEqual(outcome.failed.count, 1)
         XCTAssertFalse(iconManager.backupExists(for: a, fileID: FileIdentity.make(for: a)))
     }
@@ -203,8 +206,8 @@ final class ApplyCoordinatorTests: XCTestCase {
         let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
         let c = ApplyCoordinator(history: lockedHistory, iconManager: iconManager)
 
-        let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                    settings: CompositionSettings(), to: [a])
+        let outcome = await c.apply(overlay: .text("x"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         XCTAssertEqual(outcome.failed.count, 1)
         XCTAssertTrue(outcome.succeeded.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
@@ -219,12 +222,15 @@ final class ApplyCoordinatorTests: XCTestCase {
         settings.opacity = 1.0   // 合成後の色をそのまま判定できるようにする
         let manual = FolderIconManager(backupDirectory: root.appendingPathComponent("manual"))
         let green = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .green)
-        let blue = TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .blue)
+        // 適用アイコンの色で「どのアイコンが適用/巻き戻されたか」を見るため、赤・青は AssetStore に入れた
+        // 画像オーバーレイ (.image) で描く (overlayImage 引数は廃止され、合成側が overlay 値から各サイズを描くため)
+        let redID = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .red))
+        let blueID = try assets.store(TestSupport.makeSolidImage(size: CGSize(width: 64, height: 64), color: .blue))
 
         // 手で付けた元アイコン (緑) → 1 回目の適用 (赤) は成功。この赤が巻き戻し先
         try manual.applyIcon(green, to: a)
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"),
-                                    settings: settings, to: [a])
+        _ = await coordinator.apply(overlay: .image(assetID: redID),
+                                    settings: settings, assets: assets, to: [a])
 
         // 2 回目 (青) は履歴の書き込みに失敗させる
         let locked = root.appendingPathComponent("locked")
@@ -234,7 +240,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         let lockedHistory = HistoryStore(storageURL: locked.appendingPathComponent("history.json"))
         let c = ApplyCoordinator(history: lockedHistory, iconManager: iconManager)
 
-        let outcome = await c.apply(overlayImage: blue, overlay: .text("2"), settings: settings, to: [a])
+        let outcome = await c.apply(overlay: .image(assetID: blueID), settings: settings, assets: assets, to: [a])
 
         XCTAssertEqual(outcome.failed.count, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: a.appendingPathComponent("Icon\r").path))
@@ -265,8 +271,8 @@ final class ApplyCoordinatorTests: XCTestCase {
     func testPartialFailureStillSavesTheRest() async throws {
         let a = try folder("A")
         let missing = root.appendingPathComponent("missing")
-        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                              settings: CompositionSettings(), to: [a, missing])
+        let outcome = await coordinator.apply(overlay: .text("x"),
+                                              settings: CompositionSettings(), assets: assets, to: [a, missing])
         XCTAssertEqual(outcome.succeeded.map(\.lastPathComponent), ["A"])
         XCTAssertEqual(outcome.failed.map { $0.folder.lastPathComponent }, ["missing"])
         XCTAssertEqual(history.tasks.count, 1)
@@ -283,8 +289,8 @@ final class ApplyCoordinatorTests: XCTestCase {
         let freshIconManager = FolderIconManager(backupDirectory: root.appendingPathComponent("backups"))
         let c = ApplyCoordinator(history: lockedHistory, iconManager: freshIconManager)
 
-        let outcome = await c.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                    settings: CompositionSettings(), to: [a, b])
+        let outcome = await c.apply(overlay: .text("x"),
+                                    settings: CompositionSettings(), assets: assets, to: [a, b])
         XCTAssertTrue(outcome.succeeded.isEmpty)
         XCTAssertEqual(outcome.failed.count, 2)
         let prefix = String(localized: "履歴の保存に失敗しました: \("")")
@@ -312,8 +318,8 @@ final class ApplyCoordinatorTests: XCTestCase {
     /// 改名・移動したフォルダも fileID で見つけてリセットできる (履歴の行は古い path のまま)
     func testResetByFolderFindsRenamedFolderViaFileID() async throws {
         let a = try folder("A")
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                    settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("x"),
+                                    settings: CompositionSettings(), assets: assets, to: [a])
         XCTAssertEqual(history.tasks.count, 1)
         let moved = root.appendingPathComponent("A-moved")
         try FileManager.default.moveItem(at: a, to: moved)
@@ -329,8 +335,8 @@ final class ApplyCoordinatorTests: XCTestCase {
         let a = try folder("A")
         let link = root.appendingPathComponent("A-link")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: a)
-        let outcome = await coordinator.apply(overlayImage: overlayImage, overlay: .text("x"),
-                                              settings: CompositionSettings(), to: [a, link])
+        let outcome = await coordinator.apply(overlay: .text("x"),
+                                              settings: CompositionSettings(), assets: assets, to: [a, link])
         XCTAssertEqual(outcome.succeeded.count, 1)
         XCTAssertTrue(outcome.failed.isEmpty)
         XCTAssertEqual(history.tasks.count, 1)
@@ -344,7 +350,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         let a = try folder("A")
         let red = TestSupport.makeSolidImage(size: CGSize(width: 32, height: 32), color: .red)
         XCTAssertTrue(NSWorkspace.shared.setIcon(red, forFile: a.path, options: []))
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("1"), settings: CompositionSettings(), to: [a])
+        _ = await coordinator.apply(overlay: .text("1"), settings: CompositionSettings(), assets: assets, to: [a])
         let movedRow = try XCTUnwrap(history.tasks.first)
         let movedBackup = try XCTUnwrap(movedRow.backupPath)
 
@@ -353,7 +359,7 @@ final class ApplyCoordinatorTests: XCTestCase {
         let newA = try folder("A")
         let blue = TestSupport.makeSolidImage(size: CGSize(width: 32, height: 32), color: .blue)
         XCTAssertTrue(NSWorkspace.shared.setIcon(blue, forFile: newA.path, options: []))
-        _ = await coordinator.apply(overlayImage: overlayImage, overlay: .text("2"), settings: CompositionSettings(), to: [newA])
+        _ = await coordinator.apply(overlay: .text("2"), settings: CompositionSettings(), assets: assets, to: [newA])
 
         XCTAssertEqual(history.tasks.count, 2)
         let newRow = try XCTUnwrap(history.tasks.first { $0.fileID != movedRow.fileID })

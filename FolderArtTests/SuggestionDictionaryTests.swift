@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import FolderArt
 
@@ -165,6 +166,21 @@ final class SuggestionDictionaryTests: XCTestCase {
         guard case .success(let dict)? = SuggestionDictionary.loadUser(at: url) else { return XCTFail("template must load") }
         XCTAssertEqual(dict.entries.count, 1)
         XCTAssertEqual(dict.entries[0].keys, ["example", "サンプル"])
+    }
+
+    /// パース結果と内容ハッシュが必ず同じ 1 回の読み取りから作られること (TOCTOU 対策) の一貫性テスト。
+    /// 別々に読むと「パース結果は旧内容、ハッシュは新内容」というズレたスナップショットになり得るが、
+    /// loadUserSnapshot は同じ data から両方を作るため、ハッシュが指すバイト列を独自に読み直しても
+    /// 必ずパース結果と一致する
+    func testLoadUserSnapshotHashAndResultDescribeTheSameBytes() throws {
+        let json = #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#
+        let url = try write(json)
+        let fileBytes = try Data(contentsOf: url)
+        let snapshot = SuggestionDictionary.loadUserSnapshot(at: url)
+        XCTAssertEqual(snapshot.contentHash, Data(SHA256.hash(data: Data([0x01]) + fileBytes)))
+        guard case .success(let dict)? = snapshot.result else { return XCTFail("expected success") }
+        XCTAssertEqual(dict.entries.map(\.keys), [["xyzzy"]])
+        XCTAssertEqual(dict.entries[0].symbol, "star.fill")
     }
 
     func testUserDictionaryErrorsAreLocalized() {
