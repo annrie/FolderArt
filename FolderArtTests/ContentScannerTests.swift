@@ -159,6 +159,16 @@ final class ContentScannerTests: XCTestCase {
         XCTAssertEqual(rep.url.lastPathComponent, "big.png")
     }
 
+    func testRepresentativePrefersLargerImageOnDateTie() throws {
+        let same = Date(timeIntervalSince1970: 1_500_000)
+        try png("a_small.png", size: CGSize(width: 64, height: 64), date: same)     // 名前は先、でも小さい
+        try png("z_large.png", size: CGSize(width: 2000, height: 2000), date: same) // 名前は後、でも大きい
+        let summary = try XCTUnwrap(ContentScanner.scan(root))
+        let rep = try XCTUnwrap(summary.representative)
+        XCTAssertEqual(rep.url.lastPathComponent, "z_large.png")   // 同時刻なら長辺が大きい方が勝つ
+        XCTAssertEqual(rep.modificationDate, same)
+    }
+
     func testLimitStopsEnumeration() throws {
         for i in 0..<5 { try touch("f\(i).txt") }
         let summary = try XCTUnwrap(ContentScanner.scan(root, limit: 3))

@@ -140,7 +140,7 @@ enum ContentScanner {
 
         var counts: [ContentKind: Int] = [:]
         var seen = 0
-        var best: (url: URL, date: Date)?
+        var best: (url: URL, date: Date, longSide: Int)?
 
         for case let url as URL in enumerator {
             if Task.isCancelled { return nil }
@@ -156,15 +156,17 @@ enum ContentScanner {
             guard kind == .image,
                   let type = values.contentType, representableTypes.contains(where: { type.conforms(to: $0) }),
                   (values.fileSize ?? Int.max) <= maxImageBytes,
-                  let date = values.contentModificationDate,
-                  (pixelLongSide(of: url) ?? 0) >= minRepresentativePixel else { continue }
-            // 更新日時が新しいもの。同時刻は名前の昇順で先のもの
+                  let date = values.contentModificationDate else { continue }
+            let long = pixelLongSide(of: url) ?? 0
+            guard long >= minRepresentativePixel else { continue }
+            // 更新日時が新しいもの → 同時刻なら長辺が大きいもの (一括コピーで日時が揃うと名前順では極小画像を拾ってしまうため) → それも同じなら名前の昇順
             if let current = best {
-                if date > current.date || (date == current.date && url.lastPathComponent < current.url.lastPathComponent) {
-                    best = (url, date)
-                }
+                let better = date > current.date
+                    || (date == current.date && long > current.longSide)
+                    || (date == current.date && long == current.longSide && url.lastPathComponent < current.url.lastPathComponent)
+                if better { best = (url, date, long) }
             } else {
-                best = (url, date)
+                best = (url, date, long)
             }
         }
         if failed && seen == 0 { return nil }
