@@ -169,5 +169,17 @@
   "お気に入りの絵柄を作れませんでした。": ["お気に入りの絵柄を作れませんでした。", "Failed to create the preset’s image.", "Das Bild der Vorlage konnte nicht erstellt werden.", "No se pudo crear la imagen del favorito.", "Impossible de créer l’image du favori.", "즐겨찾기의 이미지를 만들지 못했습니다.", "Não foi possível criar a imagem do favorito.", "無法建立收藏的影像。"],
   "フォルダーにアイコンを適用できませんでした。": ["フォルダーにアイコンを適用できませんでした。", "Failed to apply the icon to the folders.", "Das Symbol konnte nicht auf die Ordner angewendet werden.", "No se pudo aplicar el icono a las carpetas.", "Impossible d’appliquer l’icône aux dossiers.", "폴더에 아이콘을 적용하지 못했습니다.", "Não foi possível aplicar o ícone às pastas.", "無法將圖示套用到資料夾。"],
   "FolderArt が処理中です。しばらくしてからお試しください。": ["FolderArt が処理中です。しばらくしてからお試しください。", "FolderArt is busy. Please try again in a moment.", "FolderArt ist beschäftigt. Bitte versuchen Sie es gleich noch einmal.", "FolderArt está ocupado. Inténtalo de nuevo en un momento.", "FolderArt est occupé. Réessayez dans un instant.", "FolderArt가 작업 중입니다. 잠시 후 다시 시도해 주세요.", "O FolderArt está ocupado. Tente novamente em instantes.", "FolderArt 忙碌中，請稍後再試。"],
-  "OK": ["OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK"]
+  "OK": ["OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK"],
+  "提案辞書の編集": ["提案辞書の編集", "Edit Suggestion Dictionary", "Vorschlagswörterbuch bearbeiten", "Editar diccionario de sugerencias", "Modifier le dictionnaire de suggestions", "제안 사전 편집", "Editar dicionário de sugestões", "編輯建議字典"],
+  "項目を追加": ["項目を追加", "Add Entry", "Eintrag hinzufügen", "Añadir entrada", "Ajouter une entrée", "항목 추가", "Adicionar item", "新增項目"],
+  "項目を削除": ["項目を削除", "Delete Entry", "Eintrag löschen", "Eliminar entrada", "Supprimer l’entrée", "항목 삭제", "Excluir item", "刪除項目"],
+  "(キー未設定)": ["(キー未設定)", "(No keys)", "(Keine Schlüssel)", "(Sin claves)", "(Aucune clé)", "(키 없음)", "(Sem chaves)", "（未設定鍵）"],
+  "キー": ["キー", "Keys", "Schlüssel", "Claves", "Clés", "키", "Chaves", "鍵"],
+  "キーを追加": ["キーを追加", "Add a key", "Schlüssel hinzufügen", "Añadir clave", "Ajouter une clé", "키 추가", "Adicionar chave", "新增鍵"],
+  "記号をクリア": ["記号をクリア", "Clear Symbol", "Symbol entfernen", "Borrar símbolo", "Effacer le symbole", "심볼 지우기", "Limpar símbolo", "清除符號"],
+  "クリア": ["クリア", "Clear", "Entfernen", "Borrar", "Effacer", "지우기", "Limpar", "清除"],
+  "左で項目を選ぶか＋で追加してください": ["左で項目を選ぶか＋で追加してください", "Select an entry on the left, or add one with ＋", "Wähle links einen Eintrag oder füge mit ＋ einen neuen hinzu", "Selecciona una entrada a la izquierda o añade una con ＋", "Sélectionnez une entrée à gauche ou ajoutez-en une avec ＋", "왼쪽에서 항목을 선택하거나 ＋로 추가하세요", "Selecione um item à esquerda ou adicione um com ＋", "請在左側選擇項目，或按＋新增"],
+  "ファイルが変更されています。上書きしますか？ 読み直しますか？": ["ファイルが変更されています。上書きしますか？ 読み直しますか？", "The file has changed. Overwrite it, or reload it?", "Die Datei wurde geändert. Überschreiben oder neu laden?", "El archivo ha cambiado. ¿Sobrescribir o volver a cargar?", "Le fichier a été modifié. Écraser ou recharger ?", "파일이 변경되었습니다. 덮어쓸까요, 다시 불러올까요?", "O arquivo foi alterado. Sobrescrever ou recarregar?", "檔案已變更。要覆寫還是重新讀取？"],
+  "上書き": ["上書き", "Overwrite", "Überschreiben", "Sobrescribir", "Écraser", "덮어쓰기", "Sobrescrever", "覆寫"],
+  "読み直す": ["読み直す", "Reload", "Neu laden", "Volver a cargar", "Recharger", "다시 불러오기", "Recarregar", "重新讀取"]
 }

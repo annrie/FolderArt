@@ -61,6 +61,7 @@
 		904C581F16020CE21261E00E /* Pack.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F3C060DF945BE5D432A72 /* Pack.swift */; };
 		93CADD822960CA739C001168 /* ApplyCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
+		974B5981AA8615C1D8786A99 /* DictionaryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9140D180DCF619F3423E598 /* DictionaryEditorView.swift */; };
 		99BDEEE167E51D335452959A /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508BF8B3E0DC5DE45768FBB3 /* FileWatcher.swift */; };
 		9A6287F694382FD690A4D06C /* FontCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80BE8A662DF32E320C9A499 /* FontCatalog.swift */; };
 		9D407DB3F8AD81F2B34FE1AF /* CodableStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */; };
@@ -173,6 +174,7 @@
 		B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetStripView.swift; sourceTree = "<group>"; };
 		B2BBDA62DF07FE22FED7C65A /* ApplyCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyCoordinator.swift; sourceTree = "<group>"; };
 		B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStore.swift; sourceTree = "<group>"; };
+		B9140D180DCF619F3423E598 /* DictionaryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryEditorView.swift; sourceTree = "<group>"; };
 		BBFC640AD6929557A5A8836B /* PresetImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetImporterTests.swift; sourceTree = "<group>"; };
 		C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManagerTests.swift; sourceTree = "<group>"; };
 		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
@@ -326,6 +328,7 @@
 			isa = PBXGroup;
 			children = (
 				1CB0911FF8635FF2CF356D4A /* ControlsView.swift */,
+				B9140D180DCF619F3423E598 /* DictionaryEditorView.swift */,
 				A9A0E82244158396C217FC8F /* DropZoneView.swift */,
 				8EC0E1A55C6D47150442E2BF /* FolderListView.swift */,
 				078CB4D0C0960A8AF20B032F /* HistoryView.swift */,
@@ -529,6 +532,7 @@
 				951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */,
 				1A14FEFD6767D6C974EB5819 /* ControlsView.swift in Sources */,
 				3F97BF83E2B4EBFD13751B8D /* DictionaryEditorModel.swift in Sources */,
+				974B5981AA8615C1D8786A99 /* DictionaryEditorView.swift in Sources */,
 				72268D2971AF2E0DB37123C4 /* DropZoneView.swift in Sources */,
 				B967EF7413192528205016D8 /* FileIdentity.swift in Sources */,
 				99BDEEE167E51D335452959A /* FileWatcher.swift in Sources */,
