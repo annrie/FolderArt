@@ -35,8 +35,10 @@ final class DictionaryEditorModel: ObservableObject {
         switch snapshot.result {
         case nil:
             rows = []                       // ファイル無し
+            errorMessage = nil
         case .success(let dict):
             rows = dict.entries.map { Row(keys: $0.keys, symbol: $0.symbol, emoji: $0.emoji) }
+            errorMessage = nil
         case .failure(let error):
             rows = []
             errorMessage = error.localizedDescription
@@ -107,8 +109,9 @@ final class DictionaryEditorModel: ObservableObject {
         loadedContentHash = SuggestionDictionary.loadUserSnapshot(at: url).contentHash
         isDirty = false
         pendingExternalChange = false
-        // 正規化後の姿を表示に反映
+        // 正規化後の姿を表示に反映 (Row は新しい id を持つので選択は解除する)
         rows = normalized.entries.map { Row(keys: $0.keys, symbol: $0.symbol, emoji: $0.emoji) }
+        selection = nil
         NotificationCenter.default.post(name: AppModel.userDictionaryEditedNotification, object: nil)
         return true
     }

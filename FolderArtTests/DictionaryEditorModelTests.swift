@@ -46,8 +46,19 @@ final class DictionaryEditorModelTests: XCTestCase {
         XCTAssertTrue(m.isDirty)
         XCTAssertTrue(m.save())
         XCTAssertTrue(FileManager.default.fileExists(atPath: u.path))
+        XCTAssertNil(m.selection)                              // 保存で行が作り直されるので選択は解除される
         guard case .success(let dict)? = SuggestionDictionary.loadUser(at: u) else { return XCTFail() }
         XCTAssertEqual(dict.entries.first?.emoji, "📝")
+    }
+
+    func testReloadClearsErrorMessageOnceFileBecomesReadable() throws {
+        let u = url()
+        try "not json".write(to: u, atomically: true, encoding: .utf8)
+        let m = DictionaryEditorModel(url: u)
+        XCTAssertNotNil(m.errorMessage)                        // 壊れたファイルでエラー
+        try #"[{"keys":["a"],"emoji":"⭐"}]"#.write(to: u, atomically: true, encoding: .utf8)
+        m.reload()
+        XCTAssertNil(m.errorMessage)                           // 読めるようになったらエラーは消える
     }
 
     func testExternalChangeBlocksSaveUntilForcedOrReloaded() throws {
