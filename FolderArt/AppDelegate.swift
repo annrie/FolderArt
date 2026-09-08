@@ -16,10 +16,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// できていない間に終了してしまいうる。要求した事実をここで先に記録して防ぐ
     private var windowRequested = false
 
+    /// 辞書エディタの保存通知の監視トークン。ContentView (メインウィンドウ) ではなくここで持つのは、
+    /// メインウィンドウを閉じてエディタだけ残した状態で保存されても確実に拾うため
+    private var dictionaryEditedObserver: NSObjectProtocol?
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = provider
         provider.onSilentServiceFinished = { [weak self] in self?.terminateIfLaunchedForServiceOnly() }
         provider.onShowWindow = { [weak self] in self?.showMainWindow() }
+
+        // 通知は任意のスレッドから飛びうる。handleUserDictionaryEdited() は @MainActor な非同期メソッドなので Task で包む
+        dictionaryEditedObserver = NotificationCenter.default.addObserver(
+            forName: AppModel.userDictionaryEditedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in await self.model.handleUserDictionaryEdited() }
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
