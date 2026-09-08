@@ -33,7 +33,7 @@ A macOS app that changes folder icons by compositing a custom image onto the sta
 - 文字のフォントと太さ: macOS 同梱の 8 種のフォントと 6 段階の太さ (太さは記号にも効く) — Font and weight for text: eight fonts bundled with macOS and six weights (weight also applies to symbols)
 - お気に入り: 見た目 (オーバーレイ + 設定) を保存し 1 クリックで復元 — Presets: save a look and restore it in one click
 - 複数フォルダへの一括適用、行を選べば一部だけに再適用 — Batch apply to many folders; select rows to re-apply to a subset
-- フォルダ名と中身からの自動提案: 記号・絵文字・文字・お気に入りの候補をタブの上に最大 4 つ表示。直下のファイルの種類 (画像・動画・書類・電子書籍・フォント・3D モデルなど) に合う記号・絵文字と、画像が多ければ代表画像。誤検出を抑え、名前まるごと一致を優先し、辞書は 8 言語のキーに対応 — Suggestions from the folder name and contents: up to four symbol / emoji / text / preset candidates above the tabs, plus a symbol / emoji for the dominant file kind (images, videos, documents, e-books, fonts, 3D models, and more) and a representative image when images dominate; tuned to reduce false positives, prefer whole-name matches, and match dictionary keys in all eight languages。自分の辞書 (`suggestions-user.json`) で語を足せる — add your own words with a user dictionary
+- フォルダ名と中身からの自動提案: 記号・絵文字・文字・お気に入りの候補をタブの上に最大 4 つ表示。直下のファイルの種類 (画像・動画・書類・電子書籍・フォント・3D モデルなど) に合う記号・絵文字と、画像が多ければ代表画像。誤検出を抑え、名前まるごと一致を優先し、辞書は 8 言語のキーに対応 — Suggestions from the folder name and contents: up to four symbol / emoji / text / preset candidates above the tabs, plus a symbol / emoji for the dominant file kind (images, videos, documents, e-books, fonts, 3D models, and more) and a representative image when images dominate; tuned to reduce false positives, prefer whole-name matches, and match dictionary keys in all eight languages。自分の辞書で語を足せる: アプリ内エディタ (ファイル > 提案辞書を編集…) か `suggestions-user.json` の手編集 — add your own words with the in-app editor (File > Edit Suggestion Dictionary…) or by hand-editing `suggestions-user.json`
 - お気に入りパック (`.folderartpack`): お気に入りを 1 ファイルで書き出し・読み込み、ダブルクリックで取り込み — Preset packs (`.folderartpack`): export and import all presets as one file; double-click to import。一部だけの書き出しも可 — partial export from the … menu
 - プレビューに hover で拡大表示と 16/32/64/128px の実寸 — Hover the preview to enlarge it and see 16/32/64/128px renderings
 - ドラッグ&ドロップ (複数フォルダ、ウィンドウ任意位置への画像) — Drag & drop (multiple folders, images anywhere in the window)
@@ -121,8 +121,11 @@ xcodebuild test -scheme FolderArt -destination 'platform=macOS'
 
 ## 提案辞書のカスタマイズ / Customizing suggestions
 
-「ファイル > 提案辞書を開く…」で `suggestions-user.json` (Application Support/FolderArt) を Finder に表示します。無ければ例を 1 件入れて作ります。形式は同梱の辞書と同じで、保存すると自動で反映されます (壊れていれば知らせます)。同じ語が同梱辞書にもあれば自分の辞書が優先されます。記号名は記号タブの検索で探せます。
-File > Open Suggestion Dictionary… reveals `suggestions-user.json` (Application Support/FolderArt) in the Finder, creating it with one example if needed. It uses the bundled dictionary's format and is reloaded automatically when saved (you are told if it is broken). Your entries win over bundled ones for the same word. Symbol names can be found in the Symbol tab's search.
+**アプリ内エディタ (おすすめ):** 「ファイル > 提案辞書を編集…」で専用ウィンドウを開き、項目の追加・編集・削除ができます。左の一覧で項目を選び、右でキー (語) を足し引きし、記号は検索グリッドから、絵文字は入力欄から選びます。「保存」で検証してから書き出し、本体の提案に自動で反映されます。
+In-app editor (recommended): File > Edit Suggestion Dictionary… opens a dedicated window to add, edit, and delete entries — pick an entry on the left, add/remove its keys on the right, choose a symbol from the search grid and an emoji in the field, then Save (it validates before writing and the app's suggestions update automatically).
+
+手編集も可能です。「ファイル > 提案辞書を開く…」で `suggestions-user.json` (Application Support/FolderArt) を Finder に表示します。無ければ例を 1 件入れて作ります。形式は同梱の辞書と同じで、保存すると自動で反映されます (壊れていれば知らせます)。同じ語が同梱辞書にもあれば自分の辞書が優先されます。
+Hand-editing still works: File > Open Suggestion Dictionary… reveals `suggestions-user.json` (Application Support/FolderArt) in the Finder, creating it with one example if needed. It uses the bundled dictionary's format and is reloaded automatically when saved (you are told if it is broken). Your entries win over bundled ones for the same word.
 
 ```json
 [
