@@ -7,6 +7,8 @@ struct DictionaryEditorView: View {
 
     /// 詳細ペインの「キーを追加」欄。選択が変わったら空に戻す
     @State private var newKeyText = ""
+    /// 選択切替時に「打ちかけのキー」を元の行へ取りこぼさず反映するため、直前の選択を覚える
+    @State private var lastSelection: DictionaryEditorModel.Row.ID?
 
     init(url: URL, catalog: SymbolCatalog = .shared) {
         _model = StateObject(wrappedValue: DictionaryEditorModel(url: url, catalog: catalog))
@@ -24,8 +26,16 @@ struct DictionaryEditorView: View {
         }
         .frame(minWidth: 680, minHeight: 460)
         .safeAreaInset(edge: .bottom) { saveBar }
-        .onAppear { model.reload() }               // 開くたびに最新化
-        .onChange(of: model.selection) { _ in newKeyText = "" }
+        .onAppear { model.reload(); lastSelection = model.selection }               // 開くたびに最新化
+        .onChange(of: model.selection) { newSelection in
+            // 選択を切り替える前の行に、打ちかけのキーを取りこぼさず反映してからクリアする
+            if let previous = lastSelection,
+               !newKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                model.addKey(newKeyText, to: previous)
+            }
+            newKeyText = ""
+            lastSelection = newSelection
+        }
         .alert("お知らせ", isPresented: Binding(get: { model.errorMessage != nil },
                                             set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }
@@ -208,7 +218,7 @@ struct DictionaryEditorView: View {
             Spacer()
             Button("保存") { commitPendingKeyThenSave() }
                 .keyboardShortcut(.defaultAction)
-                .disabled(!model.isDirty)
+                .disabled(!model.isDirty && newKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             Button("閉じる") { dismiss() }
         }
         .padding(8)
