@@ -343,6 +343,16 @@ final class AppModel: ObservableObject {
 
     static let revealUserDictionaryNotification = Notification.Name("FolderArt.revealUserDictionary")
 
+    /// エディタが保存した後に post される。ContentView が受けて本体の辞書を読み直す。
+    static let userDictionaryEditedNotification = Notification.Name("FolderArt.userDictionaryEdited")
+
+    /// 提案辞書エディタの保存後に呼ぶ。監視が始まっていなければ始め、辞書を読み直す。
+    /// (ファイルが今まで無く FileWatcher が監視していない場合でも確実に反映するため)
+    func handleUserDictionaryEdited() async {
+        startDictionaryWatcher()
+        await reloadUserDictionary()
+    }
+
     /// ユーザー辞書を読み直して提案エンジンを差し替える。読み込みと復号はメインの外、差し替えはメイン。
     /// 世代番号で古い結果を捨てる (監視の通知が重なっても最後の 1 回だけ採る)。中身の走査結果は使い回す。
     /// 世代の確保 (dictionaryGeneration += 1) はここで同期的に行う。init の初回読み込みも
