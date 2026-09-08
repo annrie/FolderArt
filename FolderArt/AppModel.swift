@@ -343,10 +343,8 @@ final class AppModel: ObservableObject {
 
     static let revealUserDictionaryNotification = Notification.Name("FolderArt.revealUserDictionary")
 
-    /// 「提案辞書を編集…」メニューから post される。ContentView が受けて編集ウィンドウを開く。
-    static let openDictionaryEditorNotification = Notification.Name("FolderArt.openDictionaryEditor")
-
-    /// エディタが保存した後に post される。ContentView が受けて本体の辞書を読み直す。
+    /// エディタが保存した後に post される。AppDelegate が受けて本体の辞書を読み直す
+    /// (メインウィンドウを閉じてエディタだけ残していても確実に拾うため、ContentView ではなく AppDelegate 側で監視する)。
     static let userDictionaryEditedNotification = Notification.Name("FolderArt.userDictionaryEdited")
 
     /// 提案辞書エディタの保存後に呼ぶ。監視が始まっていなければ始め、辞書を読み直す。

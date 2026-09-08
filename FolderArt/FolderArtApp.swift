@@ -19,20 +19,7 @@ struct FolderArtApp: App {
         .windowResizability(.contentMinSize)
         .defaultSize(width: 760, height: 780)
         .commands {
-            CommandGroup(after: .importExport) {
-                Button("お気に入りのパックを書き出す…") {
-                    NotificationCenter.default.post(name: AppModel.exportPackNotification, object: nil)
-                }
-                Button("お気に入りのパックを読み込む…") {
-                    NotificationCenter.default.post(name: AppModel.importPackNotification, object: nil)
-                }
-                Button("提案辞書を開く…") {
-                    NotificationCenter.default.post(name: AppModel.revealUserDictionaryNotification, object: nil)
-                }
-                Button("提案辞書を編集…") {
-                    NotificationCenter.default.post(name: AppModel.openDictionaryEditorNotification, object: nil)
-                }
-            }
+            FolderArtFileCommands()
             // 「表示」メニューに「言語」サブメニュー (チェックマーク付きの 9 択)。選ぶと ContentView がアラートで再起動を促す
             CommandGroup(after: .toolbar) {
                 Picker("言語", selection: $language.selection) {
@@ -43,13 +30,38 @@ struct FolderArtApp: App {
             }
         }
 
-        // 提案辞書エディタ専用ウィンドウ。`openWindow` は Scene/View の環境値で `.commands` 内からは
-        // 呼べないため、メニューは Notification を post し、ContentView がそれを受けて開く
+        // 提案辞書エディタ専用ウィンドウ。開くのは FolderArtFileCommands (openWindow を直接呼ぶ)。
+        // メインウィンドウを閉じていても Commands はアプリ生存中ずっと存在するので、そちらに置く
         Window("提案辞書の編集", id: "dictionary-editor") {
             DictionaryEditorView(url: appDelegate.model.userDictionaryURL)
                 .environmentObject(language)
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 720, height: 520)
+    }
+}
+
+/// 「ファイル」メニューへの追加項目。`openWindow` は Scene/View の環境値だが、`Commands` に
+/// 準拠した構造体にすれば `@Environment` で受け取れる (View と同じくシーンの環境から供給される)。
+/// これにより「提案辞書を編集…」はメインウィンドウの有無に関係なく直接ウィンドウを開ける
+/// (以前は Notification を post して ContentView が受けていたため、メインウィンドウを閉じると効かなかった)
+struct FolderArtFileCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(after: .importExport) {
+            Button("お気に入りのパックを書き出す…") {
+                NotificationCenter.default.post(name: AppModel.exportPackNotification, object: nil)
+            }
+            Button("お気に入りのパックを読み込む…") {
+                NotificationCenter.default.post(name: AppModel.importPackNotification, object: nil)
+            }
+            Button("提案辞書を開く…") {
+                NotificationCenter.default.post(name: AppModel.revealUserDictionaryNotification, object: nil)
+            }
+            Button("提案辞書を編集…") {
+                openWindow(id: "dictionary-editor")
+            }
+        }
     }
 }
