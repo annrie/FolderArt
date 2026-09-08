@@ -2612,6 +2612,59 @@
         }
       }
     },
+    "キーを入れた項目には記号か絵文字が必要です。記号か絵文字を選ぶか、その項目を削除してください。": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Eintrag mit Schlüsseln benötigt ein Symbol oder ein Emoji. Wählen Sie eines aus oder löschen Sie den Eintrag."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An entry with keys needs a symbol or an emoji. Choose one, or delete the entry."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una entrada con claves necesita un símbolo o un emoji. Elige uno, o elimina la entrada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une entrée avec des clés a besoin d’un symbole ou d’un emoji. Choisissez-en un, ou supprimez l’entrée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーを入れた項目には記号か絵文字が必要です。記号か絵文字を選ぶか、その項目を削除してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키가 있는 항목에는 심볼이나 이모지가 필요합니다. 하나를 선택하거나 항목을 삭제하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma entrada com chaves precisa de um símbolo ou emoji. Escolha um, ou exclua a entrada."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有鍵的項目需要記號或表情符號。請選擇其中之一，或刪除該項目。"
+          }
+        }
+      }
+    },
     "キーを追加": {
       "extractionState": "manual",
       "localizations": {

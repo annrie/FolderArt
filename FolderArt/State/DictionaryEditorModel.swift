@@ -45,14 +45,17 @@ final class DictionaryEditorModel: ObservableObject {
         }
     }
 
-    // MARK: - 編集操作 (すべて isDirty を立てる)
+    // MARK: - 編集操作 (実際に変化した時だけ isDirty を立てる)
 
     func addRow() {
         let row = Row(keys: [], symbol: nil, emoji: nil)
         rows.append(row); selection = row.id; isDirty = true
     }
     func deleteRows(_ ids: Set<Row.ID>) {
-        rows.removeAll { ids.contains($0.id) }; isDirty = true
+        let before = rows.count
+        rows.removeAll { ids.contains($0.id) }
+        guard rows.count != before else { return }
+        isDirty = true
         if let sel = selection, ids.contains(sel) { selection = nil }
     }
     func addKey(_ raw: String, to id: Row.ID) {
@@ -61,17 +64,24 @@ final class DictionaryEditorModel: ObservableObject {
         if !rows[i].keys.contains(key) { rows[i].keys.append(key); isDirty = true }
     }
     func removeKey(_ key: String, from id: Row.ID) {
-        guard let i = rows.firstIndex(where: { $0.id == id }) else { return }
-        rows[i].keys.removeAll { $0 == key }; isDirty = true
+        guard let i = rows.firstIndex(where: { $0.id == id }), rows[i].keys.contains(key) else { return }
+        rows[i].keys.removeAll { $0 == key }
+        isDirty = true
     }
     func setSymbol(_ name: String?, for id: Row.ID) {
         guard let i = rows.firstIndex(where: { $0.id == id }) else { return }
-        rows[i].symbol = (name?.isEmpty == true) ? nil : name; isDirty = true
+        let newValue = (name?.isEmpty == true) ? nil : name
+        guard rows[i].symbol != newValue else { return }
+        rows[i].symbol = newValue
+        isDirty = true
     }
     func setEmoji(_ emoji: String?, for id: Row.ID) {
         guard let i = rows.firstIndex(where: { $0.id == id }) else { return }
         let e = emoji?.trimmingCharacters(in: .whitespacesAndNewlines)
-        rows[i].emoji = (e?.isEmpty == true) ? nil : e; isDirty = true
+        let newValue = (e?.isEmpty == true) ? nil : e
+        guard rows[i].emoji != newValue else { return }
+        rows[i].emoji = newValue
+        isDirty = true
     }
 
     // MARK: - 保存
@@ -81,6 +91,17 @@ final class DictionaryEditorModel: ObservableObject {
     @discardableResult
     func save(force: Bool = false) -> Bool {
         let entries = rows.map { SuggestionEntry(keys: $0.keys, symbol: $0.symbol, emoji: $0.emoji) }
+        // キーはあるのに記号も絵文字も無い項目は normalizedUser が黙って捨ててしまうので、
+        // 完全に空の行 (キーも記号も絵文字も無い、＋ で足しただけの行) と区別してここで弾く。
+        let hasIncompleteRow = entries.contains { entry in
+            let hasKey = entry.keys.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            let hasSymbolOrEmoji = (entry.symbol?.isEmpty == false) || (entry.emoji?.isEmpty == false)
+            return hasKey && !hasSymbolOrEmoji
+        }
+        guard !hasIncompleteRow else {
+            errorMessage = String(localized: "キーを入れた項目には記号か絵文字が必要です。記号か絵文字を選ぶか、その項目を削除してください。")
+            return false
+        }
         let normalized: SuggestionDictionary
         do {
             normalized = try SuggestionDictionary.normalizedUser(entries)

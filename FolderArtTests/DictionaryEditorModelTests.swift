@@ -65,12 +65,62 @@ final class DictionaryEditorModelTests: XCTestCase {
         let u = url()
         try #"[{"keys":["a"],"emoji":"⭐"}]"#.write(to: u, atomically: true, encoding: .utf8)
         let m = DictionaryEditorModel(url: u); m.reload()
-        m.addRow(); m.addKey("b", to: m.rows.last!.id)
+        m.addRow(); m.addKey("b", to: m.rows.last!.id); m.setEmoji("🎶", for: m.rows.last!.id)
         // 外部で別内容に書き換える
         try #"[{"keys":["c"],"emoji":"🎵"}]"#.write(to: u, atomically: true, encoding: .utf8)
         XCTAssertFalse(m.save())                               // 外部変更で止まる
         XCTAssertTrue(m.pendingExternalChange)
         XCTAssertTrue(m.save(force: true))                     // 上書きは通る
         XCTAssertFalse(m.pendingExternalChange)
+    }
+
+    // MARK: - isDirty は実際に変化した時だけ (レビュー修正)
+
+    func testNoOpEditsDoNotSetDirty() throws {
+        let u = url()
+        try #"[{"keys":["a"],"symbol":"folder.fill","emoji":"⭐"}]"#.write(to: u, atomically: true, encoding: .utf8)
+        let m = DictionaryEditorModel(url: u); m.reload()
+        XCTAssertFalse(m.isDirty)
+
+        m.setSymbol("folder.fill", for: m.rows[0].id)          // 既存と同じ値
+        XCTAssertFalse(m.isDirty)
+
+        m.setEmoji("⭐", for: m.rows[0].id)                      // 既存と同じ値
+        XCTAssertFalse(m.isDirty)
+
+        m.removeKey("does-not-exist", from: m.rows[0].id)       // 存在しないキー
+        XCTAssertFalse(m.isDirty)
+
+        m.deleteRows([UUID()])                                  // どの行にも一致しない id
+        XCTAssertFalse(m.isDirty)
+        XCTAssertEqual(m.rows.count, 1)                          // 何も削除されていない
+    }
+
+    // MARK: - キーだけの不完全な行は保存前に弾く (レビュー修正)
+
+    func testSaveBlocksRowWithKeyButNoSymbolOrEmoji() throws {
+        let u = url()
+        let m = DictionaryEditorModel(url: u)                    // ファイル無し
+        m.addRow(); m.addKey("メモ", to: m.rows[0].id)            // キーだけ、記号も絵文字も無い
+        XCTAssertFalse(m.save())
+        XCTAssertNotNil(m.errorMessage)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: u.path))   // ファイルは作られない
+    }
+
+    func testSaveSucceedsWhenRowHasKeyAndEmoji() throws {
+        let u = url()
+        let m = DictionaryEditorModel(url: u)
+        m.addRow(); m.addKey("メモ", to: m.rows[0].id); m.setEmoji("📝", for: m.rows[0].id)
+        XCTAssertTrue(m.save())
+    }
+
+    func testSaveDropsFullyEmptyRowAlongsideValidRow() throws {
+        let u = url()
+        let m = DictionaryEditorModel(url: u)
+        m.addRow(); m.addKey("メモ", to: m.rows[0].id); m.setEmoji("📝", for: m.rows[0].id)
+        m.addRow()                                               // 完全に空の行 (＋ で足しただけ)
+        XCTAssertTrue(m.save())
+        guard case .success(let dict)? = SuggestionDictionary.loadUser(at: u) else { return XCTFail() }
+        XCTAssertEqual(dict.entries.count, 1)                    // 空の行は黙って捨てられる
     }
 }
