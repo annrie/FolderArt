@@ -123,6 +123,12 @@ final class DictionaryEditorModel: ObservableObject {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(normalized.entries)
+            guard data.count <= SuggestionDictionary.userMaxFileBytes else {
+                // load 側 (loadUserSnapshot) と同じ上限。ここで弾かないと保存は成功表示なのに
+                // 本体の読み込みが tooLarge で拒否して同梱辞書に落ちる不整合になる。
+                errorMessage = UserDictionaryError.tooLarge(data.count).localizedDescription
+                return false
+            }
             try data.write(to: url, options: .atomic)
         } catch {
             errorMessage = String(localized: "提案辞書を保存できません: \(error.localizedDescription)")

@@ -9,6 +9,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     private lazy var provider = QuickActionProvider(model: model)
 
+    /// メインウィンドウ (ContentView) を補助ウィンドウ (辞書エディタ) と確実に区別するための識別子。
+    /// ContentView 側の MainWindowTagger が起動時にこの識別子を NSWindow へ付ける。
+    static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("folderart-main-window")
+
+    /// タグ付けされたメインウィンドウ。エディタなど他の canBecomeMain なウィンドウは含まない。
+    private var taggedMainWindow: NSWindow? {
+        NSApp.windows.first { $0.identifier == Self.mainWindowIdentifier }
+    }
+
     /// ユーザーがウィンドウを出す前にサービスが呼ばれたら「起動専用」とみなす候補になる
     private var userOpenedWindow = false
     /// showMainWindow が呼ばれたかどうかを同期的に記録する。reopen によるウィンドウ生成は非同期なので、
@@ -54,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 二重起動しない)
     func showMainWindow() {
         windowRequested = true   // 同期的に記録 (reopen は非同期なので、終了ガードとの競合を防ぐ)
-        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+        if let window = taggedMainWindow {
             NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)

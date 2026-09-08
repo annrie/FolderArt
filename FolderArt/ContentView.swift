@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される。
@@ -85,6 +86,7 @@ struct ContentView: View {
                 onDrop: { model.handleDroppedURLs($0) }
             )
         )
+        .background(MainWindowTagger())
         .sheet(isPresented: $showHistory) {
             HistoryView(
                 historyStore: model.history,
@@ -162,4 +164,18 @@ struct ContentView: View {
         }
         .padding()
     }
+}
+
+/// メインウィンドウの NSWindow に AppDelegate.mainWindowIdentifier を付ける。
+/// AppDelegate 側のウィンドウ探索が辞書エディタなど補助ウィンドウと区別できるようにするため。
+/// ContentView にだけ .background で埋め込むので、エディタウィンドウには付かない。
+private struct MainWindowTagger: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { [weak view] in
+            view?.window?.identifier = AppDelegate.mainWindowIdentifier
+        }
+        return view
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }

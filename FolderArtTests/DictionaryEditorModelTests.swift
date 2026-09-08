@@ -123,4 +123,25 @@ final class DictionaryEditorModelTests: XCTestCase {
         guard case .success(let dict)? = SuggestionDictionary.loadUser(at: u) else { return XCTFail() }
         XCTAssertEqual(dict.entries.count, 1)                    // 空の行は黙って捨てられる
     }
+
+    // MARK: - エンコード後の総サイズが上限超なら保存を弾く (レビュー修正)
+
+    func testSaveRejectsOverallEncodedSizeOverLimitAndSkipsWrite() throws {
+        let u = url()                                              // ファイル無し (初回保存で外部変更ガードに引っかからない)
+        let m = DictionaryEditorModel(url: u)
+        let padding = String(repeating: "x", count: 50)
+        // 項目上限 (1000)・1 項目あたりのキー上限 (50) は超えないが、キーを目一杯 (64 文字以内で) 埋めることで
+        // エンコード後の総バイト数だけが 1MB を超える構成にする
+        for row in 0..<SuggestionDictionary.userMaxEntries {
+            m.addRow()
+            let id = m.rows.last!.id
+            for key in 0..<SuggestionDictionary.userMaxKeysPerEntry {
+                m.addKey("k\(row)-\(key)-\(padding)", to: id)
+            }
+            m.setEmoji("⭐", for: id)
+        }
+        XCTAssertFalse(m.save())
+        XCTAssertTrue(m.errorMessage?.contains("大きすぎます") == true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: u.path))    // 弾かれてファイルは作られない
+    }
 }
