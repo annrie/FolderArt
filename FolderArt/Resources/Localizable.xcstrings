@@ -2135,6 +2135,59 @@
         }
       }
     },
+    "このファイルは読み込めません。上書きすると元の内容は失われます。上書きしますか？": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei kann nicht gelesen werden. Beim Überschreiben geht der ursprüngliche Inhalt verloren. Trotzdem überschreiben?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file can’t be read. Overwriting it will lose the original contents. Overwrite it?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede leer este archivo. Sobrescribirlo eliminará el contenido original. ¿Sobrescribir de todos modos?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier est illisible. L’écraser fera perdre le contenu d’origine. Voulez-vous l’écraser quand même ?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このファイルは読み込めません。上書きすると元の内容は失われます。上書きしますか？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 파일을 읽을 수 없습니다. 덮어쓰면 원래 내용을 잃게 됩니다. 그래도 덮어쓸까요?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não é possível ler este arquivo. Sobrescrevê-lo apagará o conteúdo original. Sobrescrever mesmo assim?"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法讀取此檔案。覆寫將會遺失原始內容。仍要覆寫嗎？"
+          }
+        }
+      }
+    },
     "この見た目とフォルダーを画面に戻す": {
       "extractionState": "manual",
       "localizations": {
@@ -2343,6 +2396,59 @@
           "stringUnit": {
             "state": "translated",
             "value": "尚未使用過收藏。請先在 FolderArt 中套用一個收藏。"
+          }
+        }
+      }
+    },
+    "やめる": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やめる"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "취소"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
           }
         }
       }
@@ -2608,59 +2714,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "鍵"
-          }
-        }
-      }
-    },
-    "キーを入れた項目には記号か絵文字が必要です。記号か絵文字を選ぶか、その項目を削除してください。": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein Eintrag mit Schlüsseln benötigt ein Symbol oder ein Emoji. Wählen Sie eines aus oder löschen Sie den Eintrag."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "An entry with keys needs a symbol or an emoji. Choose one, or delete the entry."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Una entrada con claves necesita un símbolo o un emoji. Elige uno, o elimina la entrada."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Une entrée avec des clés a besoin d’un symbole ou d’un emoji. Choisissez-en un, ou supprimez l’entrée."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "キーを入れた項目には記号か絵文字が必要です。記号か絵文字を選ぶか、その項目を削除してください。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "키가 있는 항목에는 심볼이나 이모지가 필요합니다. 하나를 선택하거나 항목을 삭제하세요."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uma entrada com chaves precisa de um símbolo ou emoji. Escolha um, ou exclua a entrada."
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "有鍵的項目需要記號或表情符號。請選擇其中之一，或刪除該項目。"
           }
         }
       }
@@ -4710,6 +4763,59 @@
           "stringUnit": {
             "state": "translated",
             "value": "上書き"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "덮어쓰기"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sobrescrever"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "覆寫"
+          }
+        }
+      }
+    },
+    "上書きする": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Überschreiben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overwrite"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sobrescribir"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écraser"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上書きする"
           }
         },
         "ko": {
@@ -7045,6 +7151,59 @@
           "stringUnit": {
             "state": "translated",
             "value": "右下角標記"
+          }
+        }
+      }
+    },
+    "各項目には「キー」と「記号または絵文字」の両方が必要です。不足している項目を完成させるか、削除してください。": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder Eintrag benötigt sowohl einen Schlüssel als auch ein Symbol oder Emoji. Vervollständigen Sie den fehlenden Teil, oder löschen Sie den Eintrag."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each entry needs both a key and a symbol or emoji. Complete the missing part, or delete the entry."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada entrada necesita tanto una clave como un símbolo o emoji. Completa la parte que falta, o elimina la entrada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque entrée nécessite à la fois une clé et un symbole ou un emoji. Complétez la partie manquante, ou supprimez l’entrée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各項目には「キー」と「記号または絵文字」の両方が必要です。不足している項目を完成させるか、削除してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "각 항목에는 키와 심볼 또는 이모지가 모두 필요합니다. 부족한 부분을 채우거나 항목을 삭제하세요."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada entrada precisa tanto de uma chave quanto de um símbolo ou emoji. Complete a parte que falta, ou exclua a entrada."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每個項目都需要「鍵」和「記號或表情符號」兩者。請補齊缺少的部分，或刪除該項目。"
           }
         }
       }

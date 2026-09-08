@@ -15,6 +15,10 @@ final class DictionaryEditorModel: ObservableObject {
     @Published private(set) var isDirty = false
     @Published var errorMessage: String?
     @Published var pendingExternalChange = false
+    /// 現在のファイルが読み込めない状態 (壊れ/上限超)。黙って上書きするとデータを失うので、明示確認を要する。
+    @Published private(set) var loadFailed = false
+    /// 「読み込めないファイルを上書きしていいか」の確認をビューに促すフラグ。
+    @Published var pendingOverwriteUnreadable = false
 
     let catalog: SymbolCatalog
     private let url: URL
@@ -31,18 +35,22 @@ final class DictionaryEditorModel: ObservableObject {
         let snapshot = SuggestionDictionary.loadUserSnapshot(at: url)
         loadedContentHash = snapshot.contentHash
         pendingExternalChange = false
+        pendingOverwriteUnreadable = false
         isDirty = false
         selection = nil
         switch snapshot.result {
         case nil:
             rows = []                       // ファイル無し
             errorMessage = nil
+            loadFailed = false
         case .success(let dict):
             rows = dict.entries.map { Row(keys: $0.keys, symbol: $0.symbol, emoji: $0.emoji) }
             errorMessage = nil
+            loadFailed = false
         case .failure(let error):
             rows = []
             errorMessage = error.localizedDescription
+            loadFailed = true
         }
     }
 
@@ -92,15 +100,15 @@ final class DictionaryEditorModel: ObservableObject {
     @discardableResult
     func save(force: Bool = false) -> Bool {
         let entries = rows.map { SuggestionEntry(keys: $0.keys, symbol: $0.symbol, emoji: $0.emoji) }
-        // キーはあるのに記号も絵文字も無い項目は normalizedUser が黙って捨ててしまうので、
+        // キーだけ・記号か絵文字だけの片方だけの項目は normalizedUser が黙って捨ててしまうので、
         // 完全に空の行 (キーも記号も絵文字も無い、＋ で足しただけの行) と区別してここで弾く。
         let hasIncompleteRow = entries.contains { entry in
             let hasKey = entry.keys.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             let hasSymbolOrEmoji = (entry.symbol?.isEmpty == false) || (entry.emoji?.isEmpty == false)
-            return hasKey && !hasSymbolOrEmoji
+            return hasKey != hasSymbolOrEmoji   // 片方だけ = 不完全 (両方無し=空行は従来どおり黙って捨てる)
         }
         guard !hasIncompleteRow else {
-            errorMessage = String(localized: "キーを入れた項目には記号か絵文字が必要です。記号か絵文字を選ぶか、その項目を削除してください。")
+            errorMessage = String(localized: "各項目には「キー」と「記号または絵文字」の両方が必要です。不足している項目を完成させるか、削除してください。")
             return false
         }
         let normalized: SuggestionDictionary
@@ -111,6 +119,11 @@ final class DictionaryEditorModel: ObservableObject {
             return false
         }
         if !force {
+            if loadFailed {
+                // 読み込めないファイルを黙って上書きすると元の内容を失う。明示確認を挟む。
+                pendingOverwriteUnreadable = true
+                return false
+            }
             let current = SuggestionDictionary.loadUserSnapshot(at: url).contentHash
             if let loaded = loadedContentHash, current != loaded {
                 pendingExternalChange = true
@@ -137,6 +150,8 @@ final class DictionaryEditorModel: ObservableObject {
         loadedContentHash = SuggestionDictionary.loadUserSnapshot(at: url).contentHash
         isDirty = false
         pendingExternalChange = false
+        loadFailed = false
+        pendingOverwriteUnreadable = false
         // 正規化後の姿を表示に反映 (Row は新しい id を持つので選択は解除する)
         rows = normalized.entries.map { Row(keys: $0.keys, symbol: $0.symbol, emoji: $0.emoji) }
         selection = nil

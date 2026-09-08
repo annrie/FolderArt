@@ -34,6 +34,11 @@ struct DictionaryEditorView: View {
             Button("上書き") { model.save(force: true) }
             Button("読み直す", role: .cancel) { model.reload() }
         }
+        .alert("このファイルは読み込めません。上書きすると元の内容は失われます。上書きしますか？",
+               isPresented: $model.pendingOverwriteUnreadable) {
+            Button("上書きする", role: .destructive) { model.save(force: true) }
+            Button("やめる", role: .cancel) { }
+        }
     }
 
     // MARK: - 左: 項目一覧
@@ -79,6 +84,17 @@ struct DictionaryEditorView: View {
     private func deleteSelectedRow() {
         guard let id = model.selection else { return }
         model.deleteRows([id])
+    }
+
+    /// 「キーを追加」欄に打ちかけのテキストがあれば、保存前に選択行へ反映する。
+    /// (Return を押さずに保存した時にキーが失われるのを防ぐ)
+    private func commitPendingKeyThenSave() {
+        if let id = model.selection,
+           !newKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            model.addKey(newKeyText, to: id)
+            newKeyText = ""
+        }
+        model.save()
     }
 
     // MARK: - 右: 選択項目の詳細
@@ -190,7 +206,7 @@ struct DictionaryEditorView: View {
     private var saveBar: some View {
         HStack {
             Spacer()
-            Button("保存") { model.save() }
+            Button("保存") { commitPendingKeyThenSave() }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!model.isDirty)
             Button("閉じる") { dismiss() }

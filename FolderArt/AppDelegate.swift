@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 /// 共有 AppModel を所有し、NSServices を登録する。閉じた状態からサービスのためだけに
 /// 起動された場合は、ウィンドウを出さず処理完了後に静かに終了する。
@@ -33,6 +34,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// メインウィンドウを閉じてエディタだけ残した状態でも効くよう、ContentView ではなくここで持つ。
     private var commandObservers: [NSObjectProtocol] = []
 
+    /// AppModel の知らせ (エラー/結果) を監視し、メインウィンドウが出ていなければ出して見せる。
+    private var errorNoticeObserver: AnyCancellable?
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = provider
         provider.onSilentServiceFinished = { [weak self] in self?.terminateIfLaunchedForServiceOnly() }
@@ -64,6 +68,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Task { @MainActor in self.model.revealUserDictionary() }
             },
         ]
+
+        // AppModel.errorMessage は ContentView のアラートで出るが、メインを閉じてエディタだけの時は
+        // 埋もれる。非nil になったらメインが不可視なら出して見せる (export/import/reveal 等の知らせを拾う)。
+        errorNoticeObserver = model.$errorMessage
+            .receive(on: RunLoop.main)
+            .sink { [weak self] message in
+                guard let self, message != nil else { return }
+                if self.taggedMainWindow?.isVisible != true { self.showMainWindow() }
+            }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

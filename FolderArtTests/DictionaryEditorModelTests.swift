@@ -124,6 +124,15 @@ final class DictionaryEditorModelTests: XCTestCase {
         XCTAssertEqual(dict.entries.count, 1)                    // 空の行は黙って捨てられる
     }
 
+    func testSaveBlocksRowWithSymbolOrEmojiButNoKey() throws {
+        let u = url()
+        let m = DictionaryEditorModel(url: u)                    // ファイル無し
+        m.addRow(); m.setEmoji("📝", for: m.rows[0].id)           // 絵文字だけ、キーが無い (XOR 判定のレビュー修正)
+        XCTAssertFalse(m.save())
+        XCTAssertTrue(m.errorMessage?.contains("両方が必要") == true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: u.path))   // ファイルは作られない
+    }
+
     // MARK: - エンコード後の総サイズが上限超なら保存を弾く (レビュー修正)
 
     func testSaveRejectsOverallEncodedSizeOverLimitAndSkipsWrite() throws {
@@ -143,5 +152,32 @@ final class DictionaryEditorModelTests: XCTestCase {
         XCTAssertFalse(m.save())
         XCTAssertTrue(m.errorMessage?.contains("大きすぎます") == true)
         XCTAssertFalse(FileManager.default.fileExists(atPath: u.path))    // 弾かれてファイルは作られない
+    }
+
+    // MARK: - 読み込めないファイルを黙って上書きしない (レビュー修正: データ損失防止)
+
+    func testUnreadableFileRequiresExplicitConfirmationBeforeOverwrite() throws {
+        let u = url()
+        // 1 項目にキーを 51 個 (上限 50 を超える) 書き込み、初回読み込みが失敗する状態を作る
+        let manyKeys = (0...SuggestionDictionary.userMaxKeysPerEntry).map { "k\($0)" }
+        try JSONEncoder().encode([SuggestionEntry(keys: manyKeys, symbol: nil, emoji: "⭐")]).write(to: u)
+
+        let m = DictionaryEditorModel(url: u)
+        XCTAssertTrue(m.loadFailed)
+        XCTAssertNotNil(m.errorMessage)
+        XCTAssertTrue(m.rows.isEmpty)
+
+        // 編集して保存しようとすると、外部変更チェックより先に「読み込めないファイル」の確認で止まる
+        m.addRow(); m.addKey("メモ", to: m.rows[0].id); m.setEmoji("📝", for: m.rows[0].id)
+        let before = try Data(contentsOf: u)
+        XCTAssertFalse(m.save())
+        XCTAssertTrue(m.pendingOverwriteUnreadable)
+        XCTAssertEqual(try Data(contentsOf: u), before)          // 元の (読み込めない) 内容は失われていない
+
+        // 明示的に force すれば上書きできる
+        XCTAssertTrue(m.save(force: true))
+        XCTAssertFalse(m.loadFailed)
+        guard case .success(let dict)? = SuggestionDictionary.loadUser(at: u) else { return XCTFail() }
+        XCTAssertEqual(dict.entries.first?.emoji, "📝")
     }
 }
