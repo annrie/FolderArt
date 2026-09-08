@@ -5,6 +5,7 @@ struct ContentView: View {
     // NSServices からも同じインスタンスを操作できるよう、AppDelegate が所有するものを注入で受け取る
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var language: LanguageSetting
+    @Environment(\.openWindow) private var openWindow
     @State private var showHistory = false
     @State private var showError = false
     @State private var windowTargeted = false
@@ -97,6 +98,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: AppModel.exportPackNotification)) { _ in model.exportPack() }
         .onReceive(NotificationCenter.default.publisher(for: AppModel.importPackNotification)) { _ in model.importPackWithPanel() }
         .onReceive(NotificationCenter.default.publisher(for: AppModel.revealUserDictionaryNotification)) { _ in model.revealUserDictionary() }
+        .onReceive(NotificationCenter.default.publisher(for: AppModel.openDictionaryEditorNotification)) { _ in openWindow(id: "dictionary-editor") }
         .onReceive(NotificationCenter.default.publisher(for: AppModel.userDictionaryEditedNotification)) { _ in
             Task { await model.handleUserDictionaryEdited() }
         }

@@ -29,6 +29,9 @@ struct FolderArtApp: App {
                 Button("提案辞書を開く…") {
                     NotificationCenter.default.post(name: AppModel.revealUserDictionaryNotification, object: nil)
                 }
+                Button("提案辞書を編集…") {
+                    NotificationCenter.default.post(name: AppModel.openDictionaryEditorNotification, object: nil)
+                }
             }
             // 「表示」メニューに「言語」サブメニュー (チェックマーク付きの 9 択)。選ぶと ContentView がアラートで再起動を促す
             CommandGroup(after: .toolbar) {
@@ -39,5 +42,14 @@ struct FolderArtApp: App {
                 }
             }
         }
+
+        // 提案辞書エディタ専用ウィンドウ。`openWindow` は Scene/View の環境値で `.commands` 内からは
+        // 呼べないため、メニューは Notification を post し、ContentView がそれを受けて開く
+        Window("提案辞書の編集", id: "dictionary-editor") {
+            DictionaryEditorView(url: appDelegate.model.userDictionaryURL)
+                .environmentObject(language)
+        }
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 720, height: 520)
     }
 }

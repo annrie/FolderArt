@@ -181,5 +181,6 @@
   "左で項目を選ぶか＋で追加してください": ["左で項目を選ぶか＋で追加してください", "Select an entry on the left, or add one with ＋", "Wähle links einen Eintrag oder füge mit ＋ einen neuen hinzu", "Selecciona una entrada a la izquierda o añade una con ＋", "Sélectionnez une entrée à gauche ou ajoutez-en une avec ＋", "왼쪽에서 항목을 선택하거나 ＋로 추가하세요", "Selecione um item à esquerda ou adicione um com ＋", "請在左側選擇項目，或按＋新增"],
   "ファイルが変更されています。上書きしますか？ 読み直しますか？": ["ファイルが変更されています。上書きしますか？ 読み直しますか？", "The file has changed. Overwrite it, or reload it?", "Die Datei wurde geändert. Überschreiben oder neu laden?", "El archivo ha cambiado. ¿Sobrescribir o volver a cargar?", "Le fichier a été modifié. Écraser ou recharger ?", "파일이 변경되었습니다. 덮어쓸까요, 다시 불러올까요?", "O arquivo foi alterado. Sobrescrever ou recarregar?", "檔案已變更。要覆寫還是重新讀取？"],
   "上書き": ["上書き", "Overwrite", "Überschreiben", "Sobrescribir", "Écraser", "덮어쓰기", "Sobrescrever", "覆寫"],
-  "読み直す": ["読み直す", "Reload", "Neu laden", "Volver a cargar", "Recharger", "다시 불러오기", "Recarregar", "重新讀取"]
+  "読み直す": ["読み直す", "Reload", "Neu laden", "Volver a cargar", "Recharger", "다시 불러오기", "Recarregar", "重新讀取"],
+  "提案辞書を編集…": ["提案辞書を編集…", "Edit Suggestion Dictionary…", "Vorschlagswörterbuch bearbeiten…", "Editar diccionario de sugerencias…", "Modifier le dictionnaire de suggestions…", "제안 사전 편집…", "Editar dicionário de sugestões…", "編輯建議字典…"]
 }
