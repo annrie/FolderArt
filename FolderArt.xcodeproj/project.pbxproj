@@ -33,6 +33,7 @@
 		3252BAF0CEB72FA397EBE2D7 /* LastPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D6EED7B501BC8FBA5AD4F2C /* LastPresetStore.swift */; };
 		34092BB7148AA90FC10466B7 /* PresetExportSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C82F08D69468EF68F240D88 /* PresetExportSelectionTests.swift */; };
 		3C1DB18EEEF2C54CC1A7B134 /* PresetImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBFC640AD6929557A5A8836B /* PresetImporterTests.swift */; };
+		3F97BF83E2B4EBFD13751B8D /* DictionaryEditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24837BB7B8DDE0D5B71BED0B /* DictionaryEditorModel.swift */; };
 		41E18E2B109179ED24A22461 /* PackReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CB486E8BF2EC081D719C26 /* PackReader.swift */; };
 		49ADDF1191160084A9EF22E2 /* LanguageSettingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D74CC522553B95B6B570425 /* LanguageSettingTests.swift */; };
 		4A1CE83E9318E1DD015F95C2 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F897425F3DC5F648FC01D502 /* AppLanguage.swift */; };
@@ -60,6 +61,7 @@
 		904C581F16020CE21261E00E /* Pack.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F3C060DF945BE5D432A72 /* Pack.swift */; };
 		93CADD822960CA739C001168 /* ApplyCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528F279569DB83199B8EBE70 /* ApplyCoordinatorTests.swift */; };
 		951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EC6034740091CF94285965 /* ContentView.swift */; };
+		974B5981AA8615C1D8786A99 /* DictionaryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9140D180DCF619F3423E598 /* DictionaryEditorView.swift */; };
 		99BDEEE167E51D335452959A /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508BF8B3E0DC5DE45768FBB3 /* FileWatcher.swift */; };
 		9A6287F694382FD690A4D06C /* FontCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80BE8A662DF32E320C9A499 /* FontCatalog.swift */; };
 		9D407DB3F8AD81F2B34FE1AF /* CodableStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */; };
@@ -85,6 +87,7 @@
 		D9C2EA7379E6DAC82AF8C324 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */; };
 		DE6BDD1B58D56A95DEB816B1 /* Overlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948C526800FD33239F8ECEE6 /* Overlay.swift */; };
 		E1C67CBC82DD295E2B99CFAB /* FolderSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5944BF34C57A82B4B69FC7 /* FolderSelectionTests.swift */; };
+		E267241A499C2411603BA586 /* DictionaryEditorModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE907351626C484F71FAF07B /* DictionaryEditorModelTests.swift */; };
 		E9AD2EAFFA42AADE8A9FC01B /* OverlayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5756A3CABD998E75D8AD6787 /* OverlayState.swift */; };
 		EB122DD5941E87901BDD373E /* MaintenanceSweep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056AA67AC312C71036E58A65 /* MaintenanceSweep.swift */; };
 		EC0C479C039CA3CAC97A9B5A /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14655BB80BEA4FC7C2C3D286 /* TestSupport.swift */; };
@@ -123,6 +126,7 @@
 		1DB1AE63EF9CAB1C55BF567E /* Preset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preset.swift; sourceTree = "<group>"; };
 		1E18E5BA0DAEA82E40824B8A /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
 		1F5FEB1EF88C67CE6BAF8C51 /* IconTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconTaskTests.swift; sourceTree = "<group>"; };
+		24837BB7B8DDE0D5B71BED0B /* DictionaryEditorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryEditorModel.swift; sourceTree = "<group>"; };
 		2C7DB3DC3FE5DDB6740D4C69 /* CodableColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableColor.swift; sourceTree = "<group>"; };
 		2D4A42B200F3ECC9F84481CA /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
 		38A81799CE8A48D1556863A3 /* SuggestionDictionaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionDictionaryTests.swift; sourceTree = "<group>"; };
@@ -166,9 +170,11 @@
 		A7C64A9672DDD4CF3A84B058 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A88FA647BCC1BCC025BC6515 /* QuickActionProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionProviderTests.swift; sourceTree = "<group>"; };
 		A9A0E82244158396C217FC8F /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
+		AE907351626C484F71FAF07B /* DictionaryEditorModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryEditorModelTests.swift; sourceTree = "<group>"; };
 		B1C5ED3EA64E6E89043EB142 /* PresetStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetStripView.swift; sourceTree = "<group>"; };
 		B2BBDA62DF07FE22FED7C65A /* ApplyCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyCoordinator.swift; sourceTree = "<group>"; };
 		B2FFCE0DAEEB271B51CEAC6E /* CodableStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableStore.swift; sourceTree = "<group>"; };
+		B9140D180DCF619F3423E598 /* DictionaryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryEditorView.swift; sourceTree = "<group>"; };
 		BBFC640AD6929557A5A8836B /* PresetImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetImporterTests.swift; sourceTree = "<group>"; };
 		C404EB929706FB4251F7441B /* FolderIconManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIconManagerTests.swift; sourceTree = "<group>"; };
 		C48C29BB5C87E4E4E977BF06 /* FolderArtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderArtApp.swift; sourceTree = "<group>"; };
@@ -276,6 +282,7 @@
 				F32AF64C6BC7076BB5980869 /* CodableStoreTests.swift */,
 				E375CA9DF3C69A4C35F16593 /* CompositionSettingsTests.swift */,
 				A110DF5C661C36A69FAE2B1E /* ContentScannerTests.swift */,
+				AE907351626C484F71FAF07B /* DictionaryEditorModelTests.swift */,
 				E2E620EEF7BF40816D92451F /* FileIdentityTests.swift */,
 				F4999488FFD0CFC907FCD9E2 /* FileWatcherTests.swift */,
 				52990AC15E576E0D76436F0D /* FolderArtTests.swift */,
@@ -321,6 +328,7 @@
 			isa = PBXGroup;
 			children = (
 				1CB0911FF8635FF2CF356D4A /* ControlsView.swift */,
+				B9140D180DCF619F3423E598 /* DictionaryEditorView.swift */,
 				A9A0E82244158396C217FC8F /* DropZoneView.swift */,
 				8EC0E1A55C6D47150442E2BF /* FolderListView.swift */,
 				078CB4D0C0960A8AF20B032F /* HistoryView.swift */,
@@ -352,6 +360,7 @@
 		D1111541300CB15D1353099E /* State */ = {
 			isa = PBXGroup;
 			children = (
+				24837BB7B8DDE0D5B71BED0B /* DictionaryEditorModel.swift */,
 				79B32F2E4CCED86453A4AE2A /* FolderSelection.swift */,
 				5756A3CABD998E75D8AD6787 /* OverlayState.swift */,
 			);
@@ -476,6 +485,7 @@
 				6D62D70A8556D0DF15E26B79 /* CodableStoreTests.swift in Sources */,
 				CA0CEF06231A91F28BE15B00 /* CompositionSettingsTests.swift in Sources */,
 				CD92F26CC43034BFBE2ACB76 /* ContentScannerTests.swift in Sources */,
+				E267241A499C2411603BA586 /* DictionaryEditorModelTests.swift in Sources */,
 				4DAE2B732E80BEA67DE72D86 /* FileIdentityTests.swift in Sources */,
 				C0426B35E620BD4D8BD7FF3E /* FileWatcherTests.swift in Sources */,
 				1F241D827E3D3188B8D32EC9 /* FolderArtTests.swift in Sources */,
@@ -521,6 +531,8 @@
 				1AD52387C737C36712524973 /* ContentScanner.swift in Sources */,
 				951F69E25910DD6C24DB9AF5 /* ContentView.swift in Sources */,
 				1A14FEFD6767D6C974EB5819 /* ControlsView.swift in Sources */,
+				3F97BF83E2B4EBFD13751B8D /* DictionaryEditorModel.swift in Sources */,
+				974B5981AA8615C1D8786A99 /* DictionaryEditorView.swift in Sources */,
 				72268D2971AF2E0DB37123C4 /* DropZoneView.swift in Sources */,
 				B967EF7413192528205016D8 /* FileIdentity.swift in Sources */,
 				99BDEEE167E51D335452959A /* FileWatcher.swift in Sources */,
@@ -594,7 +606,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FolderArt/FolderArt.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = FolderArt/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -602,7 +614,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.7.1;
+				MARKETING_VERSION = 1.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
@@ -633,7 +645,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FolderArt/FolderArt.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = FolderArt/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -641,7 +653,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.7.1;
+				MARKETING_VERSION = 1.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.FolderArt;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;

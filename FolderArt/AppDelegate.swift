@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 /// 共有 AppModel を所有し、NSServices を登録する。閉じた状態からサービスのためだけに
 /// 起動された場合は、ウィンドウを出さず処理完了後に静かに終了する。
@@ -9,6 +10,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     private lazy var provider = QuickActionProvider(model: model)
 
+    /// メインウィンドウ (ContentView) を補助ウィンドウ (辞書エディタ) と確実に区別するための識別子。
+    /// ContentView 側の MainWindowTagger が起動時にこの識別子を NSWindow へ付ける。
+    static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("folderart-main-window")
+
+    /// タグ付けされたメインウィンドウ。エディタなど他の canBecomeMain なウィンドウは含まない。
+    private var taggedMainWindow: NSWindow? {
+        NSApp.windows.first { $0.identifier == Self.mainWindowIdentifier }
+    }
+
     /// ユーザーがウィンドウを出す前にサービスが呼ばれたら「起動専用」とみなす候補になる
     private var userOpenedWindow = false
     /// showMainWindow が呼ばれたかどうかを同期的に記録する。reopen によるウィンドウ生成は非同期なので、
@@ -16,10 +26,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// できていない間に終了してしまいうる。要求した事実をここで先に記録して防ぐ
     private var windowRequested = false
 
+    /// 辞書エディタの保存通知の監視トークン。ContentView (メインウィンドウ) ではなくここで持つのは、
+    /// メインウィンドウを閉じてエディタだけ残した状態で保存されても確実に拾うため
+    private var dictionaryEditedObserver: NSObjectProtocol?
+
+    /// app レベルのメニューコマンド (書き出し/読み込み/辞書を開く) の監視トークン。
+    /// メインウィンドウを閉じてエディタだけ残した状態でも効くよう、ContentView ではなくここで持つ。
+    private var commandObservers: [NSObjectProtocol] = []
+
+    /// AppModel の知らせ (エラー/結果) を監視し、メインウィンドウが出ていなければ出して見せる。
+    private var errorNoticeObserver: AnyCancellable?
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = provider
         provider.onSilentServiceFinished = { [weak self] in self?.terminateIfLaunchedForServiceOnly() }
         provider.onShowWindow = { [weak self] in self?.showMainWindow() }
+
+        // 通知は任意のスレッドから飛びうる。handleUserDictionaryEdited() は @MainActor な非同期メソッドなので Task で包む
+        dictionaryEditedObserver = NotificationCenter.default.addObserver(
+            forName: AppModel.userDictionaryEditedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in await self.model.handleUserDictionaryEdited() }
+        }
+
+        // メニューの「書き出し/読み込み/辞書を開く」も AppDelegate で観測する。
+        // これらは以前 ContentView が受けていたため、メインウィンドウを閉じると効かなかった。
+        // model のメソッドは @MainActor なので Task で包む (queue: .main のクロージャは非分離)。
+        let center = NotificationCenter.default
+        commandObservers = [
+            center.addObserver(forName: AppModel.exportPackNotification, object: nil, queue: .main) { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in self.model.exportPack() }
+            },
+            center.addObserver(forName: AppModel.importPackNotification, object: nil, queue: .main) { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in self.model.importPackWithPanel() }
+            },
+            center.addObserver(forName: AppModel.revealUserDictionaryNotification, object: nil, queue: .main) { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in self.model.revealUserDictionary() }
+            },
+        ]
+
+        // AppModel.errorMessage は ContentView のアラートで出るが、メインを閉じてエディタだけの時は
+        // 埋もれる。非nil になったらメインが不可視なら出して見せる (export/import/reveal 等の知らせを拾う)。
+        errorNoticeObserver = model.$errorMessage
+            .receive(on: RunLoop.main)
+            .sink { [weak self] message in
+                guard let self, message != nil else { return }
+                if self.taggedMainWindow?.isVisible != true { self.showMainWindow() }
+            }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
@@ -31,7 +88,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Dock アイコンクリックなどでウィンドウが無ければ前面化する (標準の Reopen ハンドラ)
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { showMainWindow() }
+        // 補助ウィンドウ (辞書エディタ) が可視でも flag は true になる。メインウィンドウ自体が
+        // 出ていなければ (タグ付きが無い/不可視) 出す。エディタの可視性で抑止しない。
+        if taggedMainWindow?.isVisible != true { showMainWindow() }
         return true
     }
 
@@ -42,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 二重起動しない)
     func showMainWindow() {
         windowRequested = true   // 同期的に記録 (reopen は非同期なので、終了ガードとの競合を防ぐ)
-        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+        if let window = taggedMainWindow {
             NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)

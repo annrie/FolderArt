@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     // AppModel が子オブジェクトの objectWillChange を転送するので、これ 1 つで再描画される。
@@ -85,6 +86,7 @@ struct ContentView: View {
                 onDrop: { model.handleDroppedURLs($0) }
             )
         )
+        .background(MainWindowTagger())
         .sheet(isPresented: $showHistory) {
             HistoryView(
                 historyStore: model.history,
@@ -94,9 +96,6 @@ struct ContentView: View {
             )
         }
         .onOpenURL { url in Task { await model.importPack(url: url) } }
-        .onReceive(NotificationCenter.default.publisher(for: AppModel.exportPackNotification)) { _ in model.exportPack() }
-        .onReceive(NotificationCenter.default.publisher(for: AppModel.importPackNotification)) { _ in model.importPackWithPanel() }
-        .onReceive(NotificationCenter.default.publisher(for: AppModel.revealUserDictionaryNotification)) { _ in model.revealUserDictionary() }
         // onChange は初期値では発火しない。起動時点で既に出ている読み込みエラーはここで拾う
         .onAppear { showError = (model.errorMessage != nil) }
         .onChange(of: model.errorMessage) { msg in showError = (msg != nil) }
@@ -162,4 +161,18 @@ struct ContentView: View {
         }
         .padding()
     }
+}
+
+/// メインウィンドウの NSWindow に AppDelegate.mainWindowIdentifier を付ける。
+/// AppDelegate 側のウィンドウ探索が辞書エディタなど補助ウィンドウと区別できるようにするため。
+/// ContentView にだけ .background で埋め込むので、エディタウィンドウには付かない。
+private struct MainWindowTagger: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { [weak view] in
+            view?.window?.identifier = AppDelegate.mainWindowIdentifier
+        }
+        return view
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }

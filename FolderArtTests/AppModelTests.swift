@@ -790,6 +790,19 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(hasSymbol("star.fill", in: m))
     }
 
+    /// エディタが保存した後に呼ばれる想定。FileWatcher に頼らず、直接ファイルを書いてから
+    /// 明示的に反映を呼んだだけで提案が変わることを確認する
+    func testHandleUserDictionaryEditedReloadsSuggestions() async throws {
+        let user = root.appendingPathComponent("suggestions-user.json")
+        let m = makeDictionaryModel(userDictionary: user)
+        m.addFolders([try makeFolder("xyzzy")])
+        let before = m.dictionaryRebuildCount
+        try #"[{"keys": ["xyzzy"], "symbol": "star.fill", "emoji": "⭐"}]"#.write(to: user, atomically: true, encoding: .utf8)
+        await m.handleUserDictionaryEdited()
+        XCTAssertEqual(m.dictionaryRebuildCount, before + 1)
+        XCTAssertTrue(hasSymbol("star.fill", in: m))
+    }
+
     func testStartupErrorsAreJoined() async throws {
         let historyURL = root.appendingPathComponent("history4.json")
         try "{ broken history".write(to: historyURL, atomically: true, encoding: .utf8)
