@@ -48,7 +48,7 @@ A macOS app that changes folder icons by compositing a custom image onto the sta
 
 ## スクリーンショット / Screenshots
 
-<img width="760" alt="FolderArt 1.4.0" src="docs/images/main.png" />
+<img width="760" alt="FolderArt 1.8.0" src="docs/images/main.png" />
 
 ## 動作環境 / Requirements
 
